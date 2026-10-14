@@ -117,7 +117,8 @@ get their own session, apart from the desk's.
 
 ![Two that.s on a PDF page on the tray; the selection bar's that. button; day and night](screenshot-that.png)
 
-Select words in a PDF, or select a playing video's sheet, and press **⌘ .**
+Select words in a PDF, select a playing video's sheet, or ⌥-drag a region,
+and press **⌘ .**
 (Ctrl+. on Windows) or **that.** on the selection bar. In a live web page,
 select words and press ⌘ . there. Carrel keeps a *that.* in the project and
 puts its chip on the tray at the bottom left: the page (`p.42`), the moment
@@ -132,6 +133,15 @@ but keeps it.
 
 Text selectors are relative to the page for a PDF and to the page's text for
 a web page, so a *that.* can be found again when the source shifts.
+
+![A region that. opened as a box on its page; at night, a new region drawn and waiting for ⌘ .](screenshot-region.png)
+
+**Regions.** Hold ⌥ (Alt) and drag over a source to draw a box, then press
+⌘ . to keep it, or Esc to drop it. On a PDF the box is kept in percent of
+its page, so it lands in the same place at any size, and opening its chip
+shows the box on the page. Every region keeps a picture of what it covered;
+on a web page or a video, opening it shows that picture (a video also seeks
+to its moment).
 
 ![An opened chip brightens its band in the PDF; at night, a that. whose words are gone shows its saved copy](screenshot-reanchor.png)
 

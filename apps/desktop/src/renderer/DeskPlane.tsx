@@ -1,4 +1,4 @@
-import { momentOf } from '@carrel/core/selectors'
+import { momentOf, regionOf } from '@carrel/core/selectors'
 import {
   bounds,
   changed,
@@ -66,6 +66,8 @@ type Gesture =
   | { kind: 'marquee'; from: { x: number; y: number }; base: Set<string> }
   // Panning with Space held or the middle button; `from` is in screen pixels.
   | { kind: 'pan'; from: { x: number; y: number }; start: View }
+  // A region for that., drawn with ⌥ (Alt) over a sheet.
+  | { kind: 'region'; sheet: string; from: { x: number; y: number } }
 
 /**
  * The grid-paper mat and its sheets. Sheets move by their label row and
@@ -95,6 +97,9 @@ export function DeskPlane({
   const [guides, setGuides] = useState<Guide[]>([])
   const [gesture, setGesture] = useState<Gesture>()
   const [marquee, setMarquee] = useState<Rect>()
+  // A region drawn over a sheet, in desk units, waiting for that. (⌘ .).
+  const [region, setRegion] = useState<{ sheet: string; rect: Rect }>()
+  const [capturing, setCapturing] = useState(false)
   const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
   // The project's *that.*s; those on this desk's sources are chips on the tray.
@@ -340,7 +345,10 @@ export function DeskPlane({
       const at = point(event)
       const dx = at.x - gesture.from.x
       const dy = at.y - gesture.from.y
-      if (gesture.kind === 'marquee') {
+      if (gesture.kind === 'region') {
+        const sheet = latest.current.find((candidate) => candidate.id === gesture.sheet)
+        if (sheet) setRegion({ sheet: sheet.id, rect: clip(rectFrom(gesture.from, at), footprint(sheet)) })
+      } else if (gesture.kind === 'marquee') {
         if (Math.hypot(dx, dy) < 3) return
         const rect = rectFrom(gesture.from, at)
         setMarquee(rect)
@@ -364,7 +372,8 @@ export function DeskPlane({
       setGesture(undefined)
       setGuides([])
       setMarquee(undefined)
-      if (gesture.kind === 'marquee' || gesture.kind === 'pan') return
+      if (gesture.kind === 'region') setRegion((drawn) => (drawn && drawn.rect.w >= 8 && drawn.rect.h >= 8 ? drawn : undefined))
+      if (gesture.kind === 'marquee' || gesture.kind === 'pan' || gesture.kind === 'region') return
       const current = preview
       const ids = changed(gesture.before, current).map((sheet) => sheet.id)
       if (ids.length === 0) return
@@ -446,6 +455,7 @@ export function DeskPlane({
     const text = pdfSelection(window.getSelection())
     const textItem = text && itemOf(text.sheet)
     if (text && textItem) request = { itemId: textItem, ...text.request }
+    else if (region) request = await regionRequest(region)
     else {
       const [only] = selected.size === 1 ? [...selected] : []
       const item = only === undefined ? undefined : items.get(itemOf(only) ?? '')
@@ -458,16 +468,46 @@ export function DeskPlane({
       }
     }
     if (!request) {
-      setError('Select some text, or a playing video, then press that. (⌘ .) to point at it.')
+      setError('Select some text, a playing video, or ⌥-drag a region, then press that. (⌘ .) to point at it.')
       return
     }
     try {
       addToTray(await api.makeThat(request))
+      setRegion(undefined)
       setError(undefined)
     } catch (reason) {
       setError(message(reason))
     }
-  }, [addToTray, items, selected])
+  }, [addToTray, items, region, selected])
+
+  // A region becomes a box in percent of the PDF page under it, or of the
+  // sheet's source, with a picture of it taken without the dashed outline.
+  const regionRequest = async (drawn: { sheet: string; rect: Rect }): Promise<ThatRequest | undefined> => {
+    const sheet = latest.current.find((candidate) => candidate.id === drawn.sheet)
+    const element = mat.current?.querySelector(`.sheet[data-sheet="${drawn.sheet}"]`)
+    const origin = mat.current?.getBoundingClientRect()
+    if (!sheet?.itemId || !element || !origin) return undefined
+    const onScreen = rectToScreen(viewRef.current, drawn.rect)
+    const box = new DOMRect(onScreen.x + origin.left, onScreen.y + origin.top, onScreen.w, onScreen.h)
+    setCapturing(true)
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))
+    const image = await window.carrel.web.frame({ x: box.x, y: box.y, w: box.width, h: box.height }).catch(() => undefined)
+    setCapturing(false)
+    const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
+    const page = [...element.querySelectorAll<HTMLElement>('.pdf-page')].find((candidate) => {
+      const rect = candidate.getBoundingClientRect()
+      return middle.x >= rect.left && middle.x <= rect.right && middle.y >= rect.top && middle.y <= rect.bottom
+    })
+    const source = page ?? element.querySelector('.sheet-paper > :last-child') ?? element
+    const seconds = videoMoment(drawn.sheet)
+    return {
+      itemId: sheet.itemId,
+      region: percentOf(box, source.getBoundingClientRect()),
+      ...(page ? { page: Number(page.dataset.page) } : {}),
+      ...(seconds !== undefined ? { seconds } : {}),
+      ...(image ? { image } : {}),
+    }
+  }
 
   // A chip brings its sheet into the middle of the view, selected, and opens
   // the spot: a PDF scrolls to the words, a video seeks, a web page goes live
@@ -500,6 +540,8 @@ export function DeskPlane({
     const moment = momentOf(that.selectors)
     if (item.file) setFocus({ sheet: sheet.id, that, nonce: Date.now() })
     else if (embedded(item) && moment !== undefined) seekVideo(sheet.id, moment)
+    // A region on a web page can't be found again in a page that scrolls; its picture is what it showed.
+    else if (regionOf(that.selectors)) setSavedCopy(that)
     else if (asWebPage(item)) {
       setActive(sheet.id)
       window.carrel.web.showThat(sheet.id, that.id)
@@ -521,6 +563,7 @@ export function DeskPlane({
       if (event.key === 'Escape') {
         setSelected(new Set())
         setActive(undefined)
+        setRegion(undefined)
       }
       else if (mod && (event.key === '=' || event.key === '+')) zoomBy(1)
       else if (mod && event.key === '-') zoomBy(-1)
@@ -621,6 +664,14 @@ export function DeskPlane({
               key={sheet.id}
               className="sheet"
               data-sheet={sheet.id}
+              onPointerDownCapture={(event) => {
+                // ⌥-drag (Alt-drag) over a source draws a region to point at.
+                if (!event.altKey || event.button !== 0 || sheet.itemId === null) return
+                event.preventDefault()
+                event.stopPropagation()
+                setRegion(undefined)
+                setGesture({ kind: 'region', sheet: sheet.id, from: point(event) })
+              }}
               data-selected={isSelected || undefined}
               data-lifted={lifted || undefined}
               data-pile-top={stack?.at(-1) === sheet || undefined}
@@ -689,6 +740,9 @@ export function DeskPlane({
           )
         })}
         {marquee && <div className="marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
+        {region && !capturing && (
+          <div className="that-region" style={{ left: region.rect.x, top: region.rect.y, width: region.rect.w, height: region.rect.h }} />
+        )}
         {guides.map((guide, i) => (
           <span
             key={i}
@@ -771,7 +825,9 @@ export function DeskPlane({
         onAddLink={addLink}
       />
       <ThatTray thats={tray} items={items} lost={lost} onOpen={openThat} onRemove={(that) => setOffTray((known) => new Set(known).add(that.id))} />
-      {savedCopy && <SavedThat that={savedCopy} item={items.get(savedCopy.itemId)} onClose={() => setSavedCopy(undefined)} />}
+      {savedCopy && (
+        <SavedThat that={savedCopy} item={items.get(savedCopy.itemId)} changed={lost.has(savedCopy.id) || !items.has(savedCopy.itemId)} onClose={() => setSavedCopy(undefined)} />
+      )}
       {error && (
         <p className="desk-error" role="alert">
           {error}
@@ -779,6 +835,22 @@ export function DeskPlane({
       )}
     </main>
   )
+}
+
+/** The part of `rect` inside `bounds`. */
+function clip(rect: Rect, bounds: Rect): Rect {
+  const x = Math.max(rect.x, bounds.x)
+  const y = Math.max(rect.y, bounds.y)
+  return { x, y, w: Math.max(0, Math.min(rect.x + rect.w, bounds.x + bounds.w) - x), h: Math.max(0, Math.min(rect.y + rect.h, bounds.y + bounds.h) - y) }
+}
+
+/** `inner` in percent of `outer` (both in window pixels), kept inside it. */
+function percentOf(inner: DOMRect, outer: DOMRect): { x: number; y: number; w: number; h: number } {
+  const x = Math.max(0, Math.min(100, ((inner.left - outer.left) / outer.width) * 100))
+  const y = Math.max(0, Math.min(100, ((inner.top - outer.top) / outer.height) * 100))
+  const right = Math.max(0, Math.min(100, ((inner.right - outer.left) / outer.width) * 100))
+  const bottom = Math.max(0, Math.min(100, ((inner.bottom - outer.top) / outer.height) * 100))
+  return { x, y, w: right - x, h: bottom - y }
 }
 
 function message(reason: unknown): string {

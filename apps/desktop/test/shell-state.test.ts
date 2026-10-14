@@ -113,7 +113,9 @@ describe('that. through the shell', () => {
     const moment = await controller().makeThat({ itemId: video.id, seconds: 754.34, image: new Uint8Array([1, 2, 3]) })
     expect(moment).toMatchObject({ label: '12:34', image: true })
     expect([...((await controller().thatImage(moment.id)) ?? [])]).toEqual([1, 2, 3])
-    expect((await controller().thats()).map((that) => that.label)).toEqual(['p.3', '12:34'])
+    const region = await controller().makeThat({ itemId: paper?.id, page: 2, region: { x: 10, y: 20, w: 30, h: 15 } })
+    expect(region.selectors.at(-1)).toMatchObject({ value: 'xywh=percent:10,20,30,15' })
+    expect((await controller().thats()).map((that) => that.label)).toEqual(['p.3', '12:34', 'p.2'])
   })
 
   it('refuses a that. outside the project or the text', async () => {

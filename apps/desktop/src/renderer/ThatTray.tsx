@@ -59,7 +59,7 @@ function tip(that: ThatView, item: ItemView | undefined): string {
 }
 
 /** What a *that.* said when it was made, shown when its source no longer has it. */
-export function SavedThat({ that, item, onClose }: { that: ThatView; item: ItemView | undefined; onClose: () => void }) {
+export function SavedThat({ that, item, changed, onClose }: { that: ThatView; item: ItemView | undefined; changed: boolean; onClose: () => void }) {
   const [image, setImage] = useState<string>()
   useEffect(() => {
     if (!that.image) return
@@ -74,14 +74,17 @@ export function SavedThat({ that, item, onClose }: { that: ThatView; item: ItemV
   return (
     <div className="that-saved" role="dialog" aria-label="Saved copy" onPointerDown={(event) => event.stopPropagation()}>
       <header>
-        <span className="that-chip" data-state="saved">
-          {chipLabel(that, item)} · saved
+        <span className="that-chip" data-state={changed ? 'saved' : undefined}>
+          {chipLabel(that, item)}
+          {changed && ' · saved'}
         </span>
         <button type="button" className="that-remove" aria-label="Close" onClick={onClose}>
           ×
         </button>
       </header>
-      <p className="that-saved-note">{item ? `${item.title} has changed; this is what it said.` : 'Its source is gone; this is what it said.'}</p>
+      <p className="that-saved-note">
+        {!changed ? `What it showed in ${item?.title ?? 'its source'}.` : item ? `${item.title} has changed; this is what it said.` : 'Its source is gone; this is what it said.'}
+      </p>
       {that.text && <blockquote>{that.text}</blockquote>}
       {image && <img src={image} alt="The saved frame" />}
     </div>

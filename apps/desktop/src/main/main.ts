@@ -154,9 +154,9 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelectorAll('.sheet').length === 1"))) return 'adding a sheet did nothing'
   const center = async (selector: string): Promise<{ x: number; y: number }> =>
     page(`(() => { const r = document.querySelector('${selector}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
-  const drag = async (from: { x: number; y: number }, dx: number, dy: number): Promise<void> => {
+  const drag = async (from: { x: number; y: number }, dx: number, dy: number, keys: Array<'alt'> = []): Promise<void> => {
     const send = (type: 'mouseDown' | 'mouseMove' | 'mouseUp', x: number, y: number, held = false): void =>
-      window.webContents.sendInputEvent({ type, x, y, button: 'left', clickCount: 1, modifiers: held ? ['leftbuttondown'] : [] })
+      window.webContents.sendInputEvent({ type, x, y, button: 'left', clickCount: 1, modifiers: held ? ['leftbuttondown', ...keys] : keys })
     send('mouseMove', from.x, from.y)
     send('mouseDown', from.x, from.y)
     for (let step = 1; step <= 10; step++) {
@@ -320,6 +320,15 @@ async function deskInteractions(
   if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.text === '${THAT_WORD}'))`))) {
     return 'the that. was not kept'
   }
+  // A region: ⌥-drag (Alt-drag) a box over the PDF, then ⌘.; it is kept in percent of the page.
+  await page('getSelection().removeAllRanges()')
+  const pdfPage = await center('.sheet[data-kind="paper"] .pdf-page')
+  await drag({ x: pdfPage.x - 30, y: pdfPage.y - 30 }, 60, 50, ['alt'])
+  if (!(await waitFor("document.querySelector('.that-region') !== null"))) return 'an Alt-drag over the PDF drew no region'
+  await key('.', [mod])
+  if (!(await waitFor("window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.image && that.selectors.some((s) => s.value?.startsWith('xywh=percent:'))))"))) {
+    return `the region was not kept: ${String(await page("document.querySelector('.desk-error')?.textContent ?? 'no message'"))}`
+  }
   return undefined
 }
 
@@ -376,6 +385,9 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor("CSS.highlights.get('that-active')?.size === 1 && document.querySelector('.that-saved') === null"))) {
       return fail('opening the chip did not find its words')
     }
+    // The region's chip opens its box on the page.
+    await page("document.querySelectorAll('.that-tray .that-chip')[2].click()")
+    if (!(await waitFor("document.querySelector('.that-box[data-active]') !== null"))) return fail('opening the region did not show its box')
     // The web page's chip makes its page live and marks the words there.
     await page(`${chip('127.0.0.1')}.click()`)
     if (!(await waitFor("document.querySelector('.web-page[data-live]') !== null"))) {
@@ -387,7 +399,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       itemId: items.find((item) => item.kind === 'paper').id, page: 1, text: { source: 'Words this PDF never had', start: 0, end: 24 },
     }))`)
     await reload()
-    if (!(await waitFor("document.querySelectorAll('.that-tray .that-chip').length === 3"))) return fail('the new chip did not show')
+    if (!(await waitFor("document.querySelectorAll('.that-tray .that-chip').length === 4"))) return fail('the new chip did not show')
     await page("[...document.querySelectorAll('.that-tray .that-chip')].at(-1).click()")
     if (!(await waitFor("document.querySelector('.that-saved blockquote')?.textContent === 'Words this PDF never had'"))) {
       return fail('a that. with its words gone did not show its saved copy')

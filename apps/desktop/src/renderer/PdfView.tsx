@@ -1,6 +1,6 @@
 import { getDocument, GlobalWorkerOptions, TextLayer, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
-import { findText, pageOf } from '@carrel/core/selectors'
+import { findText, pageOf, regionOf } from '@carrel/core/selectors'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { ThatView } from '../shared/workspace-api.js'
 import { bandKey, setActiveBand, setBands } from './bands.js'
@@ -186,8 +186,29 @@ function PdfPage(props: {
   }, [near, page, pixels, width])
 
   // Bands under this page's that.s: exact position first, then the quote.
-  const mine = thats.filter((that) => pageOf(that.selectors) === number)
+  const mine = thats.filter((that) => pageOf(that.selectors) === number && regionOf(that.selectors) === undefined)
+  const boxes = thats.flatMap((that) => {
+    const region = pageOf(that.selectors) === number ? regionOf(that.selectors) : undefined
+    return region ? [{ that, region }] : []
+  })
   const handled = useRef<number>(undefined)
+  const [activeBox, setActiveBox] = useState<string>()
+
+  // A region that. is a box on its page: opening it scrolls the box into view.
+  useEffect(() => {
+    const entry = focus && boxes.find((candidate) => candidate.that.id === focus.that.id)
+    const element = entry && box.current?.querySelector<HTMLElement>(`[data-that="${entry.that.id}"]`)
+    const scroller = root.current
+    if (!focus || !entry || !element || !scroller || handled.current === focus.nonce) return
+    handled.current = focus.nonce
+    const view = scroller.getBoundingClientRect()
+    const factor = view.height / scroller.clientHeight || 1
+    scroller.scrollTop += (element.getBoundingClientRect().top - view.top - view.height / 3) / factor
+    setActiveBox(entry.that.id)
+    setActiveBand(undefined)
+    onFound(entry.that.id, true)
+    // Runs when a newly opened region's page comes near.
+  }, [focus?.nonce, near])
   useEffect(() => {
     const layer = text.current
     if (!layer || drawn === 0) return
@@ -202,6 +223,8 @@ function PdfPage(props: {
     if (focus && handled.current !== focus.nonce) {
       handled.current = focus.nonce
       const range = placed.get(focus.that.id)
+      if (regionOf(focus.that.selectors)) return
+      setActiveBox(undefined)
       onFound(focus.that.id, range !== undefined)
       const scroller = root.current
       if (range && scroller) {
@@ -226,6 +249,15 @@ function PdfPage(props: {
           <div className="textLayer" ref={text} />
         </>
       )}
+      {boxes.map(({ that, region }) => (
+        <div
+          key={that.id}
+          className="that-box"
+          data-that={that.id}
+          data-active={activeBox === that.id || undefined}
+          style={{ left: `${region.x}%`, top: `${region.y}%`, width: `${region.w}%`, height: `${region.h}%` }}
+        />
+      ))}
     </div>
   )
 }
