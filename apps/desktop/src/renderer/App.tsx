@@ -32,6 +32,9 @@ export function App() {
   }, [project])
   const addItems = (added: ItemView[]): void => setItems((known) => new Map([...known, ...added.map((item) => [item.id, item] as const)]))
 
+  // A web page can rename its item once it loads.
+  useEffect(() => window.carrel.web.onItem((item) => setItems((known) => new Map(known).set(item.id, item))), [])
+
   // Each action returns the new state from disk; errors reach the field that asked.
   const actions: WorkspaceActions = {
     openProject: async (name) => setState(await api.openProject(name)),

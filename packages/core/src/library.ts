@@ -10,6 +10,7 @@ import { FORMAT, type Actor, type Workspace } from './workspace.js'
  * ~/Carrel/<project>/items/<item id>/
  *   item.json        kind, title, who added it, and where the source is
  *   <file>.pdf       a stored book or paper, copied in when added
+ *   snapshot.png     how a web page looked when last seen live
  *
  * Books and papers are stored files; web pages and videos are linked by URL
  * and never downloaded.
@@ -69,6 +70,22 @@ export class Library {
     const item = await this.read(folder, id)
     if (item.source.storage !== 'stored') throw new Error('That item is linked, not stored.')
     return join(this.itemDir(folder, id), item.source.file)
+  }
+
+  /** Where a web page's last snapshot is kept. */
+  snapshotPath(folder: string, id: string): string {
+    return join(this.itemDir(folder, id), 'snapshot.png')
+  }
+
+  /** Renames an item, as when a web page tells us its real title. */
+  async setTitle(folder: string, id: string, title: string, actor: Actor = 'user'): Promise<ItemFile> {
+    const trimmed = title.trim().slice(0, 300)
+    const item = await this.read(folder, id)
+    if (trimmed.length === 0 || trimmed === item.title) return item
+    const next = { ...item, title: trimmed }
+    await writeJson(this.itemFile(folder, id), next)
+    await this.workspace.event(folder, actor, 'item.renamed', { id, title: trimmed })
+    return next
   }
 
   /** Copies a PDF into the project as a new item. */

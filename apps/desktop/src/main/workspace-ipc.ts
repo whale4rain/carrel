@@ -47,6 +47,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     addFiles: (paths) => controller.addFiles(paths),
     addLink: (url) => controller.addLink(text(url)),
     itemBytes: (id) => controller.itemBytes(text(id)),
+    snapshot: (id) => controller.snapshot(text(id)),
   }
   for (const [name, run] of Object.entries(api)) handle(workspaceChannels[name as keyof WorkspaceApi], run)
   return async () => {
