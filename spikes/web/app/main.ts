@@ -172,7 +172,7 @@ async function drive(script: string): Promise<void> {
 async function runCheck(): Promise<void> {
   const failures: string[] = []
   const expect = (label: string, ok: boolean): void => {
-    console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}`)
+    console.log(`${ok ? 'ok  ' : 'FAIL'} ${label}${ok ? '' : ` (live: ${live ?? 'none'}, ${lastDecision.reason})`}`)
     if (!ok) failures.push(label)
   }
   const shots = process.env.CARREL_SPIKE_SHOTS
@@ -202,7 +202,7 @@ async function runCheck(): Promise<void> {
   expect('a sheet moved over it turns it into a snapshot', live === undefined && lastDecision.reason === 'covered')
   await shot('2-covered')
 
-  await drive("desk.place('lecture', 720, 60); desk.scale('textbook', 0.6)")
+  await drive("desk.place('lecture', 400, 60); desk.scale('textbook', 0.6)")
   expect('scaled to 60% it is live again', live === 'textbook')
   expect('the page zooms to match', sheets.get('textbook')?.view.webContents.getZoomFactor() === 0.6)
   await shot('3-scaled')

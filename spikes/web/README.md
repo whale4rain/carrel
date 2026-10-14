@@ -42,8 +42,11 @@ dependency; that's a phase 6 question.
   scaled sheets would show snapshots; they don't have to.
 - **The swap is fast.** Capturing a visible view took about 2–17 ms here
   (software rendering in a container); live → snapshot including a fresh
-  capture took 13 ms on average, about one frame. CI prints the same numbers
-  for Mac and Windows.
+  capture took 13 ms on average, about one frame. On CI, Windows captured in
+  6 ms on average (17 ms max) and swapped to a snapshot in 17 ms. The Mac
+  runner (no GPU) was slower: 125 ms average capture, 327 ms max, 60 ms
+  average swap. So on Mac, keep the snapshot from the last refresh and show
+  it at once, and capture the fresh one after.
 - **Only overlap, dragging and leaving the desk force a snapshot.** Everything
   else can stay live.
 
