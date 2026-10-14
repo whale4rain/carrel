@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { Frame } from '../shared/frame.js'
 import { shortcut } from '../shared/frame.js'
-import type { ShellState } from '../shared/workspace-api.js'
+import type { ItemView, ShellState } from '../shared/workspace-api.js'
 import { BookIcon, ChevronIcon, LinkIcon, NoteIcon, SearchIcon, SparkIcon } from './icons.js'
 import { initials } from './initials.js'
 import { NameField } from './NameField.js'
@@ -17,10 +17,12 @@ interface Props {
   frame: Frame
   state: ShellState
   actions: WorkspaceActions
+  items: readonly ItemView[]
 }
 
 /** One project, its desks, and the things the project owns. */
-export function Sidebar({ frame, state, actions }: Props) {
+export function Sidebar({ frame, state, actions, items }: Props) {
+  const count = (...kinds: Array<ItemView['kind']>): number => items.filter((item) => kinds.includes(item.kind)).length
   const open = state.open
   const [menu, setMenu] = useState(false)
   const [naming, setNaming] = useState<'project' | 'desk'>()
@@ -142,17 +144,17 @@ export function Sidebar({ frame, state, actions }: Props) {
             <button type="button" className="row">
               <BookIcon />
               <span className="grow">Books &amp; papers</span>
-              <span className="count">0</span>
+              <span className="count">{count('book', 'paper')}</span>
             </button>
             <button type="button" className="row">
               <LinkIcon />
               <span className="grow">Videos</span>
-              <span className="count">0</span>
+              <span className="count">{count('video')}</span>
             </button>
             <button type="button" className="row">
               <LinkIcon />
               <span className="grow">Web pages</span>
-              <span className="count">0</span>
+              <span className="count">{count('web_page')}</span>
             </button>
             <button type="button" className="row">
               <SparkIcon />

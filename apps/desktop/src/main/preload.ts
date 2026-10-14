@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer } from 'electron'
+import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { workspaceChannels, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -16,10 +16,16 @@ const workspace: WorkspaceApi = {
   desk: (id) => call(workspaceChannels.desk, id),
   saveSheets: (id, sheets, change) => call(workspaceChannels.saveSheets, id, sheets, change),
   saveViewport: (id, viewport) => call(workspaceChannels.saveViewport, id, viewport),
+  items: () => call(workspaceChannels.items),
+  chooseFiles: () => call(workspaceChannels.chooseFiles),
+  addFiles: (paths) => call(workspaceChannels.addFiles, paths),
+  addLink: (url) => call(workspaceChannels.addLink, url),
 }
 
 // The typed bridge between renderer and main.
 contextBridge.exposeInMainWorld('carrel', {
   platform: process.platform,
   workspace,
+  /** The path of a file dropped on the window. */
+  pathForFile: (file: File) => webUtils.getPathForFile(file),
 })

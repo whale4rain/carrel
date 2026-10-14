@@ -1,5 +1,5 @@
 import { bounds, toDesk, type Rect, type View } from '@carrel/desk'
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from 'react'
+import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
 
 /** The minimap's size on screen. */
 const MAP = { w: 168, h: 112 }
@@ -18,7 +18,11 @@ export function DeskNav(props: {
   onFit: () => void
   onTidy: () => void
   onAddSheet: () => void
+  onAddFiles: () => void
+  onAddLink: (url: string) => void
 }) {
+  const [adding, setAdding] = useState<'menu' | 'link'>()
+  const [link, setLink] = useState('')
   const { view, screen, sheets } = props
   const visible = { ...toDesk(view, { x: 0, y: 0 }), w: screen.w / view.zoom, h: screen.h / view.zoom }
   const world = bounds([visible, ...sheets])!
@@ -76,10 +80,62 @@ export function DeskNav(props: {
         <button type="button" onClick={props.onTidy} disabled={sheets.length < 2}>
           Tidy up
         </button>
-        <button type="button" onClick={props.onAddSheet}>
-          + Sheet
+        <button type="button" aria-expanded={adding !== undefined} onClick={() => setAdding(adding ? undefined : 'menu')}>
+          + Add
         </button>
       </div>
+      {adding === 'menu' && (
+        <div className="add-menu" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setAdding(undefined)
+              props.onAddFiles()
+            }}
+          >
+            Book or paper (PDF)…
+          </button>
+          <button type="button" role="menuitem" onClick={() => setAdding('link')}>
+            Web page or video link…
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setAdding(undefined)
+              props.onAddSheet()
+            }}
+          >
+            Blank sheet
+          </button>
+        </div>
+      )}
+      {adding === 'link' && (
+        <form
+          className="add-menu add-link"
+          onSubmit={(event) => {
+            event.preventDefault()
+            if (link.trim().length === 0) return
+            props.onAddLink(link.trim())
+            setLink('')
+            setAdding(undefined)
+          }}
+        >
+          <input
+            autoFocus
+            type="url"
+            placeholder="Paste a link"
+            aria-label="Link to a web page or video"
+            value={link}
+            onChange={(event) => setLink(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === 'Escape') setAdding(undefined)
+            }}
+          />
+          <button type="submit">Add</button>
+        </form>
+      )}
     </div>
   )
 }

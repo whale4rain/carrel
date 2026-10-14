@@ -37,7 +37,7 @@ desk in a temporary home, restarts, and checks they come back.
 
 | Do | How |
 | --- | --- |
-| Add a blank sheet | Double-click the mat, or **+ Sheet** |
+| Add a blank sheet | Double-click the mat, or **+ Add**, Blank sheet |
 | Move | Drag a sheet's label row; snap guides show near other sheets |
 | Resize | Drag one of the eight handles of a single selected sheet |
 | Select | Click a label; Shift-click to add; drag a marquee on the bare mat; ⌘A / Ctrl+A |
@@ -63,6 +63,24 @@ near the screen are mounted.
 
 Each finished gesture is saved and logged as one event, and is one undo step.
 Undo history lasts while the desk is open.
+
+## Sources
+
+![PDF, web page and video sheets with the Add menu; adding a link at night](screenshot-sources.png)
+
+**+ Add** on the pill adds a book or paper (PDF), a web page or video link,
+or a blank sheet. You can also drop PDFs or links on the desk, or paste a
+link anywhere but a text field. A source becomes an item of the project and
+a sheet on this desk; the sidebar counts them.
+
+```
+~/Carrel/<project>/items/<item id>/
+  item.json           kind, title, who added it, and where the source is
+  <file>.pdf          a stored book or paper, copied in
+```
+
+Web pages and videos are linked by URL and never downloaded. Until each
+kind's viewer comes, a sheet shows the source's title and where it is.
 
 ## Frames
 

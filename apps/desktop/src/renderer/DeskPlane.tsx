@@ -38,13 +38,12 @@ import {
   type View,
 } from '@carrel/desk'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { Sheet } from '../shared/workspace-api.js'
+import type { ItemView, Sheet } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
+import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 
 const api = window.carrel.workspace
 
-/** A new blank sheet's size at 100%. */
-const BLANK = { w: 400, h: 300 }
 /** Sheets this far outside the screen (in screen pixels) stay mounted. */
 const MOUNT_MARGIN = 400
 /** The grid paper's square at 100%. */
@@ -70,7 +69,18 @@ type Gesture =
  * zooms with pinch, ⌘/Ctrl-scroll, ⌘+ and ⌘−; the view is saved with the desk.
  * Only sheets near the screen are mounted.
  */
-export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
+export function DeskPlane({
+  deskId,
+  name,
+  items,
+  onItemsAdded,
+}: {
+  deskId: string
+  name: string
+  /** The project's sources, by id. */
+  items: ReadonlyMap<string, ItemView>
+  onItemsAdded: (items: ItemView[]) => void
+}) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
@@ -116,7 +126,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       setSheets(next)
       api.saveSheets(deskId, next, { kind, ids }).then(
         () => setError(undefined),
-        (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
+        (reason: unknown) => setError(`Couldn't save: ${message(reason)}`),
       )
     },
     [deskId],
@@ -129,7 +139,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     if (saved.x === view.x && saved.y === view.y && saved.zoom === view.zoom) return
     const timer = setTimeout(() => {
       savedView.current = view
-      api.saveViewport(deskId, view).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)))
+      api.saveViewport(deskId, view).catch((reason: unknown) => setError(`Couldn't save: ${message(reason)}`))
     }, 400)
     return () => clearTimeout(timer)
   }, [deskId, loaded, view])
@@ -182,13 +192,54 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     return () => element.removeEventListener('wheel', onWheel)
   }, [])
 
-  const addSheet = (): void => {
+  // New sheets: a blank one, or one per added source. They land near `at`
+  // (desk units), or near the top-left of the screen.
+  const addSheets = (added: Array<ItemView | null>, at?: { x: number; y: number }): void => {
+    const current = latest.current
     const shown = visibleRect(view, screen.w, screen.h)
-    const spot = placeNew(sheets, { x: Math.round(shown.x + 48 / view.zoom), y: Math.round(shown.y + 48 / view.zoom) })
-    const sheet: Sheet = { id: crypto.randomUUID(), itemId: null, ...spot, ...BLANK, scale: 1, z: Math.max(0, ...sheets.map((s) => s.z)) + 1 }
-    save([...sheets, sheet], 'added', [sheet.id], sheets)
-    setSelected(new Set([sheet.id]))
+    const origin = at ?? { x: Math.round(shown.x + 48 / view.zoom), y: Math.round(shown.y + 48 / view.zoom) }
+    let next = current
+    for (const item of added) {
+      const size = SHEET_FOR[item?.kind ?? 'blank']
+      const spot = placeNew(next, origin)
+      const sheet: Sheet = { id: crypto.randomUUID(), itemId: item?.id ?? null, ...spot, ...size, z: Math.max(0, ...next.map((s) => s.z)) + 1 }
+      next = [...next, sheet]
+    }
+    const ids = next.slice(current.length).map((sheet) => sheet.id)
+    if (ids.length === 0) return
+    save(next, 'added', ids, current)
+    setSelected(new Set(ids))
   }
+  const addSheet = (): void => addSheets([null])
+
+  // Sources come into the project first, then onto this desk.
+  const addSources = (adding: Promise<ItemView[]>, at?: { x: number; y: number }): void => {
+    adding.then(
+      (added) => {
+        if (added.length === 0) return
+        onItemsAdded(added)
+        addSheets(added, at)
+        setError(undefined)
+      },
+      (reason: unknown) => setError(message(reason)),
+    )
+  }
+  const addFiles = (): void => addSources(api.chooseFiles().then((paths) => (paths.length > 0 ? api.addFiles(paths) : [])))
+  const addLink = (url: string, at?: { x: number; y: number }): void => addSources(api.addLink(url).then((item) => [item]), at)
+
+  // A link pasted anywhere but a field becomes a source.
+  useEffect(() => {
+    const onPaste = (event: ClipboardEvent): void => {
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      const url = linkIn(event.clipboardData?.getData('text/plain') ?? '')
+      if (!url) return
+      event.preventDefault()
+      addLink(url)
+    }
+    window.addEventListener('paste', onPaste)
+    return () => window.removeEventListener('paste', onPaste)
+  })
 
   const startMove = (event: ReactPointerEvent, id: string): void => {
     if (event.button !== 0) return
@@ -409,6 +460,18 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       onDoubleClick={(event) => {
         if (event.target === event.currentTarget) addSheet()
       }}
+      onDragOver={(event) => {
+        event.preventDefault()
+        event.dataTransfer.dropEffect = 'copy'
+      }}
+      onDrop={(event) => {
+        event.preventDefault()
+        const at = point(event)
+        const paths = [...event.dataTransfer.files].map((file) => window.carrel.pathForFile(file)).filter((path) => path.length > 0)
+        if (paths.length > 0) return addSources(api.addFiles(paths), at)
+        const url = linkIn(event.dataTransfer.getData('text/uri-list').split('\n')[0] ?? '') ?? linkIn(event.dataTransfer.getData('text/plain'))
+        if (url) addLink(url, at)
+      }}
     >
       {loaded && sheets.length === 0 && (
         <p className="desk-empty">
@@ -422,6 +485,8 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
           const isSelected = selected.has(sheet.id)
           const lifted = gesture?.kind === 'move' && gesture.moved && gesture.ids.has(sheet.id)
           const stack = sheet.pile === undefined ? undefined : stacks.get(sheet.pile)
+          const item = sheet.itemId === null ? undefined : items.get(sheet.itemId)
+          const title = item?.title ?? (sheet.itemId === null ? 'Blank sheet' : 'Missing source')
           return (
             <section
               key={sheet.id}
@@ -429,14 +494,23 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
               data-selected={isSelected || undefined}
               data-lifted={lifted || undefined}
               data-pile-top={stack?.at(-1) === sheet || undefined}
-              aria-label="Blank sheet"
+              aria-label={title}
+              data-kind={item?.kind}
               style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: sheet.z }}
             >
               <div className="sheet-paper" style={{ width: sheet.w, height: sheet.h, transform: `scale(${sheet.scale})` }}>
                 <div className="sheet-label" onPointerDown={(event) => startMove(event, sheet.id)}>
-                  <span>Blank sheet</span>
+                  {item && <span className="sheet-kind">{KIND_LABEL[item.kind]}</span>}
+                  <span className="sheet-title">{title}</span>
                   <span className="position">{Math.round(sheet.scale * 100)}%</span>
                 </div>
+                {item && (
+                  <div className="source-face">
+                    <h3>{item.title}</h3>
+                    <p className="position">{sourceLine(item)}</p>
+                    {item.url && <p className="source-url">{item.url}</p>}
+                  </div>
+                )}
               </div>
             </section>
           )
@@ -527,14 +601,20 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
         onFit={fit}
         onTidy={tidyUp}
         onAddSheet={addSheet}
+        onAddFiles={addFiles}
+        onAddLink={addLink}
       />
       {error && (
         <p className="desk-error" role="alert">
-          Couldn't save: {error}
+          {error}
         </p>
       )}
     </main>
   )
+}
+
+function message(reason: unknown): string {
+  return reason instanceof Error ? reason.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '') : String(reason)
 }
 
 /** Under the selection, or above it when there's no room below. */

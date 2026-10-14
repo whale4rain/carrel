@@ -1,8 +1,19 @@
 // What the renderer sees of projects and desks, and how it asks for changes.
 // Main owns the files; the renderer only gets summaries back.
-import type { Sheet, SheetChange, Viewport } from '@carrel/core'
+import type { ItemKind, Sheet, SheetChange, Viewport } from '@carrel/core'
 
-export type { Sheet, SheetChange, Viewport }
+export type { ItemKind, Sheet, SheetChange, Viewport }
+
+/** A source in the open project, as the renderer sees it. */
+export interface ItemView {
+  id: string
+  kind: ItemKind
+  title: string
+  /** Linked items: the address. */
+  url?: string
+  /** Stored items: the file's name and size in bytes. */
+  file?: { name: string; size: number }
+}
 
 export interface DeskSummary {
   id: string
@@ -35,6 +46,14 @@ export interface WorkspaceApi {
   saveSheets(id: string, sheets: Sheet[], change: SheetChange): Promise<DeskView>
   /** Remembers where the desk is looked at: pan and zoom. */
   saveViewport(id: string, viewport: Viewport): Promise<DeskView>
+  /** The open project's sources. */
+  items(): Promise<ItemView[]>
+  /** Asks for PDFs with the system's file dialog; returns their paths, or none if cancelled. */
+  chooseFiles(): Promise<string[]>
+  /** Copies files (PDFs) into the project as items. */
+  addFiles(paths: string[]): Promise<ItemView[]>
+  /** Links a web page or video. */
+  addLink(url: string): Promise<ItemView>
 }
 
 export const workspaceChannels = {
@@ -46,6 +65,10 @@ export const workspaceChannels = {
   desk: 'workspace:desk',
   saveSheets: 'workspace:save-sheets',
   saveViewport: 'workspace:save-viewport',
+  items: 'workspace:items',
+  chooseFiles: 'workspace:choose-files',
+  addFiles: 'workspace:add-files',
+  addLink: 'workspace:add-link',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */

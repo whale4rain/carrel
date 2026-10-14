@@ -1,4 +1,4 @@
-import { ipcMain } from 'electron'
+import { dialog, ipcMain } from 'electron'
 import { workspaceChannels, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 import type { ShellController } from './shell-state.js'
 
@@ -31,6 +31,17 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     desk: (id) => controller.desk(text(id)),
     saveSheets: (id, sheets, change) => controller.saveSheets(text(id), sheets, change),
     saveViewport: (id, viewport) => controller.saveViewport(text(id), viewport),
+    items: () => controller.items(),
+    chooseFiles: async () => {
+      const chosen = await dialog.showOpenDialog({
+        title: 'Add books and papers',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+      })
+      return chosen.canceled ? [] : chosen.filePaths
+    },
+    addFiles: (paths) => controller.addFiles(paths),
+    addLink: (url) => controller.addLink(text(url)),
   }
   for (const [name, run] of Object.entries(api)) handle(workspaceChannels[name as keyof WorkspaceApi], run)
   return async () => {
