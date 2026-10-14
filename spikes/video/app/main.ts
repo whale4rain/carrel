@@ -124,6 +124,7 @@ async function runCheck(window: BrowserWindow, youtube: string | undefined): Pro
       ytTime = await run<number>("spike.time('youtube')")
     }
     results.youtubeTime = ytTime
+    results.youtubePlayer = await run<object>("spike.debug('youtube')")
     expect('YouTube: current time arrives over postMessage and advances', ytTime >= 2, ytTime)
     const yt = await run<{ capture: { spread: number }; that: { selector: { value: string } } }>("spike.that('youtube')")
     expect('YouTube: the captured frame is not blank', yt.capture.spread > 40, yt.capture.spread)

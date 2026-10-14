@@ -10,6 +10,8 @@ interface Player {
   play(): void
   pause(): void
   readonly element: HTMLElement
+  /** What the player reported, for the check's diagnostics. */
+  debug?(): object
 }
 
 const playing = new Set<string>()
@@ -43,16 +45,32 @@ function youtubePlayer(id: string, videoId: string): Player {
   let reportedAt = performance.now()
   let state = -1
   const send = (message: object): void => frame.contentWindow?.postMessage(JSON.stringify(message), 'https://www.youtube-nocookie.com')
-  frame.addEventListener('load', () => send({ event: 'listening', id, channel: 'widget' }))
+  // Like YouTube's own iframe API: keep saying "listening" until the player
+  // answers, since its script may not be ready when the frame's load fires.
+  let heard = 0
+  const events: string[] = []
+  let lastError: unknown
+  let hello: ReturnType<typeof setInterval> | undefined
+  frame.addEventListener('load', () => {
+    clearInterval(hello)
+    hello = setInterval(() => {
+      if (heard) clearInterval(hello)
+      else send({ event: 'listening', id, channel: 'widget' })
+    }, 250)
+  })
   window.addEventListener('message', (event) => {
     if (event.source !== frame.contentWindow || typeof event.data !== 'string') return
-    let data: { event?: string; info?: { currentTime?: number; playerState?: number } }
+    let data: { event?: string; info?: { currentTime?: number; playerState?: number } | number }
     try {
       data = JSON.parse(event.data) as typeof data
     } catch {
       return
     }
-    const info = data.info
+    heard++
+    if (data.event && events.at(-1) !== data.event) events.push(data.event)
+    if (data.event === 'onReady') send({ event: 'command', func: 'playVideo', args: [] })
+    if (data.event === 'onError') lastError = data.info
+    const info = typeof data.info === 'object' ? data.info : undefined
     if (!info) return
     if (typeof info.currentTime === 'number') {
       current = info.currentTime
@@ -70,6 +88,7 @@ function youtubePlayer(id: string, videoId: string): Player {
     time: () => (state === 1 ? current + (performance.now() - reportedAt) / 1000 : current),
     play: () => send({ event: 'command', func: 'playVideo', args: [] }),
     pause: () => send({ event: 'command', func: 'pauseVideo', args: [] }),
+    debug: () => ({ messages: heard, events: events.slice(0, 12), state, lastError }),
   }
 }
 
@@ -153,6 +172,7 @@ const spike = {
   )).then(() => undefined),
   play: (id: string): void => players.get(id)?.play(),
   time: (id: string): number => players.get(id)?.time() ?? -1,
+  debug: (id: string): object | undefined => players.get(id)?.debug?.(),
   playing: (): string[] => [...playing],
   place(id: string, x: number, y: number): void {
     const sheet = sheets.get(id)
