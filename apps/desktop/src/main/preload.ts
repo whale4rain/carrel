@@ -22,6 +22,7 @@ const workspace: WorkspaceApi = {
   addLink: (url) => call(workspaceChannels.addLink, url),
   itemBytes: (id) => call(workspaceChannels.itemBytes, id),
   snapshot: (id) => call(workspaceChannels.snapshot, id),
+  sourceTitle: (id, title) => call(workspaceChannels.sourceTitle, id, title),
 }
 
 function listen<T>(channel: string, listener: (payload: T) => void): () => void {

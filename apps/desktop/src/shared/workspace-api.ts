@@ -58,6 +58,8 @@ export interface WorkspaceApi {
   itemBytes(id: string): Promise<Uint8Array>
   /** A web page's last snapshot (PNG), if it has one. */
   snapshot(id: string): Promise<Uint8Array | null>
+  /** A linked source told us its title (a video player does); the item, if renamed. */
+  sourceTitle(id: string, title: string): Promise<ItemView | null>
 }
 
 /** The desk's web pages, drawn by main over their sheets. */
@@ -85,6 +87,7 @@ export const workspaceChannels = {
   addLink: 'workspace:add-link',
   itemBytes: 'workspace:item-bytes',
   snapshot: 'workspace:snapshot',
+  sourceTitle: 'workspace:source-title',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */

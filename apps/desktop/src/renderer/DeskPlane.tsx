@@ -41,8 +41,10 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import type { ItemView, Sheet } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView } from './PdfView.js'
-import { useWebSheets, WebPage } from './web-sheets.js'
 import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
+import { asWebPage, embedded } from './video.js'
+import { VideoView } from './VideoView.js'
+import { useWebSheets, WebPage } from './web-sheets.js'
 
 const api = window.carrel.workspace
 
@@ -459,6 +461,7 @@ export function DeskPlane({
       aria-label="Desk"
       ref={mat}
       data-panning={gesture?.kind === 'pan' || undefined}
+      data-gesture={gesture?.kind}
       style={{
         backgroundSize: `${GRID * view.zoom}px ${GRID * view.zoom}px`,
         backgroundPosition: `${view.x}px ${view.y}px`,
@@ -530,7 +533,14 @@ export function DeskPlane({
                     detail={sheet.scale * view.zoom}
                     onPage={(page) => reportPosition(sheet.id, page)}
                   />
-                ) : item?.kind === 'web_page' ? (
+                ) : embedded(item) ? (
+                  <VideoView
+                    sheet={sheet.id}
+                    item={item}
+                    onTime={(at) => reportPosition(sheet.id, at)}
+                    onTitle={(named) => void api.sourceTitle(item.id, named).then((renamed) => renamed && onItemsAdded([renamed]))}
+                  />
+                ) : asWebPage(item) ? (
                   <WebPage
                     item={item}
                     snapshot={snapshots.get(item.id)}

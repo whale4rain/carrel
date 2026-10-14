@@ -1,6 +1,7 @@
 import { footprint, rectToScreen, type Rect, type View } from '@carrel/desk'
 import { useEffect, useRef, useState, type RefObject } from 'react'
 import type { ItemView, Sheet } from '../shared/workspace-api.js'
+import { asWebPage } from './video.js'
 
 const api = window.carrel.workspace
 const web = window.carrel.web
@@ -51,7 +52,7 @@ export function useWebSheets(props: {
   // Snapshots saved last time, so a reopened desk shows its pages at once.
   const webItems = sheets.flatMap((sheet) => {
     const item = sheet.itemId === null ? undefined : items.get(sheet.itemId)
-    return item?.kind === 'web_page' ? [item.id] : []
+    return asWebPage(item) ? [item.id] : []
   })
   const asked = useRef(new Set<string>())
   useEffect(() => {
@@ -77,12 +78,12 @@ export function useWebSheets(props: {
         const label = LABEL * sheet.scale * view.zoom
         return {
           id: sheet.id,
-          web: item?.kind === 'web_page',
+          web: asWebPage(item),
           box,
           page: { x: box.x, y: box.y + label, w: box.w, h: box.h - label },
           z: sheet.z,
           zoom: sheet.scale * view.zoom,
-          ...(item?.kind === 'web_page' ? { itemId: item.id, url: item.url } : {}),
+          ...(asWebPage(item) ? { itemId: item.id, url: item.url } : {}),
         }
       }),
       active,

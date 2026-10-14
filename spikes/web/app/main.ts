@@ -153,7 +153,9 @@ async function createWindow(): Promise<void> {
 // Layouts apply in order; the newest one waiting replaces older ones.
 let applying: Promise<void> = Promise.resolve()
 let next: Layout | undefined
+let received = 0
 ipcMain.on('desk:layout', (_event, layout: Layout) => {
+  received += 1
   const queued = next !== undefined
   next = layout
   if (queued) return
@@ -167,10 +169,14 @@ ipcMain.on('desk:layout', (_event, layout: Layout) => {
 // ---- Scripted check -------------------------------------------------------
 
 async function drive(script: string): Promise<void> {
+  const before = received
   await window.webContents.executeJavaScript(script)
-  // Let the layout arrive over IPC, then wait for every queued apply, since
-  // captures are slow on some runners.
-  await new Promise((resolve) => setTimeout(resolve, 150))
+  // Wait for the layout to arrive over IPC (a fixed delay was too short on
+  // busy Mac runners), then for every queued apply, since captures are slow
+  // on some runners.
+  const deadline = Date.now() + 3000
+  while (received === before && Date.now() < deadline) await new Promise((resolve) => setTimeout(resolve, 20))
+  await new Promise((resolve) => setTimeout(resolve, 50))
   while (next !== undefined) await new Promise((resolve) => setTimeout(resolve, 20))
   await applying
 }

@@ -5,6 +5,7 @@ import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { frameFor } from '../shared/frame.js'
+import { DESK_ORIGIN, deskUrl, serveDesk } from './desk-origin.js'
 import { ShellController } from './shell-state.js'
 import { titleBarOverlay, windowOptions } from './window-options.js'
 import { serveWorkspace } from './workspace-ipc.js'
@@ -69,8 +70,8 @@ async function createWindow(): Promise<void> {
   }
   // `CARREL_FRAME=mac|windows` draws another platform's frame, for screenshots.
   const frame = frameFor(process.platform, process.env.CARREL_FRAME)
-  await window.loadFile(`${outDir}renderer/index.html`, { query: { frame } })
-  if (smoke) await runSmoke(window, smoke, () => window.loadFile(`${outDir}renderer/index.html`, { query: { frame } }))
+  await window.loadURL(deskUrl(frame))
+  if (smoke) await runSmoke(window, smoke, () => window.loadURL(deskUrl(frame)))
   // `CARREL_SHOT=file.png` saves the window's page and quits, for PR screenshots.
   const shot = process.env.CARREL_SHOT
   if (shot) {
@@ -85,6 +86,9 @@ const MOVED = { x: 148, y: 108, w: 440 }
 /** A web page the smoke adds by its link, and the title it gets. */
 const LINK = process.env.CARREL_SMOKE_PAGE ?? 'https://example.com/elasticity'
 const LINK_TITLE = 'Carrel test page'
+/** A YouTube video the smoke adds; it only checks the player is embedded, not that it plays. */
+const VIDEO_ID = 'aqz-KE-bpKQ'
+const VIDEO = `https://www.youtube.com/watch?v=${VIDEO_ID}`
 /** The text of the smoke's PDF, as its sheet's text layer has it. */
 const PDF_TEXT = "document.querySelector('.sheet[data-kind=\"paper\"] .textLayer')?.textContent"
 /** Then scaled to 60% from the selection bar. */
@@ -122,6 +126,9 @@ async function deskInteractions(
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   const style = "document.querySelector('.sheet').style"
+  // Fonts load after the page (the desk is served through its https handler), and
+  // they move the label row; measure where things are only once they have.
+  await page('document.fonts.ready.then(() => new Promise((resolve) => requestAnimationFrame(() => resolve(true))))')
   await drag(await center('.sheet-label'), 100, 60)
   if (!(await waitFor(`${style}.left === '${MOVED.x}px' && ${style}.top === '${MOVED.y}px'`))) {
     return `dragging the label row left the sheet at ${String(await page(`${style}.cssText`))}`
@@ -192,16 +199,20 @@ async function deskInteractions(
     return 'the zoom was not saved'
   }
   // A web page by its link, through + Add.
-  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
-  await waitFor("document.querySelector('.add-menu') !== null")
-  await page("[...document.querySelectorAll('.add-menu button')].find((b) => b.textContent.startsWith('Web page'))?.click()")
-  if (!(await waitFor("document.querySelector('.add-link input') !== null"))) return 'the link field did not open'
-  await page(`(() => {
-    const input = document.querySelector('.add-link input')
-    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '${LINK}')
-    input.dispatchEvent(new Event('input', { bubbles: true }))
-  })()`)
-  await page("document.querySelector('.add-link').requestSubmit()")
+  const addLink = async (link: string): Promise<boolean> => {
+    await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
+    await waitFor("document.querySelector('.add-menu') !== null")
+    await page("[...document.querySelectorAll('.add-menu button')].find((b) => b.textContent.startsWith('Web page'))?.click()")
+    if (!(await waitFor("document.querySelector('.add-link input') !== null"))) return false
+    await page(`(() => {
+      const input = document.querySelector('.add-link input')
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '${link}')
+      input.dispatchEvent(new Event('input', { bubbles: true }))
+    })()`)
+    await page("document.querySelector('.add-link').requestSubmit()")
+    return true
+  }
+  if (!(await addLink(LINK))) return 'the link field did not open'
   if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]') !== null`))) return 'adding a link made no web page sheet'
   // Clicking into it makes it live; the page names its sheet; Esc leaves a snapshot.
   const web = await center('.sheet[data-kind="web_page"] .web-page')
@@ -216,6 +227,14 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelector('.web-page[data-live]') === null && document.querySelector('.web-page img') !== null"))) {
     return 'leaving the web page left no snapshot'
   }
+  // A YouTube link plays in an embedded player, which needs the desk's https origin.
+  if (!(await addLink(VIDEO))) return 'the link field did not open again'
+  const embed = `(document.querySelector('.sheet[data-kind="video"] .video-view iframe')?.src ?? '')`
+  if (!(await waitFor(`${embed}.startsWith('https://www.youtube-nocookie.com/embed/${VIDEO_ID}?')`))) {
+    return `the video sheet has no player: ${String(await page(embed))}`
+  }
+  const origin = await page<string>("location.origin")
+  if (origin !== DESK_ORIGIN || new URL(String(await page(embed))).searchParams.get('origin') !== DESK_ORIGIN) return `the desk is served from ${origin}`
   // A PDF through + Add (the smoke answers the file dialog); its page is drawn with selectable text.
   await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
   await waitFor("document.querySelector('.add-menu') !== null")
@@ -275,6 +294,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
 }
 
 app.whenReady().then(async () => {
+  serveDesk(fileURLToPath(new URL('renderer', import.meta.url)))
   const settled = serveWorkspace(controller)
   // Let the last save land before quitting.
   let quitting = false

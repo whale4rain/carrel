@@ -100,6 +100,19 @@ that open new windows go to your browser.
 
 ![A click on a web sheet hanging off the desk shows why it didn't open](screenshot-web-hint.png)
 
+![A YouTube sheet waiting for its player, day and night](screenshot-video.png)
+
+**YouTube videos** play on their sheet in YouTube's privacy-enhanced embed.
+Nothing autoplays; a link's `t=` sets where it starts. The label shows the
+current time, and the player's title replaces the name made from the link.
+Starting one video pauses the others: one audio source at a time. The player
+stays hidden until it answers, so if it can't load, the sheet says so instead
+of showing an error page. Videos from other sites open like web pages.
+
+The desk is served from `https://desk.carrel.app/`, intercepted inside the
+app, because YouTube's embed refuses `file://` pages. Web pages on the desk
+get their own session, apart from the desk's.
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,
