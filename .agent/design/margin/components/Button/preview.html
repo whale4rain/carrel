@@ -1,0 +1,25 @@
+<!-- @dsCard group="Controls" height=120 subtitle="Ink, outline, pointing and quiet" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--paper);font-family:var(--font-ui);color:var(--ink)}
+.wrap{padding:24px;display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+button{font-family:var(--font-ui);font-size:13px;line-height:18px;font-weight:500;height:36px;padding:0 14px;border-radius:var(--radius-control);cursor:pointer}
+button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.ink{background:var(--ink);color:var(--paper);border:none}
+.outline{background:transparent;color:var(--ink);border:1px solid var(--graphite)}
+.point{background:var(--highlight);color:var(--highlight-ink);border:none;font-family:var(--font-mono)}
+.quiet{background:transparent;color:var(--ink-muted);border:none}
+</style>
+</head>
+<body>
+<div class="wrap">
+<button type="button" class="ink">Continue</button>
+<button type="button" class="outline">Review 5 cards</button>
+<button type="button" class="point">Point with that.</button>
+<button type="button" class="quiet">Just tell me</button>
+</div>
+</body>
+</html>

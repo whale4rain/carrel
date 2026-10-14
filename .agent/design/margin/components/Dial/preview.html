@@ -1,0 +1,25 @@
+<!-- @dsCard group="Agency" height=150 subtitle="Output or growth, set per module" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--paper);font-family:var(--font-ui);color:var(--ink)}
+.wrap{padding:24px;max-width:420px;display:flex;flex-direction:column;gap:10px}
+.ends{display:flex;justify-content:space-between;font-size:13px;line-height:18px;font-weight:500}
+.ends span:first-child{color:var(--ink-muted)}
+input[type=range]{width:100%;accent-color:var(--ink)}
+input[type=range]:focus-visible{outline:2px solid var(--focus);outline-offset:4px}
+.hint{font-size:12px;line-height:16px;color:var(--ink-muted)}
+label{font-size:12px;line-height:16px;color:var(--ink-muted)}
+</style>
+</head>
+<body>
+<div class="wrap">
+<label for="dial">Module 2 · Elasticity</label>
+<div class="ends"><span>Output</span><span>Growth</span></div>
+<input id="dial" type="range" min="0" max="4" step="1" value="3">
+<span class="hint">At this setting the agent asks before it explains, and always offers “Just tell me”.</span>
+</div>
+</body>
+</html>

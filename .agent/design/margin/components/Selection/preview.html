@@ -1,0 +1,37 @@
+<!-- @dsCard group="Desk" height=300 subtitle="Resize handles and the selection bar" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--mat);font-family:var(--font-ui);color:var(--ink)}
+.desk{position:relative;height:300px;background-image:linear-gradient(var(--mat-line) 1px,transparent 1px),linear-gradient(90deg,var(--mat-line) 1px,transparent 1px);background-size:24px 24px}
+.sheet{position:absolute;left:40px;top:28px;width:300px;height:150px;box-sizing:border-box;padding:12px 16px;background:var(--paper);border-radius:var(--radius-sheet);box-shadow:0 0 0 1.5px var(--ink),var(--shadow-sheet);display:flex;flex-direction:column;gap:8px}
+.label{font-size:12px;color:var(--ink-muted)}
+.pos{font-family:var(--font-mono);font-weight:500}
+.read{margin:0;font-family:var(--font-read);font-size:14px;line-height:22px}
+.h{position:absolute;width:8px;height:8px;box-sizing:border-box;background:var(--paper);border:1.5px solid var(--ink)}
+.size{position:absolute;left:276px;top:186px;padding:2px 6px;border-radius:4px;background:var(--ink);color:var(--paper);font-family:var(--font-mono);font-size:11px}
+.bar{position:absolute;left:40px;top:220px;display:flex;align-items:center;gap:2px;padding:4px;border-radius:var(--radius-control);background:var(--ink);color:var(--paper);box-shadow:var(--shadow-lift);font-size:12px}
+.bar span{padding:0 10px;opacity:0.7}
+.bar button{height:28px;padding:0 10px;border:none;border-radius:6px;background:transparent;color:var(--paper);font-family:var(--font-ui);font-size:12px;font-weight:500;cursor:pointer}
+.bar button.main{background:var(--paper);color:var(--ink)}
+.bar button.point{background:var(--highlight);color:var(--highlight-ink);font-family:var(--font-mono);font-size:11px}
+.bar button:focus-visible{outline:2px solid var(--highlight);outline-offset:2px}
+.guide{position:absolute;left:20px;top:27px;width:440px;border-top:1px dashed var(--margin-line)}
+.lifted{position:absolute;left:380px;top:28px;width:150px;height:96px;padding:8px;box-sizing:border-box;background:var(--paper);border-radius:var(--radius-sheet);box-shadow:var(--shadow-lift);font-size:11px;color:var(--ink-muted)}
+</style>
+</head>
+<body>
+<div class="desk">
+<div class="guide"></div>
+<div class="sheet"><span class="label">[Textbook] · Ch. 5 <span class="pos">p.42</span></span><p class="read">Habits and necessities tend to be inelastic, because there is little else to switch to.</p></div>
+<span class="h" style="left:36px;top:24px"></span><span class="h" style="left:186px;top:24px"></span><span class="h" style="left:336px;top:24px"></span>
+<span class="h" style="left:36px;top:99px"></span><span class="h" style="left:336px;top:99px"></span>
+<span class="h" style="left:36px;top:174px"></span><span class="h" style="left:186px;top:174px"></span><span class="h" style="left:336px;top:174px"></span>
+<span class="size">300 × 150</span>
+<div class="lifted">Lecture 4 · being dragged, snapping to the top edge</div>
+<div class="bar" role="toolbar" aria-label="Actions for the selection"><span>1 selected</span><button type="button" class="main">Focus</button><button type="button">Compare</button><button type="button">Make a pile</button><button type="button">Scale</button><button type="button" class="point">that.</button></div>
+</div>
+</body>
+</html>
