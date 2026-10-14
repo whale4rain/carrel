@@ -91,6 +91,55 @@ timestamps) are JetBrains Mono. Day and Night themes; Mac and Windows frames.
 - Builder flow: describe need, agent proposes a pencil card, builds and tests in scratch on Accept, hot-loads on a trial desk, user picks Keep, Revise or Discard.
 - First-party kits live in `kits/`. First kit: language (beginner, intermediate, advanced; only the user moves the stage).
 
+## Development plan
+
+Full plan: the design doc's "Development plan" section. In short: prove the
+risky parts with spikes, then build the core loop (desk, source, *that.*,
+note, agent) end to end, thinly, then polish in the order the owner uses it.
+
+| Phase | What gets built |
+| --- | --- |
+| 0. Setup | Monorepo, tnega dependency, lint, typecheck, tests, CI on Mac and Windows |
+| 1. Spikes | Live web on the desk; video in a sheet; tnega integration (tnega spike first) |
+| 2. Foundation (M1) | Margin tokens to CSS, window frames, sidebar, projects and desks on disk |
+| 3. Desk (M2) | Move, resize, overlap, scale, pile, undo, Tidy up, one-live-view rule |
+| 4. Sources and *that.* (M3) | PDF, web and video viewers; capture; re-anchoring |
+| 5. Notes (M4) | Editor with *that.* chips, tags, backlinks, search |
+| 6. Agent (M5) | Thread panel, context, tools, folded steps, proposals, cost line |
+| Checkpoint | The owner uses Carrel for a week or two; fix what annoys |
+| 7. Kits (M6) | Kit host, sandbox, permissions, store, builder flow, language kit |
+| 8. Focus, Compare, beta (M7) | Focus and Compare, Windows polish, crash reports, installer |
+
+Rules for every task:
+
+- One PR per task, small enough to review in one sitting.
+- Every PR says how to try it, with a screenshot or recording for anything visual.
+- Tests: unit tests per package; a few desk interaction tests; one end-to-end test of the core loop from phase 6 on. CI runs on Mac and Windows.
+- A PR that changes a decision updates the design doc's decision table.
+- Token changes go into the Margin design system first, then get regenerated into code.
+
+## Repository
+
+```
+apps/desktop      Electron app (main process via esbuild, renderer via Vite + React)
+packages/core     Carrel data model and workspace files, on tnega
+packages/margin   Margin tokens and components
+kits/             First-party learning kits (later)
+```
+
+tnega comes from npm as the `tnega` package; import its parts by subpath
+(`tnega/core`, `tnega/project`, `tnega/agent`, ...). Don't copy its code.
+
+Commands (Node 22.19+, pnpm 10):
+
+| Command | Does |
+| --- | --- |
+| `pnpm install` | Install everything |
+| `pnpm check` | Lint, typecheck and unit tests (what CI runs first) |
+| `pnpm build` | Build the desktop app |
+| `pnpm dev` | Build and open the desktop app |
+| `pnpm --filter @carrel/desktop smoke` | Start the built app, check it renders, quit |
+
 ## Milestone 1 (next)
 
 One pull request each, in order:

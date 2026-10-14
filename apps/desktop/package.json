@@ -1,0 +1,29 @@
+{
+  "name": "@carrel/desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Carrel desktop app (Electron).",
+  "type": "module",
+  "main": "out/main.js",
+  "scripts": {
+    "build": "vite build && node scripts/build-main.mjs",
+    "dev": "pnpm build && electron .",
+    "start": "electron .",
+    "typecheck": "tsc -p tsconfig.json",
+    "smoke": "node scripts/smoke.mjs"
+  },
+  "dependencies": {
+    "@carrel/core": "workspace:*",
+    "@carrel/margin": "workspace:*",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "@vitejs/plugin-react": "^6.0.0",
+    "electron": "^44.4.3",
+    "esbuild": "^0.28.2",
+    "vite": "^8.0.0"
+  }
+}
