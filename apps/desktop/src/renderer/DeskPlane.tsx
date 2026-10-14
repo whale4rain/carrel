@@ -30,6 +30,7 @@ import {
   undo,
   visibleRect,
   withPiles,
+  showIn,
   zoomAt,
   zoomStep,
   type Guide,
@@ -479,8 +480,12 @@ export function DeskPlane({
       setSavedCopy(that)
       return
     }
+    // Above the controls at the bottom, so a web page there can go live; zoomed out if it must be.
     const box = footprint(sheet)
-    setView((now) => ({ ...now, x: screen.w / 2 - (box.x + box.w / 2) * now.zoom, y: screen.h / 2 - (box.y + box.h / 2) * now.zoom }))
+    const origin = mat.current?.getBoundingClientRect()
+    const below = [...(mat.current?.querySelectorAll('.desk-nav, .that-tray') ?? [])].map((element) => element.getBoundingClientRect().top - (origin?.top ?? 0))
+    const clear = Math.min(screen.h, ...below) - 8
+    setView((now) => showIn(now, box, { x: 0, y: 0, w: screen.w, h: clear }))
     setSelected(new Set([sheet.id]))
     // On top, so nothing covers the spot (and a web page can go live).
     const top = Math.max(...latest.current.map((other) => other.z))

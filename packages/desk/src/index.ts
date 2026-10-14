@@ -3,6 +3,6 @@ export { changed, handles, inMarquee, move, placeNew, raise, resize, SCALES, sca
 export { snap, SNAP_DISTANCE, type Guide, type Snapped } from './snap.js'
 export { emptyHistory, HISTORY_LIMIT, record, redo, remove, touched, undo, type History, type Step } from './history.js'
 export { makePile, PILE_LABEL, PILE_SCALE, PILE_STEP, pileOf, piles, spread, SPREAD_GAP, withPiles } from './piles.js'
-export { clampZoom, fitView, MAX_ZOOM, MIN_ZOOM, rectToScreen, toDesk, toScreen, visibleRect, zoomAt, zoomStep, ZOOM_STEP, type Point, type View } from './viewport.js'
+export { clampZoom, fitView, MAX_ZOOM, MIN_ZOOM, rectToScreen, showIn, toDesk, toScreen, visibleRect, zoomAt, zoomStep, ZOOM_STEP, type Point, type View } from './viewport.js'
 export { tidy, TIDY_GAP } from './tidy.js'
 export { contains, pickLive, type LiveBlocker, type LiveDecision, type LiveSheet, type LiveState } from './live.js'
