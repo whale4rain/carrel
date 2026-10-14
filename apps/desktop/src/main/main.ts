@@ -126,6 +126,9 @@ async function deskInteractions(
     await new Promise((resolve) => setTimeout(resolve, 100))
   }
   const style = "document.querySelector('.sheet').style"
+  // Fonts load after the page (the desk is served through its https handler), and
+  // they move the label row; measure where things are only once they have.
+  await page('document.fonts.ready.then(() => new Promise((resolve) => requestAnimationFrame(() => resolve(true))))')
   await drag(await center('.sheet-label'), 100, 60)
   if (!(await waitFor(`${style}.left === '${MOVED.x}px' && ${style}.top === '${MOVED.y}px'`))) {
     return `dragging the label row left the sheet at ${String(await page(`${style}.cssText`))}`
