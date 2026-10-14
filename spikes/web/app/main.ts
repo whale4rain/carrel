@@ -98,11 +98,13 @@ async function apply(layout: Layout): Promise<void> {
   const started = performance.now()
 
   if (live && live !== decision.live) {
-    // Going inactive: a capture of a visible view takes a few milliseconds, so
-    // take a fresh one (scroll position and all) and only then hide the view.
-    // The 1 s refresh is the fallback if the capture fails.
+    // Going inactive: a capture of a visible view usually takes a few
+    // milliseconds, so take a fresh one (scroll position and all) and only
+    // then hide the view. A drag can't wait for that (Mac CI runners took up
+    // to 370 ms): the view would trail the sheet, so it hides at once and the
+    // last 1 s refresh stands in.
     const leaving = sheets.get(live)
-    await capture(live)
+    if (decision.reason !== 'moving') await capture(live)
     window.webContents.send('desk:live', { id: undefined, previous: live, reason: decision.reason })
     leaving?.view.setVisible(false)
     stopRefreshing()
@@ -166,7 +168,11 @@ ipcMain.on('desk:layout', (_event, layout: Layout) => {
 
 async function drive(script: string): Promise<void> {
   await window.webContents.executeJavaScript(script)
+  // Let the layout arrive over IPC, then wait for every queued apply, since
+  // captures are slow on some runners.
   await new Promise((resolve) => setTimeout(resolve, 150))
+  while (next !== undefined) await new Promise((resolve) => setTimeout(resolve, 20))
+  await applying
 }
 
 async function runCheck(): Promise<void> {

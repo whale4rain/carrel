@@ -45,8 +45,8 @@ dependency; that's a phase 6 question.
   capture took 13 ms on average, about one frame. On CI, Windows captured in
   6 ms on average (17 ms max) and swapped to a snapshot in 17 ms. The Mac
   runner (no GPU) was slower: 125 ms average capture, 327 ms max, 60 ms
-  average swap. So on Mac, keep the snapshot from the last refresh and show
-  it at once, and capture the fresh one after.
+  average swap. So a drag hides the view at once and shows the snapshot
+  from the last 1 s refresh; other swaps take a fresh capture first.
 - **Only overlap, dragging and leaving the desk force a snapshot.** Everything
   else can stay live.
 
