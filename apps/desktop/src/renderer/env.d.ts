@@ -5,6 +5,7 @@ interface Window {
   carrel: {
     platform: string
     workspace: import('../shared/workspace-api.js').WorkspaceApi
+    web: import('../shared/workspace-api.js').WebApi
     pathForFile(file: File): string
   }
 }

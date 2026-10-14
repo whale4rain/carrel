@@ -57,3 +57,15 @@ describe('Library', () => {
     expect(titleFromUrl(new URL('https://www.example.com/'))).toBe('example.com')
   })
 })
+
+describe('Library titles', () => {
+  it('renames an item and logs it once', async () => {
+    const page = await library.addLink('Learn economics', 'https://example.com/rent')
+    const renamed = await library.setTitle('Learn economics', page.id, '  Rent control — Example  ')
+    expect(renamed.title).toBe('Rent control — Example')
+    await library.setTitle('Learn economics', page.id, 'Rent control — Example')
+    const events = await workspace.readEvents('Learn economics')
+    expect(events.filter((event) => event.type === 'item.renamed')).toHaveLength(1)
+    expect(library.snapshotPath('Learn economics', page.id)).toBe(join(home, 'Carrel', 'Learn economics', 'items', page.id, 'snapshot.png'))
+  })
+})

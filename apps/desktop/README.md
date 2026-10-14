@@ -88,6 +88,18 @@ kind's viewer comes, a sheet shows the source's title and where it is.
 the label shows the page, and text can be selected. Only pages near the view
 are drawn, at a resolution matched to the sheet's scale and the desk zoom.
 
+![A live web page at 60%; at night, the snapshot it left](screenshot-web.png)
+
+**Web pages** open when you click into their sheet. Only one page is live at
+a time, and only while its whole sheet is in view with nothing over it; the
+page zooms to the sheet's scale. Every other web sheet shows the snapshot the
+page left when it stopped being live (Esc, a click elsewhere, a drag). The
+snapshot is kept as `snapshot.png` beside the item. When a page loads, its
+title replaces the name made from the link, unless you renamed it. Links
+that open new windows go to your browser.
+
+![A click on a web sheet hanging off the desk shows why it didn't open](screenshot-web-hint.png)
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,

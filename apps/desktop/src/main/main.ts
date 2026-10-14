@@ -1,6 +1,6 @@
 import { carrelRoots, Workspace } from '@carrel/core'
 import { isTheme, type Theme } from '@carrel/margin'
-import { app, BrowserWindow, nativeTheme } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -8,6 +8,7 @@ import { frameFor } from '../shared/frame.js'
 import { ShellController } from './shell-state.js'
 import { titleBarOverlay, windowOptions } from './window-options.js'
 import { serveWorkspace } from './workspace-ipc.js'
+import { WebViews, type WebLayout } from './web-views.js'
 
 const outDir = fileURLToPath(new URL('.', import.meta.url))
 
@@ -24,10 +25,36 @@ const currentTheme = (): Theme => (nativeTheme.shouldUseDarkColors ? 'night' : '
 
 // `CARREL_HOME` puts ~/Carrel and ~/.carrel somewhere else (checks, screenshots).
 const workspace = new Workspace(carrelRoots(process.env.CARREL_HOME ?? homedir()))
+const controller = new ShellController(workspace)
+
+// Each window's web pages, by its renderer.
+const webViews = new Map<number, WebViews>()
+ipcMain.on('web:layout', (event, layout: WebLayout) => {
+  if (isWebLayout(layout)) void webViews.get(event.sender.id)?.layout(layout)
+})
+
+function isWebLayout(value: unknown): value is WebLayout {
+  if (typeof value !== 'object' || value === null) return false
+  const layout = value as Partial<WebLayout>
+  return Array.isArray(layout.sheets) && Array.isArray(layout.overlays) && typeof layout.moving === 'boolean' && typeof layout.desk === 'object'
+}
 
 async function createWindow(): Promise<void> {
   const window = new BrowserWindow(windowOptions(process.platform, `${outDir}preload.cjs`, currentTheme()))
   window.once('ready-to-show', () => window.show())
+  const id = window.webContents.id
+  webViews.set(
+    id,
+    new WebViews(window, {
+      saveSnapshot: (itemId, png) => controller.saveSnapshot(itemId, png),
+      title: (itemId, title) => {
+        void controller.pageTitle(itemId, title).then((item) => {
+          if (item && !window.isDestroyed()) window.webContents.send('web:item', item)
+        }, () => undefined)
+      },
+    }),
+  )
+  window.on('closed', () => webViews.delete(id))
   if (process.platform === 'win32') {
     // The native caption buttons don't follow CSS; recolor them with the theme.
     const recolor = (): void => window.setTitleBarOverlay(titleBarOverlay(currentTheme()))
@@ -56,8 +83,8 @@ async function createWindow(): Promise<void> {
 /** Where the smoke's sheet should end up: added at (48, 48), dragged by (100, 60), widened by 40. */
 const MOVED = { x: 148, y: 108, w: 440 }
 /** A web page the smoke adds by its link, and the title it gets. */
-const LINK = 'https://example.com/elasticity'
-const LINK_TITLE = 'example.com · elasticity'
+const LINK = process.env.CARREL_SMOKE_PAGE ?? 'https://example.com/elasticity'
+const LINK_TITLE = 'Carrel test page'
 /** The text of the smoke's PDF, as its sheet's text layer has it. */
 const PDF_TEXT = "document.querySelector('.sheet[data-kind=\"paper\"] .textLayer')?.textContent"
 /** Then scaled to 60% from the selection bar. */
@@ -175,7 +202,20 @@ async function deskInteractions(
     input.dispatchEvent(new Event('input', { bubbles: true }))
   })()`)
   await page("document.querySelector('.add-link').requestSubmit()")
-  if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) return 'adding a link made no web page sheet'
+  if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]') !== null`))) return 'adding a link made no web page sheet'
+  // Clicking into it makes it live; the page names its sheet; Esc leaves a snapshot.
+  const web = await center('.sheet[data-kind="web_page"] .web-page')
+  window.webContents.sendInputEvent({ type: 'mouseDown', x: web.x, y: web.y, button: 'left', clickCount: 1 })
+  window.webContents.sendInputEvent({ type: 'mouseUp', x: web.x, y: web.y, button: 'left', clickCount: 1 })
+  if (!(await waitFor("document.querySelector('.web-page[data-live]') !== null"))) return 'clicking the web sheet did not make it live'
+  if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) {
+    return `the web sheet is called ${String(await page(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label')`))}`
+  }
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  await key('Escape')
+  if (!(await waitFor("document.querySelector('.web-page[data-live]') === null && document.querySelector('.web-page img') !== null"))) {
+    return 'leaving the web page left no snapshot'
+  }
   // A PDF through + Add (the smoke answers the file dialog); its page is drawn with selectable text.
   await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
   await waitFor("document.querySelector('.add-menu') !== null")
@@ -225,6 +265,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) {
       return fail('the web page sheet did not come back')
     }
+    if (!(await waitFor("document.querySelector('.web-page img') !== null"))) return fail('the web page came back without its snapshot')
     if (!(await waitFor(`${PDF_TEXT} === 'Price elasticity of demand'`))) return fail(`the PDF came back saying ${String(await page(PDF_TEXT))}`)
   }
   // Calls run in order, so this answers only after the gestures' saves are written.
@@ -234,7 +275,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
 }
 
 app.whenReady().then(async () => {
-  const settled = serveWorkspace(new ShellController(workspace))
+  const settled = serveWorkspace(controller)
   // Let the last save land before quitting.
   let quitting = false
   app.on('before-quit', (event) => {

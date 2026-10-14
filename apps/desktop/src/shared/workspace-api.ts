@@ -56,6 +56,18 @@ export interface WorkspaceApi {
   addLink(url: string): Promise<ItemView>
   /** A stored item's file (a PDF), as bytes. */
   itemBytes(id: string): Promise<Uint8Array>
+  /** A web page's last snapshot (PNG), if it has one. */
+  snapshot(id: string): Promise<Uint8Array | null>
+}
+
+/** The desk's web pages, drawn by main over their sheets. */
+export interface WebApi {
+  /** Where the web sheets are now; main decides which one is live. */
+  layout(layout: unknown): void
+  onLive(listener: (sheet: string | null) => void): () => void
+  onSnapshot(listener: (sheet: string, itemId: string, png: Uint8Array) => void): () => void
+  /** An item changed in main (a page told us its title). */
+  onItem(listener: (item: ItemView) => void): () => void
 }
 
 export const workspaceChannels = {
@@ -72,6 +84,7 @@ export const workspaceChannels = {
   addFiles: 'workspace:add-files',
   addLink: 'workspace:add-link',
   itemBytes: 'workspace:item-bytes',
+  snapshot: 'workspace:snapshot',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */

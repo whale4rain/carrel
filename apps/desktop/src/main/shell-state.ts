@@ -1,5 +1,6 @@
-import { readFile } from 'node:fs/promises'
-import { Library, type DeskFile, type ItemFile, type OpenProject, type Sheet, type SheetChange, type Viewport, type Workspace } from '@carrel/core'
+import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { dirname } from 'node:path'
+import { Library, titleFromUrl, type DeskFile, type ItemFile, type OpenProject, type Sheet, type SheetChange, type Viewport, type Workspace } from '@carrel/core'
 import type { DeskView, ItemView, ShellState } from '../shared/workspace-api.js'
 
 /**
@@ -90,6 +91,32 @@ export class ShellController {
 
   async itemBytes(id: string): Promise<Uint8Array> {
     return new Uint8Array(await readFile(await this.library.filePath(await this.openFolder(), id)))
+  }
+
+  /** A web page's last snapshot (PNG bytes), if it has one. */
+  async snapshot(id: string): Promise<Uint8Array | null> {
+    const path = this.library.snapshotPath(await this.openFolder(), id)
+    return readFile(path).then(
+      (bytes) => new Uint8Array(bytes),
+      () => null,
+    )
+  }
+
+  async saveSnapshot(id: string, png: Uint8Array): Promise<void> {
+    const path = this.library.snapshotPath(await this.openFolder(), id)
+    await mkdir(dirname(path), { recursive: true })
+    await writeFile(path, png)
+  }
+
+  /**
+   * A web page told us its title. It replaces the name made from the link,
+   * but never a name already changed.
+   */
+  async pageTitle(id: string, title: string): Promise<ItemView | undefined> {
+    const folder = await this.openFolder()
+    const item = await this.library.read(folder, id)
+    if (item.source.storage !== 'linked' || item.title !== titleFromUrl(new URL(item.source.url))) return undefined
+    return itemView(await this.library.setTitle(folder, id, title))
   }
 
   private async openFolder(): Promise<string> {

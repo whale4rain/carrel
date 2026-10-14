@@ -41,6 +41,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import type { ItemView, Sheet } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView } from './PdfView.js'
+import { useWebSheets, WebPage } from './web-sheets.js'
 import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 
 const api = window.carrel.workspace
@@ -91,6 +92,8 @@ export function DeskPlane({
   const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
   const [view, setView] = useState<View>({ x: 0, y: 0, zoom: 1 })
+  // The web sheet clicked into; it goes live when nothing covers it.
+  const [active, setActive] = useState<string>()
   // Where each source sheet is reading (a page, a time), for its label.
   const [positions, setPositions] = useState<ReadonlyMap<string, string>>(new Map())
   const reportPosition = useCallback((sheet: string, at: string): void => {
@@ -252,6 +255,7 @@ export function DeskPlane({
 
   const startMove = (event: ReactPointerEvent, id: string): void => {
     if (event.button !== 0) return
+    if (active !== id) setActive(undefined)
     event.stopPropagation()
     // A sheet in a pile stands for the whole pile.
     const group = withPiles(sheets, [id])
@@ -405,7 +409,10 @@ export function DeskPlane({
       const mod = event.metaKey || event.ctrlKey
       const key = event.key.toLowerCase()
       if (event.key === ' ') space.current = true
-      if (event.key === 'Escape') setSelected(new Set())
+      if (event.key === 'Escape') {
+        setSelected(new Set())
+        setActive(undefined)
+      }
       else if (mod && (event.key === '=' || event.key === '+')) zoomBy(1)
       else if (mod && event.key === '-') zoomBy(-1)
       else if (mod && event.key === '0') actualSize()
@@ -443,6 +450,7 @@ export function DeskPlane({
   const near = visibleRect(view, screen.w + MOUNT_MARGIN * 2, screen.h + MOUNT_MARGIN * 2)
   const reach = { ...near, x: near.x - MOUNT_MARGIN / view.zoom, y: near.y - MOUNT_MARGIN / view.zoom }
   const mounted = screen.w === 0 ? sheets : sheets.filter((sheet) => selected.has(sheet.id) || intersects(footprint(sheet), reach))
+  const { live, snapshots } = useWebSheets({ mat, sheets: mounted, items, view, active, moving: gesture !== undefined && gesture.kind !== 'marquee' })
   const single = selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
 
   return (
@@ -464,6 +472,7 @@ export function DeskPlane({
         if (event.target !== event.currentTarget || event.button !== 0) return
         const base = event.shiftKey ? new Set(selected) : new Set<string>()
         setSelected(base)
+        setActive(undefined)
         setGesture({ kind: 'marquee', from: point(event), base })
       }}
       onDoubleClick={(event) => {
@@ -520,6 +529,17 @@ export function DeskPlane({
                     width={sheet.w}
                     detail={sheet.scale * view.zoom}
                     onPage={(page) => reportPosition(sheet.id, page)}
+                  />
+                ) : item?.kind === 'web_page' ? (
+                  <WebPage
+                    item={item}
+                    snapshot={snapshots.get(item.id)}
+                    live={live === sheet.id}
+                    waiting={active === sheet.id && live !== sheet.id && gesture === undefined}
+                    onActivate={() => {
+                      setActive(sheet.id)
+                      setSelected(new Set([sheet.id]))
+                    }}
                   />
                 ) : item && (
                   <div className="source-face">
