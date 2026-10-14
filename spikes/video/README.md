@@ -2,9 +2,12 @@
 
 Throwaway prototype for phase 1 of the development plan. The question: with
 an embedded player in a scaled, dragged sheet, can we read the current time
-for *that.* and capture a frame? **Yes for local video, checked here and in CI.
-YouTube is checked in CI only, because this container can't reach it; see the
-PR for the result.**
+for *that.* and capture a frame? **Yes for local video, checked here and in CI
+on Mac and Windows. Partly for YouTube:** on CI the embed loads, the
+postMessage handshake works (`onReady`, `infoDelivery`), but the video never
+starts on GitHub's runners, so the time stays 0. That looks like YouTube
+holding back playback for datacenter machines; it needs one try on a real Mac.
+The YouTube step is informational in CI and doesn't fail the build.
 
 ![A local video scaled to 60% and dragged, with a that. chip holding its time and frame](screenshot.png)
 
@@ -50,7 +53,12 @@ the moment. The chip on the shelf keeps the time and the frame.
 3. **Scaling is free.** Time and capture keep working at 60%; the frame is
    captured at the scaled size (288×162 for a 480×270 player), so capture at
    100% or upscale when the frame matters.
-4. Capture took about 17–23 ms here.
+4. Capture took about 17–23 ms here, 7–23 ms on the Windows runner and
+   140–440 ms on the Mac runner (no GPU).
+5. **The YouTube handshake needs repeating.** Sending `listening` once on the
+   frame's load is too early; the player's script isn't ready. Repeat it every
+   250 ms until the player answers, as YouTube's own iframe API does, then
+   send `playVideo` on `onReady`.
 
 ## Open for later
 
