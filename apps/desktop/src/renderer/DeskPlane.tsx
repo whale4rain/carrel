@@ -43,6 +43,7 @@ import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPoi
 import type { ItemView, Sheet, ThatRequest, ThatView } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView, type Focus } from './PdfView.js'
+import { NoteView } from './NoteView.js'
 import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 import { pdfSelection } from './that.js'
 import { SavedThat, ThatTray } from './ThatTray.js'
@@ -84,12 +85,15 @@ export function DeskPlane({
   name,
   items,
   onItemsAdded,
+  show,
 }: {
   deskId: string
   name: string
-  /** The project's sources, by id. */
+  /** The project's sources and notes, by id. */
   items: ReadonlyMap<string, ItemView>
   onItemsAdded: (items: ItemView[]) => void
+  /** An item asked for from outside the desk (the sidebar): brought into view, or put on the desk. */
+  show?: { itemId: string; nonce: number; write?: boolean } | undefined
 }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -512,22 +516,15 @@ export function DeskPlane({
   // A chip brings its sheet into the middle of the view, selected, and opens
   // the spot: a PDF scrolls to the words, a video seeks, a web page goes live
   // and scrolls. If the words are gone, the saved copy shows instead.
-  const openThat = (that: ThatView): void => {
-    setSavedCopy(undefined)
-    const sheet = latest.current.find((candidate) => candidate.itemId === that.itemId)
-    const item = items.get(that.itemId)
-    if (!sheet || !item) {
-      setSavedCopy(that)
-      return
-    }
-    // Above the controls at the bottom, so a web page there can go live; zoomed out if it must be.
+  // A sheet to the middle of the view and on top, so nothing covers it. It sits above the
+  // controls at the bottom, so a web page there can go live, zoomed out only if it must be.
+  const bringForward = (sheet: Sheet): void => {
     const box = footprint(sheet)
     const origin = mat.current?.getBoundingClientRect()
     const below = [...(mat.current?.querySelectorAll('.desk-nav, .that-tray') ?? [])].map((element) => element.getBoundingClientRect().top - (origin?.top ?? 0))
     const clear = Math.min(screen.h, ...below) - 8
     setView((now) => showIn(now, box, { x: 0, y: 0, w: screen.w, h: clear }))
     setSelected(new Set([sheet.id]))
-    // On top, so nothing covers the spot (and a web page can go live).
     const top = Math.max(...latest.current.map((other) => other.z))
     if (sheet.z < top) {
       save(
@@ -537,6 +534,35 @@ export function DeskPlane({
         latest.current,
       )
     }
+  }
+
+  // The sidebar asks for a note: bring its sheet forward, or lay it on the desk in the middle of the view.
+  const [writing, setWriting] = useState<string>()
+  const handled = useRef<number | undefined>(undefined)
+  useEffect(() => {
+    if (!show || !loaded || screen.w === 0 || handled.current === show.nonce) return
+    const item = items.get(show.itemId)
+    if (!item) return
+    handled.current = show.nonce
+    const sheet = latest.current.find((candidate) => candidate.itemId === show.itemId)
+    if (sheet) bringForward(sheet)
+    else {
+      const size = SHEET_FOR[item.kind]
+      const middle = toDesk(view, { x: screen.w / 2, y: screen.h / 2 })
+      addSheets([item], { x: Math.round(middle.x - (size.w * size.scale) / 2), y: Math.round(middle.y - (size.h * size.scale) / 2) })
+    }
+    if (show.write) setWriting(show.itemId)
+  })
+
+  const openThat = (that: ThatView): void => {
+    setSavedCopy(undefined)
+    const sheet = latest.current.find((candidate) => candidate.itemId === that.itemId)
+    const item = items.get(that.itemId)
+    if (!sheet || !item) {
+      setSavedCopy(that)
+      return
+    }
+    bringForward(sheet)
     const moment = momentOf(that.selectors)
     if (item.file) setFocus({ sheet: sheet.id, that, nonce: Date.now() })
     else if (embedded(item) && moment !== undefined) seekVideo(sheet.id, moment)
@@ -686,7 +712,9 @@ export function DeskPlane({
                   {positions.has(sheet.id) && <span className="position">{positions.get(sheet.id)}</span>}
                   <span className="position">{Math.round(sheet.scale * 100)}%</span>
                 </div>
-                {item?.file ? (
+                {item?.kind === 'note' ? (
+                  <NoteView item={item} write={writing === item.id} onSaved={(saved) => onItemsAdded([saved])} />
+                ) : item?.file ? (
                   <PdfView
                     sheet={sheet.id}
                     itemId={item.id}
@@ -803,7 +831,7 @@ export function DeskPlane({
               Scale
             </button>
           )}
-          {chosen.length === 1 && chosen[0]?.itemId != null && (
+          {chosen.length === 1 && chosen[0]?.itemId != null && items.get(chosen[0].itemId)?.kind !== 'note' && (
             // Pressing it mustn't clear the text selection it points at.
             <button type="button" className="that" onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
               that.

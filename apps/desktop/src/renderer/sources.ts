@@ -1,19 +1,21 @@
-import type { ItemKind, ItemView } from '../shared/workspace-api.js'
+import type { ItemView, ViewKind } from '../shared/workspace-api.js'
 
 /** How big a new sheet for each kind is at 100%, and the scale it starts at. */
-export const SHEET_FOR: Record<ItemKind | 'blank', { w: number; h: number; scale: number }> = {
+export const SHEET_FOR: Record<ViewKind | 'blank', { w: number; h: number; scale: number }> = {
   blank: { w: 400, h: 300, scale: 1 },
   book: { w: 560, h: 740, scale: 0.6 },
   paper: { w: 560, h: 740, scale: 0.6 },
   web_page: { w: 960, h: 680, scale: 0.6 },
   video: { w: 640, h: 400, scale: 0.8 },
+  note: { w: 420, h: 520, scale: 1 },
 }
 
-export const KIND_LABEL: Record<ItemKind, string> = {
+export const KIND_LABEL: Record<ViewKind, string> = {
   book: 'Book',
   paper: 'Paper',
   web_page: 'Web page',
   video: 'Video',
+  note: 'Note',
 }
 
 /** "PDF · 1.2 MB", or the link's host. */

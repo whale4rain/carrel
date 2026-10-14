@@ -11,6 +11,8 @@ export interface WorkspaceActions {
   createProject(name: string): Promise<void>
   openDesk(id: string): Promise<void>
   createDesk(name: string): Promise<void>
+  createNote(): Promise<void>
+  openNote(id: string): void
 }
 
 interface Props {
@@ -20,8 +22,12 @@ interface Props {
   items: readonly ItemView[]
 }
 
+/** How many notes the sidebar lists by name, most recent first. */
+const RECENT_NOTES = 5
+
 /** One project, its desks, and the things the project owns. */
 export function Sidebar({ frame, state, actions, items }: Props) {
+  const notes = items.filter((item) => item.kind === 'note').sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
   const count = (...kinds: Array<ItemView['kind']>): number => items.filter((item) => kinds.includes(item.kind)).length
   const open = state.open
   const [menu, setMenu] = useState(false)
@@ -122,10 +128,18 @@ export function Sidebar({ frame, state, actions, items }: Props) {
 
           <section className="group" aria-label="Notes">
             <h2>Notes</h2>
+            {notes.slice(0, RECENT_NOTES).map((note) => (
+              <button type="button" key={note.id} className="row note" onClick={() => actions.openNote(note.id)}>
+                <NoteIcon />
+                <span className="grow">{note.title}</span>
+              </button>
+            ))}
             <button type="button" className="row">
-              <NoteIcon />
-              <span className="grow">All notes</span>
-              <span className="count">0</span>
+              <span className="grow indent">All notes</span>
+              <span className="count">{notes.length}</span>
+            </button>
+            <button type="button" className="row desk muted" onClick={() => void actions.createNote()}>
+              + New note
             </button>
           </section>
 

@@ -1,18 +1,31 @@
 // What the renderer sees of projects and desks, and how it asks for changes.
 // Main owns the files; the renderer only gets summaries back.
-import type { ItemKind, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
+import type { ItemKind, NoteDoc, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
 
-export type { ItemKind, Selector, Sheet, SheetChange, Viewport }
+export type { ItemKind, NoteDoc, Selector, Sheet, SheetChange, Viewport }
 
-/** A source in the open project, as the renderer sees it. */
+/** What can sit on a sheet: a source, or a note. */
+export type ViewKind = ItemKind | 'note'
+
+/** A source or a note in the open project, as the renderer sees it. */
 export interface ItemView {
   id: string
-  kind: ItemKind
+  kind: ViewKind
   title: string
+  /** Notes: when it last changed. */
+  updatedAt?: string
   /** Linked items: the address. */
   url?: string
   /** Stored items: the file's name and size in bytes. */
   file?: { name: string; size: number }
+}
+
+/** A note, with its text as the editor's document. */
+export interface NoteView {
+  id: string
+  title: string
+  doc: NoteDoc
+  updatedAt: string
 }
 
 /** A *that.*: where it points, as its chip shows it. */
@@ -85,8 +98,14 @@ export interface WorkspaceApi {
   saveSheets(id: string, sheets: Sheet[], change: SheetChange): Promise<DeskView>
   /** Remembers where the desk is looked at: pan and zoom. */
   saveViewport(id: string, viewport: Viewport): Promise<DeskView>
-  /** The open project's sources. */
+  /** The open project's sources and notes. */
   items(): Promise<ItemView[]>
+  /** Starts an empty note in the project. */
+  createNote(): Promise<ItemView>
+  /** A note's text. */
+  note(id: string): Promise<NoteView>
+  /** Writes a note's text; returns the note, retitled from its first line. */
+  saveNote(id: string, doc: NoteDoc): Promise<ItemView>
   /** Asks for PDFs with the system's file dialog; returns their paths, or none if cancelled. */
   chooseFiles(): Promise<string[]>
   /** Copies files (PDFs) into the project as items. */
@@ -135,6 +154,9 @@ export const workspaceChannels = {
   saveSheets: 'workspace:save-sheets',
   saveViewport: 'workspace:save-viewport',
   items: 'workspace:items',
+  createNote: 'workspace:create-note',
+  note: 'workspace:note',
+  saveNote: 'workspace:save-note',
   chooseFiles: 'workspace:choose-files',
   addFiles: 'workspace:add-files',
   addLink: 'workspace:add-link',

@@ -13,6 +13,8 @@ const api = window.carrel.workspace
 export function App() {
   const [state, setState] = useState<ShellState>()
   const [items, setItems] = useState<ReadonlyMap<string, ItemView>>(new Map())
+  // A note the sidebar asked the desk to show.
+  const [show, setShow] = useState<{ itemId: string; nonce: number; write?: boolean }>()
 
   useEffect(() => {
     void api.state().then(setState)
@@ -41,6 +43,12 @@ export function App() {
     createProject: async (name) => setState(await api.createProject(name)),
     openDesk: async (id) => setState(await api.openDesk(id)),
     createDesk: async (name) => setState(await api.createDesk(name)),
+    createNote: async () => {
+      const note = await api.createNote()
+      addItems([note])
+      setShow({ itemId: note.id, nonce: Date.now(), write: true })
+    },
+    openNote: (id) => setShow({ itemId: id, nonce: Date.now(), write: true }),
   }
 
   const open = state?.open
@@ -62,7 +70,7 @@ export function App() {
         <>
           <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} />
           <TopBar frame={frame} project={open?.project} desk={desk?.name} />
-          {open && desk ? <DeskPlane key={desk.id} deskId={desk.id} name={desk.name} items={items} onItemsAdded={addItems} /> : <Welcome onCreate={actions.createProject} />}
+          {open && desk ? <DeskPlane key={desk.id} deskId={desk.id} name={desk.name} items={items} onItemsAdded={addItems} show={show} /> : <Welcome onCreate={actions.createProject} />}
         </>
       )}
     </div>

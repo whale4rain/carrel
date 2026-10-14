@@ -130,6 +130,10 @@ async function waitForIn(target: () => WebContents | undefined, script: string):
   }
   return false
 }
+/** What the smoke writes in a note: its title line, then a line of text. */
+const NOTE_TITLE = 'Elasticity'
+const NOTE_TEXT = 'Coffee is a habit, so it is inelastic.'
+
 /** The word the smoke points at with that. */
 const THAT_WORD = 'elasticity'
 /** Then scaled to 60% from the selection bar. */
@@ -329,6 +333,18 @@ async function deskInteractions(
   if (!(await waitFor("window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.image && that.selectors.some((s) => s.value?.startsWith('xywh=percent:'))))"))) {
     return `the region was not kept: ${String(await page("document.querySelector('.desk-error')?.textContent ?? 'no message'"))}`
   }
+  // A note from the sidebar: it lands on the desk ready to write in, and saves itself.
+  await page("[...document.querySelectorAll('[aria-label=\"Notes\"] button')].find((b) => b.textContent === '+ New note')?.click()")
+  if (!(await waitFor("document.activeElement?.closest('.sheet[data-kind=\"note\"] .ProseMirror') != null"))) return 'a new note did not take the keyboard'
+  window.webContents.insertText(NOTE_TITLE)
+  await key('Enter')
+  window.webContents.insertText(NOTE_TEXT)
+  if (!(await waitFor(`window.carrel.workspace.items().then((items) => items.some((item) => item.kind === 'note' && item.title === '${NOTE_TITLE}'))`))) {
+    return `the note was not saved: ${String(await page("document.querySelector('.note-error')?.textContent ?? 'no message'"))}`
+  }
+  if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
+    return 'the sidebar did not list the note'
+  }
   return undefined
 }
 
@@ -394,6 +410,14 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       return fail(`opening the web chip did not open its page: ${JSON.stringify(webViews.get(window.webContents.id)?.status)}`)
     }
     if (!(await waitForIn(livePage, "CSS.highlights?.get('carrel-that-active')?.size === 1"))) return fail('the web page did not mark its that.')
+    // The note comes back with its words, and the sidebar lists it.
+    const note = "document.querySelector('.sheet[data-kind=\"note\"] .ProseMirror')"
+    if (!(await waitFor(`${note}?.querySelector('h1')?.textContent === '${NOTE_TITLE}' && ${note}?.querySelector('p')?.textContent === '${NOTE_TEXT}'`))) {
+      return fail(`the note came back saying ${String(await page(`${note}?.textContent ?? 'nothing'`))}`)
+    }
+    if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
+      return fail('the sidebar did not list the note after a restart')
+    }
     // A that. whose words are gone opens its saved copy.
     await page(`window.carrel.workspace.items().then((items) => window.carrel.workspace.makeThat({
       itemId: items.find((item) => item.kind === 'paper').id, page: 1, text: { source: 'Words this PDF never had', start: 0, end: 24 },
