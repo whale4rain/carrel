@@ -26,7 +26,8 @@ in Focus), `MarginCompare` (two sheets side by side), `MarginMac` and
 
 A kit sheet is a plain HTML page in a sandboxed iframe. Carrel injects the
 Margin tokens as CSS variables, so use them and never hard-code a color, font,
-radius or shadow:
+radius or shadow. The names below follow the component previews; the token
+build in `packages/margin` is what finally fixes them:
 
 | Token group | Variable | Examples |
 | --- | --- | --- |
