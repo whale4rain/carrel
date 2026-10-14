@@ -20,6 +20,7 @@ const workspace: WorkspaceApi = {
   chooseFiles: () => call(workspaceChannels.chooseFiles),
   addFiles: (paths) => call(workspaceChannels.addFiles, paths),
   addLink: (url) => call(workspaceChannels.addLink, url),
+  itemBytes: (id) => call(workspaceChannels.itemBytes, id),
 }
 
 // The typed bridge between renderer and main.

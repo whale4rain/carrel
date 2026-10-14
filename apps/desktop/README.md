@@ -82,6 +82,12 @@ a sheet on this desk; the sidebar counts them.
 Web pages and videos are linked by URL and never downloaded. Until each
 kind's viewer comes, a sheet shows the source's title and where it is.
 
+![A PDF on its sheet at 60%, and at 100% at night](screenshot-pdf.png)
+
+**PDFs** open inside their sheet with pdf.js: scroll over the sheet to read,
+the label shows the page, and text can be selected. Only pages near the view
+are drawn, at a resolution matched to the sheet's scale and the desk zoom.
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,

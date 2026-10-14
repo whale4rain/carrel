@@ -1,3 +1,4 @@
+import { readFile } from 'node:fs/promises'
 import { Library, type DeskFile, type ItemFile, type OpenProject, type Sheet, type SheetChange, type Viewport, type Workspace } from '@carrel/core'
 import type { DeskView, ItemView, ShellState } from '../shared/workspace-api.js'
 
@@ -85,6 +86,10 @@ export class ShellController {
 
   async addLink(url: string): Promise<ItemView> {
     return itemView(await this.library.addLink(await this.openFolder(), url))
+  }
+
+  async itemBytes(id: string): Promise<Uint8Array> {
+    return new Uint8Array(await readFile(await this.library.filePath(await this.openFolder(), id)))
   }
 
   private async openFolder(): Promise<string> {
