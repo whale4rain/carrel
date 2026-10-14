@@ -1,0 +1,6 @@
+# Check out text with LF on every platform, so generated files (Margin
+# tokens) compare byte for byte on Windows too.
+* text=auto eol=lf
+*.png binary
+*.webm binary
+*.woff2 binary
