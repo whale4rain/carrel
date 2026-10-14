@@ -1,0 +1,11 @@
+packages:
+  - apps/*
+  - packages/*
+  - kits/*
+
+onlyBuiltDependencies:
+  - electron
+  - esbuild
+
+ignoredBuiltDependencies:
+  - koffi
