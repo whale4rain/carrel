@@ -15,6 +15,41 @@ export interface ItemView {
   file?: { name: string; size: number }
 }
 
+/** A *that.*: where it points, as its chip shows it. */
+export interface ThatView {
+  id: string
+  itemId: string
+  /** "p.42", "12:34", or empty for a web page. */
+  label: string
+  /** The quoted words, if it points at text. */
+  text?: string
+  /** Whether a snapshot image (a video frame) was kept. */
+  image: boolean
+  createdAt: string
+}
+
+/**
+ * What the renderer asks to point at. Text is given with the text it sits in
+ * (for a PDF, its page's), so main can build the selectors.
+ */
+export interface ThatRequest {
+  itemId: string
+  page?: number
+  text?: { source: string; start: number; end: number }
+  /** A moment in a video, in seconds. */
+  seconds?: number
+  /** A PNG of what it points at. */
+  image?: Uint8Array
+}
+
+/** A rectangle in window pixels. */
+export interface WindowRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
 export interface DeskSummary {
   id: string
   name: string
@@ -60,6 +95,12 @@ export interface WorkspaceApi {
   snapshot(id: string): Promise<Uint8Array | null>
   /** A linked source told us its title (a video player does); the item, if renamed. */
   sourceTitle(id: string, title: string): Promise<ItemView | null>
+  /** Keeps a *that.* in the project. */
+  makeThat(request: ThatRequest): Promise<ThatView>
+  /** The project's *that.*s, oldest first. */
+  thats(): Promise<ThatView[]>
+  /** A *that.*'s snapshot image (PNG), if it has one. */
+  thatImage(id: string): Promise<Uint8Array | null>
 }
 
 /** The desk's web pages, drawn by main over their sheets. */
@@ -70,6 +111,10 @@ export interface WebApi {
   onSnapshot(listener: (sheet: string, itemId: string, png: Uint8Array) => void): () => void
   /** An item changed in main (a page told us its title). */
   onItem(listener: (item: ItemView) => void): () => void
+  /** A *that.* made inside a live page (⌘. there goes to the page, not the desk). */
+  onThat(listener: (that: ThatView) => void): () => void
+  /** What the window shows in a rectangle, as a PNG: a video's frame. */
+  frame(rect: WindowRect): Promise<Uint8Array>
 }
 
 export const workspaceChannels = {
@@ -88,6 +133,9 @@ export const workspaceChannels = {
   itemBytes: 'workspace:item-bytes',
   snapshot: 'workspace:snapshot',
   sourceTitle: 'workspace:source-title',
+  makeThat: 'workspace:make-that',
+  thats: 'workspace:thats',
+  thatImage: 'workspace:that-image',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */

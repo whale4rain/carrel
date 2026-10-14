@@ -14,3 +14,23 @@ export {
   type WorkspaceEvent,
 } from './workspace.js'
 export { isVideo, Library, parseLink, STORED_EXTENSIONS, titleFromUrl, type ItemFile, type ItemKind, type ItemSource } from './library.js'
+export { Anchors, type AnchorFile, type NewAnchor } from './anchors.js'
+export {
+  CONTEXT,
+  findText,
+  formatMoment,
+  isSelector,
+  MEDIA_FRAGMENT,
+  momentOf,
+  momentSelector,
+  PDF_FRAGMENT,
+  pageOf,
+  pageSelector,
+  positionLabel,
+  textSelectors,
+  type Found,
+  type FragmentSelector,
+  type Selector,
+  type TextPositionSelector,
+  type TextQuoteSelector,
+} from './selectors.js'

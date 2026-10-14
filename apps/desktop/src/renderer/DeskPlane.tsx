@@ -38,12 +38,14 @@ import {
   type View,
 } from '@carrel/desk'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { ItemView, Sheet } from '../shared/workspace-api.js'
+import type { ItemView, Sheet, ThatRequest, ThatView } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView } from './PdfView.js'
 import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
+import { pdfSelection } from './that.js'
+import { ThatTray } from './ThatTray.js'
 import { asWebPage, embedded } from './video.js'
-import { VideoView } from './VideoView.js'
+import { VideoView, videoMoment } from './VideoView.js'
 import { useWebSheets, WebPage } from './web-sheets.js'
 
 const api = window.carrel.workspace
@@ -93,6 +95,10 @@ export function DeskPlane({
   const [marquee, setMarquee] = useState<Rect>()
   const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
+  // The *that.*s made here this session, as chips on the tray.
+  const [pointing, setPointing] = useState<readonly ThatView[]>([])
+  const addToTray = useCallback((that: ThatView): void => setPointing((known) => [...known.filter((other) => other.id !== that.id), that]), [])
+  useEffect(() => window.carrel.web.onThat(addToTray), [addToTray])
   const [view, setView] = useState<View>({ x: 0, y: 0, zoom: 1 })
   // The web sheet clicked into; it goes live when nothing covers it.
   const [active, setActive] = useState<string>()
@@ -402,6 +408,48 @@ export function DeskPlane({
     setSelected(new Set())
   }, [save, selected])
 
+  // ⌘. points at what is selected: text in a PDF, or the moment a selected video is at.
+  const pointAt = useCallback(async (): Promise<void> => {
+    const itemOf = (id: string): string | undefined => latest.current.find((sheet) => sheet.id === id)?.itemId ?? undefined
+    let request: ThatRequest | undefined
+    const text = pdfSelection(window.getSelection())
+    const textItem = text && itemOf(text.sheet)
+    if (text && textItem) request = { itemId: textItem, ...text.request }
+    else {
+      const [only] = selected.size === 1 ? [...selected] : []
+      const item = only === undefined ? undefined : items.get(itemOf(only) ?? '')
+      const seconds = only === undefined ? undefined : videoMoment(only)
+      const player = only === undefined ? undefined : mat.current?.querySelector(`.sheet[data-sheet="${only}"] .video-view`)
+      if (item && embedded(item) && seconds !== undefined && player) {
+        const box = player.getBoundingClientRect()
+        const image = await window.carrel.web.frame({ x: box.left, y: box.top, w: box.width, h: box.height }).catch(() => undefined)
+        request = { itemId: item.id, seconds, ...(image ? { image } : {}) }
+      }
+    }
+    if (!request) {
+      setError('Select some text, or a playing video, then press that. (⌘ .) to point at it.')
+      return
+    }
+    try {
+      addToTray(await api.makeThat(request))
+      setError(undefined)
+    } catch (reason) {
+      setError(message(reason))
+    }
+  }, [addToTray, items, selected])
+
+  // A chip brings its sheet into the middle of the view, selected.
+  const openThat = (that: ThatView): void => {
+    const sheet = latest.current.find((candidate) => candidate.itemId === that.itemId)
+    if (!sheet) {
+      setError('That source is not on this desk.')
+      return
+    }
+    const box = footprint(sheet)
+    setView((now) => ({ ...now, x: screen.w / 2 - (box.x + box.w / 2) * now.zoom, y: screen.h / 2 - (box.y + box.h / 2) * now.zoom }))
+    setSelected(new Set([sheet.id]))
+  }
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       // Typing in a field keeps its own undo and Backspace.
@@ -421,6 +469,7 @@ export function DeskPlane({
       else if (mod && event.key === '1') fit()
       else if (mod && key === 'z') travel(event.shiftKey ? 'redo' : 'undo')
       else if (event.ctrlKey && !event.metaKey && key === 'y') travel('redo')
+      else if (mod && event.key === '.') void pointAt()
       else if (mod && key === 'a') setSelected(new Set(latest.current.map((sheet) => sheet.id)))
       else if ((event.key === 'Delete' || event.key === 'Backspace') && selected.size > 0) removeSelected()
       else return
@@ -435,7 +484,7 @@ export function DeskPlane({
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('keyup', onKeyUp)
     }
-  }, [actualSize, fit, gesture, removeSelected, selected, travel, zoomBy])
+  }, [actualSize, fit, gesture, pointAt, removeSelected, selected, travel, zoomBy])
 
   // Scale choices close when the selection changes.
   useEffect(() => setScaling(false), [selected])
@@ -512,6 +561,7 @@ export function DeskPlane({
             <section
               key={sheet.id}
               className="sheet"
+              data-sheet={sheet.id}
               data-selected={isSelected || undefined}
               data-lifted={lifted || undefined}
               data-pile-top={stack?.at(-1) === sheet || undefined}
@@ -636,6 +686,12 @@ export function DeskPlane({
               Scale
             </button>
           )}
+          {chosen.length === 1 && chosen[0]?.itemId != null && (
+            // Pressing it mustn't clear the text selection it points at.
+            <button type="button" className="that" onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
+              that.
+            </button>
+          )}
         </div>
       )}
       <DeskNav
@@ -651,6 +707,7 @@ export function DeskPlane({
         onAddFiles={addFiles}
         onAddLink={addLink}
       />
+      <ThatTray thats={pointing} items={items} onOpen={openThat} onRemove={(that) => setPointing((known) => known.filter((other) => other.id !== that.id))} />
       {error && (
         <p className="desk-error" role="alert">
           {error}

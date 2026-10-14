@@ -113,6 +113,26 @@ The desk is served from `https://desk.carrel.app/`, intercepted inside the
 app, because YouTube's embed refuses `file://` pages. Web pages on the desk
 get their own session, apart from the desk's.
 
+## that.
+
+![Two that.s on a PDF page on the tray; the selection bar's that. button; day and night](screenshot-that.png)
+
+Select words in a PDF, or select a playing video's sheet, and press **⌘ .**
+(Ctrl+. on Windows) or **that.** on the selection bar. In a live web page,
+select words and press ⌘ . there. Carrel keeps a *that.* in the project and
+puts its chip on the tray at the bottom left: the page (`p.42`), the moment
+(`▶ 12:34`) or the site. Hover a chip for its words; click it to bring its
+sheet into view; × takes it off the tray but keeps it.
+
+```
+~/Carrel/<project>/anchors/
+  <id>.json   the item, W3C selectors (page or moment, quote, position), the quoted words
+  <id>.png    the video frame, for a moment
+```
+
+Text selectors are relative to the page for a PDF and to the page's text for
+a web page, so a *that.* can be found again when the source shifts.
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,

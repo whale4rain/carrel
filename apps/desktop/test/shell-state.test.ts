@@ -99,3 +99,28 @@ describe('sheets through the shell', () => {
     await expect(controller().saveSheets(desk, [blank], { kind: '../x', ids: [] })).rejects.toThrow(/not a sheet change/)
   })
 })
+
+describe('that. through the shell', () => {
+  it('keeps a that. on a PDF page and a video moment', async () => {
+    await controller().createProject('Learn economics')
+    const pdf = join(home, 'Supply.pdf')
+    await writeFile(pdf, '%PDF-1.4')
+    const [paper] = await controller().addFiles([pdf])
+    const video = await controller().addLink('https://youtu.be/aqz-KE-bpKQ')
+    const source = 'Demand is elastic when buyers react strongly.'
+    const quoted = await controller().makeThat({ itemId: paper?.id, page: 3, text: { source, start: 0, end: 17 } })
+    expect(quoted).toMatchObject({ itemId: paper?.id, label: 'p.3', text: 'Demand is elastic', image: false })
+    const moment = await controller().makeThat({ itemId: video.id, seconds: 754.34, image: new Uint8Array([1, 2, 3]) })
+    expect(moment).toMatchObject({ label: '12:34', image: true })
+    expect([...((await controller().thatImage(moment.id)) ?? [])]).toEqual([1, 2, 3])
+    expect((await controller().thats()).map((that) => that.label)).toEqual(['p.3', '12:34'])
+  })
+
+  it('refuses a that. outside the project or the text', async () => {
+    await controller().createProject('Learn economics')
+    const page = await controller().addLink('https://example.com/rent')
+    await expect(controller().makeThat({ itemId: 'not-an-item', seconds: 1 })).rejects.toThrow()
+    await expect(controller().makeThat({ itemId: page.id, text: { source: 'short', start: 2, end: 40 } })).rejects.toThrow(/not in the text/)
+    await expect(controller().makeThat({ itemId: page.id })).rejects.toThrow(/not a place/)
+  })
+})

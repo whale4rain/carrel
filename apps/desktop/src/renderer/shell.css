@@ -1010,3 +1010,85 @@ kbd {
 .desk-mat[data-gesture] iframe {
   pointer-events: none;
 }
+
+/* that. is the one yellow thing: in the selection bar and on its chips. */
+.selection-bar button.that {
+  background: var(--highlight);
+  color: var(--highlight-ink);
+  font-family: var(--font-mono);
+}
+
+/* The tray: chips made on this desk, at the bottom left. */
+.that-tray {
+  position: absolute;
+  left: 16px;
+  bottom: 16px;
+  z-index: 100002;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  max-width: calc(100% - 420px);
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+}
+
+.that-tray-label {
+  color: var(--ink-muted);
+  font-family: var(--font-read);
+  font-size: 12px;
+  font-style: italic;
+  white-space: nowrap;
+}
+
+.that-tray ul {
+  display: flex;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  list-style: none;
+}
+
+.that-tray li {
+  display: flex;
+  align-items: center;
+}
+
+.that-chip {
+  height: 22px;
+  padding: 0 7px;
+  border: 1px solid transparent;
+  border-radius: var(--radius-mark);
+  background: var(--highlight);
+  color: var(--highlight-ink);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.that-chip:hover,
+.that-chip:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--highlight-soft);
+}
+
+.that-remove {
+  width: 16px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink-muted);
+  font-size: 13px;
+  cursor: pointer;
+  display: none;
+}
+
+.that-tray li:hover .that-remove,
+.that-remove:focus-visible {
+  display: block;
+}

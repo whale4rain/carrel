@@ -34,6 +34,20 @@ ipcMain.on('web:layout', (event, layout: WebLayout) => {
   if (isWebLayout(layout)) void webViews.get(event.sender.id)?.layout(layout)
 })
 
+// A rectangle of the window as a PNG: a video's frame for its *that.*
+ipcMain.handle('web:frame', async (event, rect: unknown) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  if (!window || !isRect(rect)) throw new Error('That is not a part of the window.')
+  const bounds = { x: Math.round(rect.x), y: Math.round(rect.y), width: Math.max(1, Math.round(rect.w)), height: Math.max(1, Math.round(rect.h)) }
+  return (await window.webContents.capturePage(bounds)).toPNG()
+})
+
+function isRect(value: unknown): value is { x: number; y: number; w: number; h: number } {
+  if (typeof value !== 'object' || value === null) return false
+  const rect = value as Record<string, unknown>
+  return [rect.x, rect.y, rect.w, rect.h].every((n) => typeof n === 'number' && Number.isFinite(n))
+}
+
 function isWebLayout(value: unknown): value is WebLayout {
   if (typeof value !== 'object' || value === null) return false
   const layout = value as Partial<WebLayout>
@@ -52,6 +66,11 @@ async function createWindow(): Promise<void> {
         void controller.pageTitle(itemId, title).then((item) => {
           if (item && !window.isDestroyed()) window.webContents.send('web:item', item)
         }, () => undefined)
+      },
+      that: (itemId, text) => {
+        void controller.makeThat({ itemId, text }).then((that) => {
+          if (!window.isDestroyed()) window.webContents.send('web:that', that)
+        }, (error: unknown) => console.error('that.:', error))
       },
     }),
   )
@@ -91,6 +110,8 @@ const VIDEO_ID = 'aqz-KE-bpKQ'
 const VIDEO = `https://www.youtube.com/watch?v=${VIDEO_ID}`
 /** The text of the smoke's PDF, as its sheet's text layer has it. */
 const PDF_TEXT = "document.querySelector('.sheet[data-kind=\"paper\"] .textLayer')?.textContent"
+/** The word the smoke points at with that. */
+const THAT_WORD = 'elasticity'
 /** Then scaled to 60% from the selection bar. */
 const SCALED = { w: 264 }
 
@@ -240,6 +261,26 @@ async function deskInteractions(
   await waitFor("document.querySelector('.add-menu') !== null")
   await page("[...document.querySelectorAll('.add-menu button')].find((b) => b.textContent.startsWith('Book or paper'))?.click()")
   if (!(await waitFor(`${PDF_TEXT} === 'Price elasticity of demand'`))) return `the PDF's text layer says ${String(await page(PDF_TEXT))}`
+  // that.: select a word on the PDF's page and press ⌘. (Ctrl+.); a chip lands on the tray.
+  await page(`(() => {
+    const layer = document.querySelector('.sheet[data-kind="paper"] .textLayer')
+    const walker = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT)
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.data.indexOf('${THAT_WORD}')
+      if (at < 0) continue
+      const range = document.createRange()
+      range.setStart(node, at)
+      range.setEnd(node, at + ${THAT_WORD.length})
+      getSelection().removeAllRanges()
+      getSelection().addRange(range)
+      return
+    }
+  })()`)
+  await key('.', [mod])
+  if (!(await waitFor("document.querySelector('.that-tray .that-chip')?.textContent === 'p.1'"))) {
+    return `pointing at the PDF made no chip: ${String(await page("document.querySelector('.desk-error')?.textContent ?? 'no message'"))}`
+  }
+  if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.length === 1 && thats[0].text === '${THAT_WORD}')`))) return 'the that. was not kept'
   return undefined
 }
 
@@ -286,6 +327,9 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     }
     if (!(await waitFor("document.querySelector('.web-page img') !== null"))) return fail('the web page came back without its snapshot')
     if (!(await waitFor(`${PDF_TEXT} === 'Price elasticity of demand'`))) return fail(`the PDF came back saying ${String(await page(PDF_TEXT))}`)
+    if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats[0]?.label === 'p.1' && thats[0]?.text === '${THAT_WORD}')`))) {
+      return fail('the that. did not come back')
+    }
   }
   // Calls run in order, so this answers only after the gestures' saves are written.
   await page('window.carrel.workspace.state()')

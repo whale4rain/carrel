@@ -2,8 +2,13 @@ import { useEffect, useRef, useState } from 'react'
 import type { ItemView } from '../shared/workspace-api.js'
 import { formatTimestamp, startAt, YOUTUBE_ORIGIN, youtubeEmbedUrl, youtubeId } from './video.js'
 
-/** Players on the desk, so starting one pauses the others: one audio source at a time. */
-const players = new Map<string, { pause(): void }>()
+/** Players on the desk, by sheet: starting one pauses the others (one audio source at a time), and *that.* reads their time. */
+const players = new Map<string, { pause(): void; time(): number | undefined }>()
+
+/** Where a sheet's video is now, in seconds, if its player has said. */
+export function videoMoment(sheet: string): number | undefined {
+  return players.get(sheet)?.time()
+}
 
 function started(id: string): void {
   for (const [other, player] of players) if (other !== id) player.pause()
@@ -50,7 +55,12 @@ export function VideoView({
     const element = frame.current
     if (!element) return
     const send = (message: object): void => element.contentWindow?.postMessage(JSON.stringify(message), YOUTUBE_ORIGIN)
-    players.set(sheet, { pause: () => send({ event: 'command', func: 'pauseVideo', args: [] }) })
+    // Reports arrive a few times a second; between them a playing video's time is extrapolated.
+    let reported: { at: number; when: number; playing: boolean } | undefined
+    players.set(sheet, {
+      pause: () => send({ event: 'command', func: 'pauseVideo', args: [] }),
+      time: () => reported && (reported.playing ? reported.at + (performance.now() - reported.when) / 1000 : reported.at),
+    })
     // Like YouTube's own iframe API: keep saying "listening" until the player
     // answers, since its script may not be ready when the frame loads.
     let heard = false
@@ -78,6 +88,11 @@ export function VideoView({
       heard = true
       const info = typeof data.info === 'object' && data.info !== null ? data.info : undefined
       if (info?.playerState === 1) started(sheet)
+      if (typeof info?.currentTime === 'number' || typeof info?.playerState === 'number') {
+        const playing = typeof info.playerState === 'number' ? info.playerState === 1 : (reported?.playing ?? false)
+        const at = typeof info.currentTime === 'number' ? info.currentTime : (players.get(sheet)?.time() ?? 0)
+        reported = { at, when: performance.now(), playing }
+      }
       const title = info?.videoData?.title
       if (title && !named) {
         named = true
