@@ -47,7 +47,8 @@ describe('a Carrel project as a tnega Project', () => {
   })
 
   afterEach(async () => {
-    await rm(root, { recursive: true, force: true })
+    // On Windows, tnega may still be flushing a file as the test ends.
+    await rm(root, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
   })
 
   it('creates a project, streams an answer, and lets the agent call a Carrel tool', async () => {

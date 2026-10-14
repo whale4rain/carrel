@@ -11,6 +11,12 @@ const smoke = process.env.CARREL_SMOKE === '1'
 async function createWindow(): Promise<void> {
   const window = new BrowserWindow(windowOptions(process.platform, `${outDir}preload.cjs`))
   window.once('ready-to-show', () => window.show())
+  if (smoke) {
+    // Show renderer errors in the CI log, so a blank page says why.
+    window.webContents.on('console-message', ({ level, message }) => {
+      if (level === 'error') console.error(`renderer: ${message}`)
+    })
+  }
   await window.loadFile(`${outDir}renderer/index.html`)
   if (smoke) await checkRendered(window)
 }
