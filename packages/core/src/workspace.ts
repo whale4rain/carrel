@@ -226,7 +226,8 @@ export class Workspace {
       .map((line) => JSON.parse(line) as WorkspaceEvent)
   }
 
-  private async event(folder: string, actor: Actor, type: string, payload: Record<string, unknown>): Promise<void> {
+  /** Appends one event to the project's log. */
+  async event(folder: string, actor: Actor, type: string, payload: Record<string, unknown>): Promise<void> {
     const events = await this.readEvents(folder)
     const seq = (events.at(-1)?.seq ?? 0) + 1
     const event: WorkspaceEvent = { seq, at: this.timestamp(), actor, type, payload }

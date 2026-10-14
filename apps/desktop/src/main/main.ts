@@ -55,6 +55,9 @@ async function createWindow(): Promise<void> {
 
 /** Where the smoke's sheet should end up: added at (48, 48), dragged by (100, 60), widened by 40. */
 const MOVED = { x: 148, y: 108, w: 440 }
+/** A web page the smoke adds by its link, and the title it gets. */
+const LINK = 'https://example.com/elasticity'
+const LINK_TITLE = 'example.com · elasticity'
 /** Then scaled to 60% from the selection bar. */
 const SCALED = { w: 264 }
 
@@ -67,7 +70,13 @@ async function deskInteractions(
   page: <T>(script: string) => Promise<T>,
   waitFor: (script: string) => Promise<boolean>,
 ): Promise<string | undefined> {
-  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  // + Add, then Blank sheet.
+  const addBlank = async (): Promise<void> => {
+    await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
+    await waitFor("document.querySelector('.add-menu') !== null")
+    await page("[...document.querySelectorAll('.add-menu button')].find((b) => b.textContent === 'Blank sheet')?.click()")
+  }
+  await addBlank()
   if (!(await waitFor("document.querySelectorAll('.sheet').length === 1"))) return 'adding a sheet did nothing'
   const center = async (selector: string): Promise<{ x: number; y: number }> =>
     page(`(() => { const r = document.querySelector('${selector}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
@@ -108,7 +117,7 @@ async function deskInteractions(
   await key('Z', [mod, 'shift'])
   if (!(await waitFor(`${style}.width === '${MOVED.w}px'`))) return `redo left the sheet at ${String(await page(`${style}.cssText`))}`
   // A second sheet, deleted, brought back, and deleted again: the desk keeps one.
-  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  await addBlank()
   const count = (n: number): string => `document.querySelectorAll('.sheet').length === ${n}`
   if (!(await waitFor(count(2)))) return 'adding a second sheet did nothing'
   await key('Delete')
@@ -127,7 +136,7 @@ async function deskInteractions(
   await press('60%')
   if (!(await waitFor(`${style}.width === '${SCALED.w}px'`))) return `scaling left the sheet at ${String(await page(`${style}.cssText`))}`
   // Two sheets into a pile, then both steps undone.
-  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  await addBlank()
   if (!(await waitFor(count(2)))) return 'adding a sheet for the pile did nothing'
   await key('A', [mod])
   await press('Make a pile')
@@ -137,7 +146,7 @@ async function deskInteractions(
   await key('Z', [mod])
   if (!(await waitFor(count(1)))) return 'undo did not take the added sheet away'
   // Two overlapping sheets, tidied apart, then undone.
-  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  await addBlank()
   if (!(await waitFor(count(2)))) return 'adding a sheet to tidy did nothing'
   const overlap = "(() => { const [a, b] = [...document.querySelectorAll('.sheet')].map((s) => s.getBoundingClientRect()); return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom })()"
   if (!(await waitFor(`${overlap} === true`))) return 'the new sheet did not land on the first'
@@ -153,6 +162,18 @@ async function deskInteractions(
   if (!(await waitFor('window.carrel.workspace.state().then((s) => window.carrel.workspace.desk(s.open.desk)).then((d) => d.viewport.zoom === 0.8)'))) {
     return 'the zoom was not saved'
   }
+  // A web page by its link, through + Add.
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
+  await waitFor("document.querySelector('.add-menu') !== null")
+  await page("[...document.querySelectorAll('.add-menu button')].find((b) => b.textContent.startsWith('Web page'))?.click()")
+  if (!(await waitFor("document.querySelector('.add-link input') !== null"))) return 'the link field did not open'
+  await page(`(() => {
+    const input = document.querySelector('.add-link input')
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, '${LINK}')
+    input.dispatchEvent(new Event('input', { bubbles: true }))
+  })()`)
+  await page("document.querySelector('.add-link').requestSubmit()")
+  if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) return 'adding a link made no web page sheet'
   return undefined
 }
 
@@ -194,6 +215,9 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       return fail(`the sheet came back at ${String(await page("document.querySelector('.sheet')?.getAttribute('style') ?? 'nowhere'"))}`)
     }
     if (!(await waitFor("document.querySelector('.zoom-level')?.textContent === '80%'"))) return fail('the desk did not come back at 80%')
+    if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) {
+      return fail('the web page sheet did not come back')
+    }
   }
   // Calls run in order, so this answers only after the gestures' saves are written.
   await page('window.carrel.workspace.state()')

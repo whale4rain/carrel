@@ -1,5 +1,5 @@
 import { carrelRoots, Workspace } from '@carrel/core'
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -68,6 +68,18 @@ describe('sheets through the shell', () => {
     const desk = state.open?.desk ?? ''
     await controller().saveSheets(desk, [blank], { kind: 'added', ids: ['s1'] })
     expect((await controller().desk(desk)).sheets).toEqual([blank])
+  })
+
+  it('adds sources to the open project', async () => {
+    await controller().createProject('Learn economics')
+    const pdf = join(home, 'Supply.pdf')
+    await writeFile(pdf, '%PDF-1.4')
+    const [paper] = await controller().addFiles([pdf])
+    const page = await controller().addLink('https://example.com/rent')
+    expect(paper).toEqual({ id: paper?.id, kind: 'paper', title: 'Supply', file: { name: 'Supply.pdf', size: 8 } })
+    expect(page).toEqual({ id: page.id, kind: 'web_page', title: 'example.com · rent', url: 'https://example.com/rent' })
+    expect((await controller().items()).map((item) => item.title).sort()).toEqual(['Supply', 'example.com · rent'])
+    await expect(controller().addFiles('nope')).rejects.toThrow(/not files/)
   })
 
   it('remembers the view of a desk, within zoom limits', async () => {

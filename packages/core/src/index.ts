@@ -13,3 +13,4 @@ export {
   type Viewport,
   type WorkspaceEvent,
 } from './workspace.js'
+export { isVideo, Library, parseLink, STORED_EXTENSIONS, titleFromUrl, type ItemFile, type ItemKind, type ItemSource } from './library.js'

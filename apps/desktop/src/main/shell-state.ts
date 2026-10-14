@@ -1,5 +1,5 @@
-import type { DeskFile, OpenProject, Sheet, SheetChange, Viewport, Workspace } from '@carrel/core'
-import type { DeskView, ShellState } from '../shared/workspace-api.js'
+import { Library, type DeskFile, type ItemFile, type OpenProject, type Sheet, type SheetChange, type Viewport, type Workspace } from '@carrel/core'
+import type { DeskView, ItemView, ShellState } from '../shared/workspace-api.js'
 
 /**
  * Turns the workspace on disk into what the shell shows, and remembers what
@@ -7,9 +7,11 @@ import type { DeskView, ShellState } from '../shared/workspace-api.js'
  */
 export class ShellController {
   private readonly workspace: Workspace
+  private readonly library: Library
 
-  constructor(workspace: Workspace) {
+  constructor(workspace: Workspace, library = new Library(workspace)) {
     this.workspace = workspace
+    this.library = library
   }
 
   async state(): Promise<ShellState> {
@@ -68,6 +70,23 @@ export class ShellController {
     return view(await this.workspace.saveViewport(await this.openFolder(), id, { x, y, zoom }))
   }
 
+  async items(): Promise<ItemView[]> {
+    const { open } = await this.state()
+    return open ? (await this.library.list(open.project)).map(itemView) : []
+  }
+
+  async addFiles(paths: unknown): Promise<ItemView[]> {
+    if (!Array.isArray(paths) || !paths.every((path) => typeof path === 'string')) throw new Error('Those are not files.')
+    const folder = await this.openFolder()
+    const added: ItemView[] = []
+    for (const path of paths) added.push(itemView(await this.library.addFile(folder, path)))
+    return added
+  }
+
+  async addLink(url: string): Promise<ItemView> {
+    return itemView(await this.library.addLink(await this.openFolder(), url))
+  }
+
   private async openFolder(): Promise<string> {
     const { open } = await this.state()
     if (!open) throw new Error('Create a project first.')
@@ -87,6 +106,11 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
     desks: opened.desks.map(({ id, name }) => ({ id, name })),
     desk: desk ?? '',
   }
+}
+
+function itemView(item: ItemFile): ItemView {
+  const base = { id: item.id, kind: item.kind, title: item.title }
+  return item.source.storage === 'linked' ? { ...base, url: item.source.url } : { ...base, file: { name: item.source.file, size: item.source.size } }
 }
 
 function view(desk: DeskFile): DeskView {
