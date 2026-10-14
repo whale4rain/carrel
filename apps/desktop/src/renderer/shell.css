@@ -369,3 +369,120 @@ kbd {
     transition: background-color 180ms ease-out;
   }
 }
+
+/* ---- Projects and names ------------------------------------------------ */
+
+.project-switcher {
+  position: relative;
+}
+
+.project {
+  width: 100%;
+}
+
+.project-menu {
+  position: absolute;
+  inset: calc(100% + 4px) 0 auto;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--space-1);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+}
+
+.project-menu .row[aria-current='true'] {
+  font-weight: 600;
+}
+
+.project-mark.small {
+  width: 18px;
+  height: 18px;
+  font-size: 9px;
+}
+
+.no-project {
+  margin: 0;
+  padding: 6px 10px;
+  color: var(--ink-muted);
+}
+
+.name-field {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.name-field input {
+  flex: 1;
+  min-width: 0;
+  height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--graphite);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--ink);
+  font: var(--text-label);
+  font-weight: 400;
+  user-select: text;
+}
+
+.name-field input:focus {
+  outline: 2px solid var(--focus);
+  outline-offset: -1px;
+}
+
+.name-field.inline {
+  padding: 2px 0 2px 14px;
+}
+
+.name-field.form input {
+  height: 36px;
+  font: var(--text-body);
+}
+
+.field-error {
+  flex-basis: 100%;
+  margin: 0;
+  padding: 0 2px;
+  color: var(--danger);
+  font: var(--text-caption);
+}
+
+/* One ink button per view: the main action. */
+.ink-button {
+  height: 36px;
+  padding: 0 var(--space-4);
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  color: var(--paper);
+  font: var(--text-label);
+}
+
+.ink-button:disabled {
+  opacity: 0.4;
+}
+
+.welcome {
+  width: min(440px, calc(100% - 48px));
+  padding: var(--space-8);
+  border-radius: var(--radius-sheet);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+}
+
+.welcome-title {
+  margin: 0 0 var(--space-2);
+  font: var(--text-title);
+}
+
+.welcome-body {
+  margin: 0 0 var(--space-6);
+  color: var(--ink-muted);
+}
+
+.welcome-body code {
+  font: var(--text-position);
+}
