@@ -199,6 +199,7 @@ function thatView(anchor: AnchorFile): ThatView {
     id: anchor.id,
     itemId: anchor.itemId,
     label: anchor.label,
+    selectors: anchor.selectors,
     ...(anchor.snapshot.text ? { text: anchor.snapshot.text } : {}),
     image: anchor.snapshot.image !== undefined,
     createdAt: anchor.createdAt,

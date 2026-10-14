@@ -42,6 +42,8 @@ const web: WebApi = {
   onItem: (listener) => listen<ItemView>('web:item', listener),
   onThat: (listener) => listen<ThatView>('web:that', listener),
   frame: (rect) => ipcRenderer.invoke('web:frame', rect) as Promise<Uint8Array>,
+  showThat: (sheet, that) => ipcRenderer.send('web:show-that', { sheet, that }),
+  onFound: (listener) => listen<{ that: string; found: boolean }>('web:found', ({ that, found }) => listener(that, found)),
 }
 
 // The typed bridge between renderer and main.

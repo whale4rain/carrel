@@ -3,7 +3,12 @@ import type { ItemView } from '../shared/workspace-api.js'
 import { formatTimestamp, startAt, YOUTUBE_ORIGIN, youtubeEmbedUrl, youtubeId } from './video.js'
 
 /** Players on the desk, by sheet: starting one pauses the others (one audio source at a time), and *that.* reads their time. */
-const players = new Map<string, { pause(): void; time(): number | undefined }>()
+const players = new Map<string, { pause(): void; time(): number | undefined; seek(seconds: number): void }>()
+
+/** Takes a sheet's video to a moment, as when its *that.* is opened. */
+export function seekVideo(sheet: string, seconds: number): void {
+  players.get(sheet)?.seek(seconds)
+}
 
 /** Where a sheet's video is now, in seconds, if its player has said. */
 export function videoMoment(sheet: string): number | undefined {
@@ -59,6 +64,7 @@ export function VideoView({
     let reported: { at: number; when: number; playing: boolean } | undefined
     players.set(sheet, {
       pause: () => send({ event: 'command', func: 'pauseVideo', args: [] }),
+      seek: (seconds) => send({ event: 'command', func: 'seekTo', args: [seconds, true] }),
       time: () => reported && (reported.playing ? reported.at + (performance.now() - reported.when) / 1000 : reported.at),
     })
     // Like YouTube's own iframe API: keep saying "listening" until the player

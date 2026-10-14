@@ -1,8 +1,8 @@
 // What the renderer sees of projects and desks, and how it asks for changes.
 // Main owns the files; the renderer only gets summaries back.
-import type { ItemKind, Sheet, SheetChange, Viewport } from '@carrel/core'
+import type { ItemKind, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
 
-export type { ItemKind, Sheet, SheetChange, Viewport }
+export type { ItemKind, Selector, Sheet, SheetChange, Viewport }
 
 /** A source in the open project, as the renderer sees it. */
 export interface ItemView {
@@ -21,6 +21,8 @@ export interface ThatView {
   itemId: string
   /** "p.42", "12:34", or empty for a web page. */
   label: string
+  /** Where it points, to find it again. */
+  selectors: Selector[]
   /** The quoted words, if it points at text. */
   text?: string
   /** Whether a snapshot image (a video frame) was kept. */
@@ -115,6 +117,10 @@ export interface WebApi {
   onThat(listener: (that: ThatView) => void): () => void
   /** What the window shows in a rectangle, as a PNG: a video's frame. */
   frame(rect: WindowRect): Promise<Uint8Array>
+  /** Opens a *that.* in its live page: scrolls to it and marks it. */
+  showThat(sheet: string, that: string): void
+  /** Whether a *that.* was found in its page as it is now. */
+  onFound(listener: (that: string, found: boolean) => void): () => void
 }
 
 export const workspaceChannels = {

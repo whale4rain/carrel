@@ -1,3 +1,4 @@
+import { momentOf } from '@carrel/core/selectors'
 import {
   bounds,
   changed,
@@ -40,12 +41,12 @@ import {
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { ItemView, Sheet, ThatRequest, ThatView } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
-import { PdfView } from './PdfView.js'
+import { PdfView, type Focus } from './PdfView.js'
 import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 import { pdfSelection } from './that.js'
-import { ThatTray } from './ThatTray.js'
+import { SavedThat, ThatTray } from './ThatTray.js'
 import { asWebPage, embedded } from './video.js'
-import { VideoView, videoMoment } from './VideoView.js'
+import { seekVideo, VideoView, videoMoment } from './VideoView.js'
 import { useWebSheets, WebPage } from './web-sheets.js'
 
 const api = window.carrel.workspace
@@ -95,10 +96,39 @@ export function DeskPlane({
   const [marquee, setMarquee] = useState<Rect>()
   const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
-  // The *that.*s made here this session, as chips on the tray.
-  const [pointing, setPointing] = useState<readonly ThatView[]>([])
-  const addToTray = useCallback((that: ThatView): void => setPointing((known) => [...known.filter((other) => other.id !== that.id), that]), [])
+  // The project's *that.*s; those on this desk's sources are chips on the tray.
+  const [thats, setThats] = useState<readonly ThatView[]>([])
+  useEffect(() => {
+    let current = true
+    void api.thats().then((list) => {
+      if (current) setThats(list)
+    })
+    return () => {
+      current = false
+    }
+  }, [])
+  const addToTray = useCallback((that: ThatView): void => setThats((known) => [...known.filter((other) => other.id !== that.id), that]), [])
   useEffect(() => window.carrel.web.onThat(addToTray), [addToTray])
+  // Chips taken off the tray this session (the that.s themselves are kept).
+  const [offTray, setOffTray] = useState<ReadonlySet<string>>(new Set())
+  // The that. being opened, and those whose words are gone from their source.
+  const [focus, setFocus] = useState<Focus & { sheet: string }>()
+  const [lost, setLost] = useState<ReadonlySet<string>>(new Set())
+  const [savedCopy, setSavedCopy] = useState<ThatView>()
+  const found = useCallback(
+    (id: string, here: boolean): void => {
+      setLost((known) => {
+        if (known.has(id) === !here) return known
+        const next = new Set(known)
+        if (here) next.delete(id)
+        else next.add(id)
+        return next
+      })
+      if (!here) setSavedCopy(thats.find((that) => that.id === id))
+    },
+    [thats],
+  )
+  useEffect(() => window.carrel.web.onFound(found), [found])
   const [view, setView] = useState<View>({ x: 0, y: 0, zoom: 1 })
   // The web sheet clicked into; it goes live when nothing covers it.
   const [active, setActive] = useState<string>()
@@ -438,17 +468,41 @@ export function DeskPlane({
     }
   }, [addToTray, items, selected])
 
-  // A chip brings its sheet into the middle of the view, selected.
+  // A chip brings its sheet into the middle of the view, selected, and opens
+  // the spot: a PDF scrolls to the words, a video seeks, a web page goes live
+  // and scrolls. If the words are gone, the saved copy shows instead.
   const openThat = (that: ThatView): void => {
+    setSavedCopy(undefined)
     const sheet = latest.current.find((candidate) => candidate.itemId === that.itemId)
-    if (!sheet) {
-      setError('That source is not on this desk.')
+    const item = items.get(that.itemId)
+    if (!sheet || !item) {
+      setSavedCopy(that)
       return
     }
     const box = footprint(sheet)
     setView((now) => ({ ...now, x: screen.w / 2 - (box.x + box.w / 2) * now.zoom, y: screen.h / 2 - (box.y + box.h / 2) * now.zoom }))
     setSelected(new Set([sheet.id]))
+    // On top, so nothing covers the spot (and a web page can go live).
+    const top = Math.max(...latest.current.map((other) => other.z))
+    if (sheet.z < top) {
+      save(
+        latest.current.map((other) => (other.id === sheet.id ? { ...other, z: top + 1 } : other)),
+        'raised',
+        [sheet.id],
+        latest.current,
+      )
+    }
+    const moment = momentOf(that.selectors)
+    if (item.file) setFocus({ sheet: sheet.id, that, nonce: Date.now() })
+    else if (embedded(item) && moment !== undefined) seekVideo(sheet.id, moment)
+    else if (asWebPage(item)) {
+      setActive(sheet.id)
+      window.carrel.web.showThat(sheet.id, that.id)
+    }
   }
+  const thatsOf = (itemId: string): ThatView[] => thats.filter((that) => that.itemId === itemId)
+  const onDesk = new Set(sheets.flatMap((sheet) => (sheet.itemId === null ? [] : [sheet.itemId])))
+  const tray = thats.filter((that) => onDesk.has(that.itemId) && !offTray.has(that.id))
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -578,10 +632,14 @@ export function DeskPlane({
                 </div>
                 {item?.file ? (
                   <PdfView
+                    sheet={sheet.id}
                     itemId={item.id}
                     width={sheet.w}
                     detail={sheet.scale * view.zoom}
+                    thats={thatsOf(item.id)}
+                    focus={focus?.sheet === sheet.id ? focus : undefined}
                     onPage={(page) => reportPosition(sheet.id, page)}
+                    onFound={found}
                   />
                 ) : embedded(item) ? (
                   <VideoView
@@ -707,7 +765,8 @@ export function DeskPlane({
         onAddFiles={addFiles}
         onAddLink={addLink}
       />
-      <ThatTray thats={pointing} items={items} onOpen={openThat} onRemove={(that) => setPointing((known) => known.filter((other) => other.id !== that.id))} />
+      <ThatTray thats={tray} items={items} lost={lost} onOpen={openThat} onRemove={(that) => setOffTray((known) => new Set(known).add(that.id))} />
+      {savedCopy && <SavedThat that={savedCopy} item={items.get(savedCopy.itemId)} onClose={() => setSavedCopy(undefined)} />}
       {error && (
         <p className="desk-error" role="alert">
           {error}

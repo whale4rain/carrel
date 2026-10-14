@@ -9,7 +9,7 @@ const web = window.carrel.web
 /** The sheet's label row, in desk units at 100%. */
 const LABEL = 36
 /** Things drawn over the desk that a live page must not cover. */
-const OVERLAYS = '.desk-nav, .selection-bar, .add-menu, .desk-error, .that-tray'
+const OVERLAYS = '.desk-nav, .selection-bar, .add-menu, .desk-error, .that-tray, .that-saved'
 
 /**
  * Web pages on the desk. Main draws the live page as a native view over its
