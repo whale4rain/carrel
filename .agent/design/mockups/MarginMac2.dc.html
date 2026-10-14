@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>tnega on the Mac, project sidebar and agent panel</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&amp;family=JetBrains+Mono:wght@500&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 1000px; overflow: hidden; background: #33413a; font-family: 'Instrument Sans', system-ui, sans-serif; color: #1b1f24">
+
+<div style="position: absolute; left: 60px; top: 50px; width: 1480px; height: 900px; border-radius: 12px; overflow: hidden; background: #cfd8d1; box-shadow: 0 0 0 1px rgba(0,0,0,0.25), 0 30px 80px rgba(0,0,0,0.45)">
+
+<nav aria-label="Project" style="position: absolute; left: 0; top: 0; width: 240px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 48px 10px 14px; background: #e8ede9; border-right: 1px solid #c9d1cb; font-size: 13px">
+<div style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 7px; background: #dce3de">
+<span style="width: 22px; height: 22px; border-radius: 5px; background: #1b1f24; color: #fcfcf9; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center">LE</span>
+<span style="flex: 1; font-weight: 600">Learn economics</span>
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M7 10l5 5 5-5"></path></svg>
+</div>
+<div style="display: flex; align-items: center; gap: 8px; height: 28px; padding: 0 10px; border-radius: 7px; border: 1px solid #c9d1cb; color: #59616a">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span style="flex: 1">Search everything</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px">⌘K</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="padding: 0 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #59616a">DESKS</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; background: #1b1f24; color: #fcfcf9"><span style="width: 6px; height: 6px; border-radius: 3px; background: #ffe14d"></span>Elasticity</span>
+<span style="padding: 6px 10px 6px 24px">Supply &amp; demand</span>
+<span style="padding: 6px 10px 6px 24px">Comparing textbooks</span>
+<span style="padding: 6px 10px 6px 24px; color: #59616a">+ New desk</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="padding: 0 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #59616a">NOTES</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 3h10v18l-5-4-5 4z"></path></svg>Elasticity</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px"><svg width="12" height="12" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M7 3h10v18l-5-4-5 4z"></path></svg>Key formulas</span>
+<span style="display: flex; justify-content: space-between; padding: 6px 10px 6px 30px">All notes <span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #59616a">24</span></span>
+<div style="display: flex; flex-wrap: wrap; gap: 4px; padding: 4px 10px 0 30px">
+<span style="padding: 1px 7px; border-radius: 10px; border: 1px solid #b4bdb6; font-size: 11px">#elasticity</span>
+<span style="padding: 1px 7px; border-radius: 10px; border: 1px solid #b4bdb6; font-size: 11px">#exam</span>
+<span style="padding: 1px 7px; border-radius: 10px; border: 1px solid #b4bdb6; font-size: 11px">#micro</span>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="padding: 0 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #59616a">CONVERSATIONS</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 6px; background: #dce3de"><span style="width: 18px; height: 18px; border-radius: 9px; background: #fcfcf9; color: #2457c5; font-family: Literata, Georgia, serif; font-style: italic; font-size: 11px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px #2457c5">a</span><span style="flex: 1">Project thread</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0 6px; border-radius: 8px; background: #2457c5; color: #fcfcf9">2</span></span>
+<span style="padding: 6px 10px 6px 36px">Coffee and substitutes</span>
+<span style="padding: 6px 10px 6px 36px">Exam plan</span>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 1px">
+<span style="padding: 0 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #59616a">LIBRARY</span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"></path></svg><span style="flex: 1">Books &amp; papers</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #59616a">7</span></span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg><span style="flex: 1">Videos</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #59616a">6</span></span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg><span style="flex: 1">Web pages</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #59616a">12</span></span>
+<span style="display: flex; align-items: center; gap: 8px; padding: 6px 10px"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z"></path></svg><span style="flex: 1">Made by the agent</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #59616a">2</span></span>
+</div>
+
+<div style="flex: 1"></div>
+<div style="display: flex; flex-direction: column; gap: 2px; padding-top: 10px; border-top: 1px solid #c9d1cb; color: #3a4148">
+<span style="padding: 5px 10px">All projects</span>
+<span style="padding: 5px 10px">Global library</span>
+</div>
+</nav>
+
+<div style="position: absolute; left: 0; top: 0; width: 1480px; height: 52px; box-sizing: border-box; display: flex; align-items: center; gap: 12px; padding: 0 16px 0 20px">
+<div style="display: flex; gap: 8px" aria-hidden="true">
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #28c840"></span>
+</div>
+<span style="width: 172px"></span>
+<span style="font-size: 12px; color: #3a4148">Learn economics  /</span>
+<span style="font-family: Literata, Georgia, serif; font-size: 16px; font-weight: 500">Elasticity</span>
+<span style="font-size: 12px; color: #3a4148">desk</span>
+<div style="flex: 1"></div>
+<div style="display: flex" aria-label="At this desk: you, Mia, the agent">
+<span style="width: 26px; height: 26px; border-radius: 13px; background: #1b1f24; color: #fcfcf9; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #cfd8d1">OR</span>
+<span style="width: 26px; height: 26px; margin-left: -6px; border-radius: 13px; background: #fcfcf9; color: #1b1f24; font-size: 10px; font-weight: 600; display: flex; align-items: center; justify-content: center; border: 2px solid #cfd8d1">MI</span>
+<span style="width: 26px; height: 26px; margin-left: -6px; border-radius: 13px; background: #fcfcf9; color: #2457c5; font-family: Literata, Georgia, serif; font-style: italic; font-size: 13px; display: flex; align-items: center; justify-content: center; border: 2px solid #cfd8d1; box-shadow: inset 0 0 0 2px #2457c5">a</span>
+</div>
+<button type="button" style="display: flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border: none; border-radius: 7px; background: #fcfcf9; color: #2457c5; font-family: inherit; font-size: 12px; font-weight: 500; box-shadow: inset 0 0 0 1.5px #2457c5">Agent <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px">⌘J</span></button>
+<button type="button" style="height: 28px; padding: 0 12px; border: none; border-radius: 7px; background: #1b1f24; color: #fcfcf9; font-family: inherit; font-size: 12px; font-weight: 500">Share</button>
+</div>
+
+<div style="position: absolute; left: 240px; top: 52px; width: 1240px; height: 848px; overflow: hidden; background-color: #cfd8d1; background-image: linear-gradient(#c6d0c8 1px, transparent 1px), linear-gradient(90deg, #c6d0c8 1px, transparent 1px); background-size: 24px 24px; border-top: 1px solid #c3ccc5">
+
+<section aria-label="Book, selected" style="position: absolute; left: 28px; top: 28px; width: 470px; height: 410px; display: flex; background: #fcfcf9; border-radius: 4px; box-shadow: 0 0 0 1.5px #1b1f24, 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10); overflow: hidden">
+<div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; padding: 14px 22px">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #59616a">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"></path></svg>
+<span>[Textbook] · Ch. 5</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 500">p.42</span>
+</div>
+<p style="margin: 0; font-family: Literata, Georgia, serif; font-size: 16px; line-height: 26px">Elasticity describes how strongly buyers react when a price moves. <span style="background: #fff2a8; border-radius: 2px; padding: 2px 0">When a small price change shifts the quantity bought a lot, demand is elastic; when buyers barely react, it is inelastic.</span></p>
+<p style="margin: 0; font-family: Literata, Georgia, serif; font-size: 16px; line-height: 26px">Goods with close substitutes tend to be elastic. Habits and necessities tend to be inelastic, because there is little else to switch to.</p>
+</div>
+<aside style="width: 140px; flex: none; display: flex; flex-direction: column; gap: 12px; padding: 44px 12px 12px; border-left: 2px solid #df7377">
+<p style="margin: 0; font-size: 12px; line-height: 18px">Elastic = buyers react strongly. <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 4px; border-radius: 2px; background: #ffe14d">p.42</span></p>
+</aside>
+</section>
+
+<section aria-label="Video, selected" style="position: absolute; left: 420px; top: 44px; width: 400px; height: 262px; display: flex; flex-direction: column; gap: 8px; padding: 10px; box-sizing: border-box; background: #fcfcf9; border-radius: 4px; box-shadow: 0 0 0 1.5px #1b1f24, 0 6px 16px rgba(18,30,24,0.18)">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #59616a; padding: 0 2px">
+<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.5 1.5"></path><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.5-1.5"></path></svg>
+<span>Lecture 4 · linked video</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 500">12:34</span>
+</div>
+<div style="flex: 1; border-radius: 2px; background: #0f1311; display: flex; align-items: center; justify-content: center">
+<span style="width: 44px; height: 44px; border-radius: 22px; background: rgba(255,255,255,0.14); display: flex; align-items: center; justify-content: center; color: #ffffff"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><polygon points="8 5 20 12 8 19"></polygon></svg></span>
+</div>
+<div style="position: relative; height: 4px; margin: 2px 4px 4px; border-radius: 2px; background: #e2e5df">
+<div style="position: absolute; left: 0; top: 0; width: 26%; height: 4px; border-radius: 2px; background: #1b1f24"></div>
+<div style="position: absolute; left: 18%; top: -4px; width: 5px; height: 12px; border-radius: 1px; background: #ffe14d; box-shadow: 0 0 0 1px #c9a800"></div>
+</div>
+</section>
+
+<div role="toolbar" aria-label="Actions for 2 selected sheets" style="position: absolute; left: 28px; top: 452px; display: flex; align-items: center; gap: 2px; padding: 4px; border-radius: 8px; background: #1b1f24; color: #fcfcf9; box-shadow: 0 10px 30px rgba(18,30,24,0.28); font-size: 12px">
+<span style="padding: 0 10px; color: #a5aca8">2 selected</span>
+<button type="button" style="height: 28px; padding: 0 10px; border: none; border-radius: 6px; background: #fcfcf9; color: #1b1f24; font-family: inherit; font-size: 12px; font-weight: 500">Compare side by side</button>
+<button type="button" style="height: 28px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; color: #fcfcf9; font-family: inherit; font-size: 12px; font-weight: 500">Focus <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #a5aca8">⌘↵</span></button>
+<button type="button" style="height: 28px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; color: #fcfcf9; font-family: inherit; font-size: 12px; font-weight: 500">Make a pile</button>
+<button type="button" style="height: 28px; padding: 0 10px; border: none; border-radius: 6px; background: #ffe14d; color: #1b1f24; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500">that. both</button>
+</div>
+
+<section aria-label="Notes" style="position: absolute; left: 520px; top: 340px; width: 320px; height: 330px; display: flex; flex-direction: column; gap: 10px; padding: 14px 18px; box-sizing: border-box; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)">
+<div style="display: flex; align-items: center; gap: 6px; font-size: 11px; color: #59616a"><span>Note · kept in project</span><span style="flex: 1"></span><span style="padding: 0 6px; border-radius: 8px; border: 1px solid #b4bdb6; color: #1b1f24">#elasticity</span></div>
+<span style="font-family: Literata, Georgia, serif; font-size: 20px; line-height: 26px; font-weight: 500">Elasticity</span>
+<p style="margin: 0; font-size: 13px; line-height: 20px">Coffee: price up, quantity barely moves, so inelastic. <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 4px; border-radius: 2px; background: #ffe14d">▶ 12:34</span></p>
+<p style="margin: 0; font-size: 13px; line-height: 20px">Why: few close substitutes. <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 4px; border-radius: 2px; background: #ffe14d">thread · 14 Oct</span></p>
+<p style="margin: 0; font-size: 13px; line-height: 20px">Rule: |E| &gt; 1 elastic. <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 4px; border-radius: 2px; background: #ffe14d">slide 7</span> <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 4px; border-radius: 2px; background: #ffe14d">Key formulas</span></p>
+<span style="font-size: 11px; color: #59616a">Cites a video, a conversation turn, a slide and another note.</span>
+</section>
+
+<div style="position: absolute; left: 28px; top: 520px; width: 260px; height: 220px">
+<span style="position: absolute; left: 0; top: 0; font-size: 12px; font-weight: 500">Pile · 4 references <span style="font-family: 'JetBrains Mono', monospace; color: #3a4148">30%</span></span>
+<div style="position: absolute; left: 0; top: 26px; width: 160px; height: 110px; padding: 9px; box-sizing: border-box; background: #fcfcf9; border-radius: 3px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10); font-size: 10px; color: #59616a">[Article] Why tea drinkers switch</div>
+<div style="position: absolute; left: 30px; top: 48px; width: 160px; height: 110px; padding: 9px; box-sizing: border-box; background: #fcfcf9; border-radius: 3px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10); font-size: 10px; color: #59616a">[Paper] Fuel demand over time</div>
+<div style="position: absolute; left: 60px; top: 70px; width: 160px; height: 110px; padding: 9px; box-sizing: border-box; background: #fcfcf9; border-radius: 3px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10); font-size: 10px; color: #59616a">Lecture 5 · Taxes</div>
+<div style="position: absolute; left: 90px; top: 92px; width: 160px; height: 110px; display: flex; flex-direction: column; gap: 6px; padding: 9px; box-sizing: border-box; background: #fcfcf9; border-radius: 3px; box-shadow: 0 6px 16px rgba(18,30,24,0.18)">
+<span style="font-size: 10px; color: #59616a">[Web] Rent and elasticity</span>
+<span style="height: 4px; width: 90%; background: #e2e5df; border-radius: 2px"></span>
+<span style="height: 4px; width: 70%; background: #fff2a8; border-radius: 2px"></span>
+<span style="height: 4px; width: 80%; background: #e2e5df; border-radius: 2px"></span>
+</div>
+</div>
+
+<section aria-label="Slides, scaled down" style="position: absolute; left: 310px; top: 560px; width: 190px; height: 120px; display: flex; flex-direction: column; gap: 6px; padding: 8px; box-sizing: border-box; background: #fcfcf9; border-radius: 3px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)">
+<div style="display: flex; align-items: center; gap: 6px; font-size: 10px; color: #59616a"><span>Slides 7/24</span><span style="flex: 1"></span><span style="font-family: 'JetBrains Mono', monospace; padding: 0 4px; border-radius: 3px; background: #f1f3ee; color: #1b1f24">50%</span></div>
+<div style="flex: 1; padding: 8px; border-radius: 2px; background: #f1f3ee; font-family: Literata, Georgia, serif; font-size: 12px; font-weight: 500">Price elasticity of demand</div>
+</section>
+
+<div style="position: absolute; left: 676px; bottom: 16px; display: flex; align-items: center; gap: 2px; padding: 2px; border-radius: 7px; background: #fcfcf9; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)">
+<button type="button" aria-label="Zoom out" style="width: 26px; height: 26px; border: none; border-radius: 5px; background: transparent; color: #1b1f24; font-family: inherit; font-size: 15px">−</button>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; padding: 0 4px">86%</span>
+<button type="button" aria-label="Zoom in" style="width: 26px; height: 26px; border: none; border-radius: 5px; background: transparent; color: #1b1f24; font-family: inherit; font-size: 15px">+</button>
+<button type="button" style="height: 26px; padding: 0 8px; border: none; border-radius: 5px; background: transparent; color: #1b1f24; font-family: inherit; font-size: 12px">Tidy up</button>
+</div>
+
+<aside aria-label="Agent, project thread" style="position: absolute; right: 0; top: 0; width: 380px; height: 848px; box-sizing: border-box; display: flex; flex-direction: column; background: #fcfcf9; border-left: 1px solid #d5dcd7; box-shadow: -12px 0 30px rgba(18,30,24,0.12)">
+<div style="display: flex; align-items: center; gap: 8px; padding: 12px 14px; border-bottom: 1px solid #e2e5df">
+<span style="width: 22px; height: 22px; border-radius: 11px; background: #fcfcf9; color: #2457c5; font-family: Literata, Georgia, serif; font-style: italic; font-size: 12px; display: flex; align-items: center; justify-content: center; box-shadow: inset 0 0 0 1.5px #2457c5">a</span>
+<div style="flex: 1; display: flex; flex-direction: column">
+<span style="font-size: 13px; font-weight: 600">Project thread</span>
+<span style="font-size: 11px; color: #59616a">Learn economics · ongoing since 2 Oct</span>
+</div>
+<button type="button" style="height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid #c3cac5; background: transparent; color: #1b1f24; font-family: inherit; font-size: 11px">Threads ▾</button>
+<button type="button" aria-label="Close agent panel" style="width: 26px; height: 26px; border: none; border-radius: 6px; background: transparent; color: #59616a; font-size: 14px">×</button>
+</div>
+
+<div style="flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; gap: 16px; padding: 14px 16px">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #59616a"><span style="flex: 1; height: 1px; background: #e2e5df"></span>Yesterday · 6 turns, folded<span style="flex: 1; height: 1px; background: #e2e5df"></span></div>
+<div style="display: flex; align-items: center; gap: 8px; font-size: 11px; color: #59616a"><span style="flex: 1; height: 1px; background: #e2e5df"></span>Today<span style="flex: 1; height: 1px; background: #e2e5df"></span></div>
+
+<div style="align-self: flex-end; max-width: 85%; display: flex; flex-direction: column; gap: 5px; padding: 8px 12px; border-radius: 8px; background: #f1f3ee">
+<div style="display: flex; gap: 4px"><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 5px; border-radius: 2px; background: #ffe14d">▶ 12:34</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 5px; border-radius: 2px; background: #ffe14d">p.42</span></div>
+<p style="margin: 0; font-size: 13px; line-height: 19px">Why is coffee inelastic?</p>
+</div>
+
+<div style="position: relative; display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; margin: 0 -10px; border-radius: 8px; background: #f6f8f5">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #59616a">▸ Read 2 sources</span>
+<p style="margin: 0; font-family: Literata, Georgia, serif; font-size: 14px; line-height: 22px">A daily habit has few close substitutes, so people keep buying when the price rises. <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 0 4px; border-radius: 2px; background: #ffe14d">▶ 12:50</span></p>
+<div style="display: flex; gap: 6px">
+<button type="button" style="height: 24px; padding: 0 8px; border: none; border-radius: 5px; background: #ffe14d; color: #1b1f24; font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500">that. this turn</button>
+<button type="button" style="height: 24px; padding: 0 8px; border-radius: 5px; border: 1px solid #c3cac5; background: transparent; color: #1b1f24; font-family: inherit; font-size: 11px">Add to note</button>
+</div>
+</div>
+
+<div style="align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: 8px; background: #f1f3ee">
+<p style="margin: 0; font-size: 13px; line-height: 19px">Compare what the book and the lecture say.</p>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #59616a">▸ Read 2 sources · 3 steps</span>
+<p style="margin: 0; font-family: Literata, Georgia, serif; font-size: 14px; line-height: 22px">They agree on the idea and differ in the example: the book uses fuel over time, the lecture uses morning coffee. Select both sheets and Compare to see them side by side.</p>
+<p style="margin: 0; font-family: Literata, Georgia, serif; font-style: italic; font-size: 13px; line-height: 20px; color: #2457c5">Your turn: which example shows that time makes demand more elastic?</p>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 6px; padding: 10px 12px 12px; border-top: 1px solid #e2e5df">
+<div style="display: flex; align-items: center; gap: 5px"><span style="font-family: Literata, Georgia, serif; font-style: italic; font-size: 11px; color: #59616a">pointing at</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 2px; background: #ffe14d">p.42</span><span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; font-weight: 500; padding: 1px 5px; border-radius: 2px; background: #ffe14d">▶ 12:34</span><span style="font-size: 10px; color: #59616a">from your selection</span></div>
+<div style="display: flex; align-items: center; gap: 8px; padding: 3px 3px 3px 10px; border-radius: 8px; background: #f1f3ee">
+<span style="flex: 1; font-size: 13px; color: #59616a">Ask anytime…</span>
+<span style="width: 30px; height: 30px; border-radius: 7px; background: #1b1f24; color: #fcfcf9; display: flex; align-items: center; justify-content: center"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></span>
+</div>
+</div>
+</aside>
+
+</div>
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

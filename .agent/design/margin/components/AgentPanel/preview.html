@@ -1,0 +1,55 @@
+<!-- @dsCard group="Agency" height=470 subtitle="The ongoing project thread, opened with ⌘J" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--mat);font-family:var(--font-ui);color:var(--ink)}
+.wrap{display:flex;justify-content:flex-end;padding:16px}
+.panel{width:380px;height:438px;display:flex;flex-direction:column;background:var(--paper);border-radius:var(--radius-sheet);box-shadow:var(--shadow-lift);overflow:hidden}
+.head{display:flex;align-items:center;gap:8px;padding:12px 14px;border-bottom:1px solid var(--rule)}
+.seat{width:22px;height:22px;border-radius:var(--radius-seat);background:var(--paper);color:var(--pencil);font-family:var(--font-read);font-style:italic;font-size:12px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1.5px var(--pencil)}
+.t{display:flex;flex-direction:column;flex:1}
+.t b{font-size:13px}
+.t span{font-size:11px;color:var(--ink-muted)}
+.body{flex:1;display:flex;flex-direction:column;gap:14px;padding:14px 16px;overflow:hidden}
+.day{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--ink-muted)}
+.day i{flex:1;height:1px;background:var(--rule)}
+.me{align-self:flex-end;max-width:85%;padding:8px 12px;border-radius:var(--radius-control);background:var(--paper-2);font-size:13px;line-height:19px}
+.steps{font-family:var(--font-mono);font-size:11px;color:var(--ink-muted)}
+.ans{margin:0;font-family:var(--font-read);font-size:14px;line-height:22px}
+.ask{margin:0;font-family:var(--font-read);font-style:italic;font-size:13px;line-height:20px;color:var(--pencil)}
+.chip{font-family:var(--font-mono);font-size:10px;font-weight:500;padding:0 5px;border-radius:var(--radius-mark);background:var(--highlight);color:var(--highlight-ink)}
+.acts{display:flex;gap:6px}
+.acts button{height:24px;padding:0 8px;border-radius:5px;font-size:11px;cursor:pointer}
+.p{border:none;background:var(--highlight);color:var(--highlight-ink);font-family:var(--font-mono)}
+.o{border:1px solid var(--graphite);background:transparent;color:var(--ink);font-family:var(--font-ui)}
+.foot{display:flex;flex-direction:column;gap:6px;padding:10px 12px 12px;border-top:1px solid var(--rule)}
+.lead{font-family:var(--font-read);font-style:italic;font-size:11px;color:var(--ink-muted)}
+.in{display:flex;align-items:center;gap:8px;padding:3px 3px 3px 10px;border-radius:var(--radius-control);background:var(--paper-2)}
+.in label{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.in input{flex:1;min-width:0;height:30px;border:none;background:transparent;font-family:var(--font-ui);font-size:13px;color:var(--ink);outline:none}
+.send{width:30px;height:30px;border:none;border-radius:7px;background:var(--ink);color:var(--paper);display:flex;align-items:center;justify-content:center}
+button:focus-visible,input:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<aside class="panel" aria-label="Project thread">
+<div class="head"><span class="seat">a</span><div class="t"><b>Project thread</b><span>Learn economics · ongoing since 2 Oct</span></div></div>
+<div class="body">
+<div class="day"><i></i>Yesterday · 6 turns, folded<i></i></div>
+<div class="me"><span class="chip">▶ 12:34</span> Why is coffee inelastic?</div>
+<span class="steps">▸ Read 2 sources</span>
+<p class="ans">A daily habit has few close substitutes, so people keep buying when the price rises. <span class="chip">▶ 12:50</span></p>
+<div class="acts"><button type="button" class="p">that. this turn</button><button type="button" class="o">Add to note</button></div>
+<p class="ask">Your turn: which example shows that time makes demand more elastic?</p>
+</div>
+<div class="foot">
+<span class="lead">pointing at <span class="chip">p.42</span> from your selection</span>
+<div class="in"><label for="ap">Ask the agent</label><input id="ap" type="text" placeholder="Ask anytime…"><button type="button" class="send" aria-label="Send"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"></path></svg></button></div>
+</div>
+</aside>
+</div>
+</body>
+</html>

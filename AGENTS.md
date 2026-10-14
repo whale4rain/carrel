@@ -23,6 +23,10 @@ These are the source of truth. Where they disagree with this file, they win.
 | Pillars doc | https://claude.ai/code/artifact/54c90afc-28be-4f92-9672-77d1a3f2506e | Philosophy: attention, memory, agency |
 | Early concept deck | https://claude.ai/artifact/AgSqPZbYUHj3GzwGwCwosm | History only; superseded |
 
+A copy of Margin (brand book, `tokens.json`, component guidelines) and the
+baseline mockups lives in [`.agent/design/`](.agent/design/README.md). Read it
+before designing any screen or learning kit sheet.
+
 **Baseline mockups:** `MarginMac2`, `MarginFocus`, `MarginCompare`,
 `MarginMac`, `MarginWin`, plus `MarginTalk` and `MarginDesk` for details.
 Ignore `Main`, `Windows` and `Sheet` (older style). The Read/Watch/Compare/Write

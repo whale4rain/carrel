@@ -1,0 +1,38 @@
+<!-- @dsCard group="Desk" height=340 subtitle="A source on paper, with its margin" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--mat);font-family:var(--font-ui);color:var(--ink)}
+.desk{padding:24px;display:flex}
+.sheet{flex:1;display:flex;background:var(--paper);border-radius:var(--radius-sheet);box-shadow:var(--shadow-sheet);overflow:hidden}
+.src{flex:1;min-width:0;padding:20px 32px 28px;display:flex;flex-direction:column;gap:12px}
+.label{display:flex;align-items:center;gap:8px;font-size:12px;line-height:16px;color:var(--ink-muted)}
+.pos{font-family:var(--font-mono);font-weight:500}
+.read{margin:0;font-family:var(--font-read);font-size:19px;line-height:31px;color:var(--ink)}
+.hl{background:var(--highlight-soft);border-radius:var(--radius-mark);padding:2px 0}
+.margin{width:260px;flex:none;border-left:2px solid var(--margin-line);padding:48px 20px 20px;display:flex;flex-direction:column;gap:16px}
+.mine{margin:0;font-size:15px;line-height:22px}
+.agent{margin:0;font-family:var(--font-read);font-style:italic;font-size:15px;line-height:22px;color:var(--pencil)}
+.chip{display:inline-block;font-family:var(--font-mono);font-size:12px;line-height:16px;font-weight:500;font-style:normal;padding:1px 6px;border-radius:var(--radius-mark);background:var(--highlight);color:var(--highlight-ink)}
+</style>
+</head>
+<body>
+<div class="desk">
+<div class="sheet">
+<div class="src">
+<div class="label">
+<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20V3H6.5A2.5 2.5 0 0 0 4 5.5z"></path></svg>
+<span>[Textbook] · Ch. 5</span><span class="pos">p.42</span>
+</div>
+<p class="read">Elasticity describes how strongly buyers react when a price moves. <span class="hl">When a small price change shifts the quantity bought a lot, demand is elastic.</span> When buyers barely react, it is inelastic.</p>
+</div>
+<div class="margin">
+<p class="mine">Elastic = buyers react strongly. <span class="chip">p.42</span></p>
+<p class="agent">Habits and necessities tend to be the inelastic ones.</p>
+</div>
+</div>
+</div>
+</body>
+</html>

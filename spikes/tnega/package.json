@@ -1,0 +1,21 @@
+{
+  "name": "@carrel/spike-tnega",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Throwaway spike: a Carrel project as a tnega Project, streaming answers and one Carrel tool.",
+  "type": "module",
+  "scripts": {
+    "demo": "node --experimental-strip-types --no-warnings src/demo.ts",
+    "typecheck": "tsc -p tsconfig.json",
+    "build": "node scripts/build-app.mjs",
+    "app": "node scripts/build-app.mjs && electron ."
+  },
+  "dependencies": {
+    "tnega": "0.5.0"
+  },
+  "main": "out/main.js",
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "esbuild": "^0.28.2"
+  }
+}
