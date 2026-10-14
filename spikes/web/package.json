@@ -1,0 +1,18 @@
+{
+  "name": "@carrel/spike-web",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Throwaway spike: one live WebContentsView over a DOM desk, with capturePage() snapshots.",
+  "type": "module",
+  "main": "out/main.js",
+  "scripts": {
+    "build": "node scripts/build-app.mjs",
+    "app": "node scripts/build-app.mjs && electron .",
+    "check": "node scripts/build-app.mjs && node scripts/check.mjs",
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "devDependencies": {
+    "electron": "^44.4.3",
+    "esbuild": "^0.28.2"
+  }
+}
