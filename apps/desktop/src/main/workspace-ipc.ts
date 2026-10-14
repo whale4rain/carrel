@@ -48,6 +48,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     addLink: (url) => controller.addLink(text(url)),
     itemBytes: (id) => controller.itemBytes(text(id)),
     snapshot: (id) => controller.snapshot(text(id)),
+    sourceTitle: async (id, title) => (await controller.pageTitle(text(id), text(title).slice(0, 300))) ?? null,
   }
   for (const [name, run] of Object.entries(api)) handle(workspaceChannels[name as keyof WorkspaceApi], run)
   return async () => {

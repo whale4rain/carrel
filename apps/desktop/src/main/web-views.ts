@@ -24,6 +24,9 @@ export interface WebHooks {
   title(itemId: string, title: string): void
 }
 
+/** Web pages get their own session: their cookies and logins stay apart from the desk's. */
+const WEB_PARTITION = 'persist:web'
+
 /** Live views kept loaded besides the live one, so switching back is quick. */
 const KEEP = 2
 /** How often the live page's snapshot is refreshed, so leaving never waits. */
@@ -113,7 +116,7 @@ export class WebViews {
     const known = this.pages.get(id)
     if (known && known.url === url) return known
     if (known) this.close(id)
-    const view = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false } })
+    const view = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, partition: WEB_PARTITION } })
     view.setVisible(false)
     view.webContents.setWindowOpenHandler(({ url: target }) => {
       if (/^https?:/.test(target)) void shell.openExternal(target)
