@@ -1,4 +1,22 @@
-import { changed, footprint, handles, move, placeNew, raise, resize, snap, type Guide, type Handle } from '@carrel/desk'
+import {
+  changed,
+  emptyHistory,
+  footprint,
+  handles,
+  move,
+  placeNew,
+  raise,
+  record,
+  redo,
+  remove,
+  resize,
+  snap,
+  touched,
+  undo,
+  type Guide,
+  type Handle,
+  type History,
+} from '@carrel/desk'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Sheet } from '../shared/workspace-api.js'
 
@@ -15,7 +33,9 @@ type Gesture =
 
 /**
  * The grid-paper mat and its sheets. Sheets move by their label row and
- * resize by eight handles; every finished gesture is saved as one change.
+ * resize by eight handles; every finished gesture is saved as one change and
+ * is one step for undo (⌘Z / Ctrl+Z) and redo (⇧⌘Z / Ctrl+Shift+Z or Ctrl+Y).
+ * Undo history lasts while the desk is open.
  */
 export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
@@ -27,11 +47,13 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const mat = useRef<HTMLElement>(null)
   const latest = useRef(sheets)
   latest.current = sheets
+  const history = useRef<History<Sheet>>(emptyHistory())
 
   useEffect(() => {
     let current = true
     setLoaded(false)
     setSelected(new Set())
+    history.current = emptyHistory()
     void api.desk(deskId).then((desk) => {
       if (!current) return
       setSheets(desk.sheets)
@@ -42,8 +64,11 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     }
   }, [deskId])
 
+  // Writes the desk and logs one event. `before` makes it an undoable step;
+  // undo and redo themselves pass none.
   const save = useCallback(
-    (next: Sheet[], kind: string, ids: string[]) => {
+    (next: Sheet[], kind: string, ids: string[], before?: Sheet[]) => {
+      if (before) history.current = record(history.current, { kind, before, after: next })
       setSheets(next)
       api.saveSheets(deskId, next, { kind, ids }).then(
         () => setError(undefined),
@@ -61,7 +86,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const addSheet = (): void => {
     const spot = placeNew(sheets)
     const sheet: Sheet = { id: crypto.randomUUID(), itemId: null, ...spot, ...BLANK, scale: 1, z: Math.max(0, ...sheets.map((s) => s.z)) + 1 }
-    save([...sheets, sheet], 'added', [sheet.id])
+    save([...sheets, sheet], 'added', [sheet.id], sheets)
     setSelected(new Set([sheet.id]))
   }
 
@@ -121,11 +146,11 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       setGesture(undefined)
       setGuides([])
       const current = preview
-      const touched = changed(gesture.before, current).map((sheet) => sheet.id)
-      if (touched.length === 0) return
+      const ids = changed(gesture.before, current).map((sheet) => sheet.id)
+      if (ids.length === 0) return
       // A click without a drag still raised the sheet, which is worth keeping.
       const kind = gesture.kind === 'resize' ? 'resized' : gesture.moved ? 'moved' : 'raised'
-      save(current, kind, touched)
+      save(current, kind, ids, gesture.before)
     }
     window.addEventListener('pointermove', onMove)
     window.addEventListener('pointerup', onUp, { once: true })
@@ -135,13 +160,46 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     }
   }, [gesture, save])
 
+  const travel = useCallback(
+    (direction: 'undo' | 'redo'): void => {
+      const result = direction === 'undo' ? undo(history.current) : redo(history.current)
+      if (!result) return
+      history.current = result.history
+      const next = [...result.sheets]
+      const ids = touched(latest.current, next)
+      save(next, direction === 'undo' ? 'undone' : 'redone', ids)
+      const present = new Set(next.map((sheet) => sheet.id))
+      setSelected(new Set(ids.filter((id) => present.has(id))))
+    },
+    [save],
+  )
+
+  const removeSelected = useCallback((): void => {
+    const current = latest.current
+    const next = remove(current, selected)
+    if (next.length === current.length) return
+    save(next, 'removed', touched(current, next), current)
+    setSelected(new Set())
+  }, [save, selected])
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
+      // Typing in a field keeps its own undo and Backspace.
+      const target = event.target as HTMLElement | null
+      if (target?.closest('input, textarea, [contenteditable="true"]')) return
+      if (gesture) return
+      const mod = event.metaKey || event.ctrlKey
+      const key = event.key.toLowerCase()
       if (event.key === 'Escape') setSelected(new Set())
+      else if (mod && key === 'z') travel(event.shiftKey ? 'redo' : 'undo')
+      else if (event.ctrlKey && !event.metaKey && key === 'y') travel('redo')
+      else if ((event.key === 'Delete' || event.key === 'Backspace') && selected.size > 0) removeSelected()
+      else return
+      event.preventDefault()
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+  }, [gesture, removeSelected, selected, travel])
 
   const single = selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
 
