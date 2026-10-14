@@ -2,7 +2,8 @@
 
 The desk engine's rules, as pure functions with no DOM: sheet footprints,
 moving, resizing by eight handles, scaling (30–100%), raising, snap guides,
-where a new sheet goes, piles, and undo history. The app's renderer draws with them.
+where a new sheet goes, piles, Tidy up, the view (pan and zoom), and undo
+history. The app's renderer draws with them.
 
 ![Blank sheets at 100%, 80%, 60% and 40%, Day and Night](screenshot.png)
 
