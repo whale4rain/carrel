@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'" />
+    <title>Carrel · tnega spike</title>
+    <style>
+      body { margin: 0; font: 15px/1.5 system-ui, sans-serif; background: #f4f1ea; color: #1d1b17; }
+      header { padding: 16px 24px; border-bottom: 1px solid #ddd6c8; }
+      header h1 { margin: 0; font-size: 17px; font-weight: 600; }
+      header p { margin: 4px 0 0; color: #6b6458; font-size: 13px; }
+      #log { padding: 16px 24px 120px; }
+      .turn { margin: 0 0 14px; white-space: pre-wrap; }
+      .user { font-weight: 500; }
+      .agent { font-family: Georgia, serif; }
+      .step { color: #3b5bab; font-style: italic; font-size: 13px; margin: 0 0 6px; }
+      .error { color: #b3261e; }
+      form { position: fixed; bottom: 0; left: 0; right: 0; display: flex; gap: 8px; padding: 14px 24px; background: #fffdf8; border-top: 1px solid #ddd6c8; }
+      input { flex: 1; font: inherit; padding: 8px 10px; border: 1px solid #cfc7b8; border-radius: 4px; }
+      button { font: inherit; padding: 8px 14px; border: 0; border-radius: 4px; background: #1d1b17; color: #fff; }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1 id="title">Carrel · tnega spike</h1>
+      <p id="meta">Loading…</p>
+    </header>
+    <section id="log"></section>
+    <form id="form">
+      <input id="input" autocomplete="off" placeholder="Ask about your notes, e.g. What did I note about elasticity?" />
+      <button>Ask</button>
+    </form>
+    <script src="./renderer.js"></script>
+  </body>
+</html>

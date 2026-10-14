@@ -72,6 +72,19 @@ importers:
 
   packages/margin: {}
 
+  spikes/tnega:
+    dependencies:
+      tnega:
+        specifier: 0.5.0
+        version: 0.5.0
+    devDependencies:
+      electron:
+        specifier: ^44.4.3
+        version: 44.7.2
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+
 packages:
 
   '@cacheable/memory@2.2.0':
