@@ -40,6 +40,8 @@ jobs:
       - run: pnpm build
       - name: Start the desktop app
         run: pnpm --filter @carrel/desktop smoke
+      - name: Spike check, live web on the desk
+        run: pnpm --filter @carrel/spike-web check
       - name: Spike check, video on the desk
         run: pnpm --filter @carrel/spike-video check
       - name: Spike check, video on the desk with YouTube (needs the network; reported, not required)

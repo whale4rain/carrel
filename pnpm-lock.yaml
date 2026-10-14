@@ -94,6 +94,15 @@ importers:
         specifier: ^0.28.2
         version: 0.28.2
 
+  spikes/web:
+    devDependencies:
+      electron:
+        specifier: ^44.4.3
+        version: 44.7.2
+      esbuild:
+        specifier: ^0.28.2
+        version: 0.28.2
+
 packages:
 
   '@cacheable/memory@2.2.0':
