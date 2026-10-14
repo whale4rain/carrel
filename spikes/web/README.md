@@ -17,7 +17,7 @@ lecture sheet is live (its clock reads 3) while the textbook shows its snapshot.
 ```bash
 pnpm install
 pnpm --filter @carrel/spike-web app      # local pages
-CARREL_SPIKE_REAL=1 pnpm --filter @carrel/spike-web app   # two Wikipedia pages
+CARREL_SPIKE_REAL=1 pnpm --filter @carrel/spike-web app   # two Wikipedia pages (not tried here: no network)
 pnpm --filter @carrel/spike-web check    # scripted check with timings (CI runs it on Mac and Windows)
 ```
 
