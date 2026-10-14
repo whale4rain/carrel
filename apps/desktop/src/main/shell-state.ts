@@ -1,7 +1,23 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
-import { Library, titleFromUrl, type DeskFile, type ItemFile, type OpenProject, type Sheet, type SheetChange, type Viewport, type Workspace } from '@carrel/core'
-import type { DeskView, ItemView, ShellState } from '../shared/workspace-api.js'
+import {
+  Anchors,
+  Library,
+  momentSelector,
+  pageSelector,
+  textSelectors,
+  titleFromUrl,
+  type AnchorFile,
+  type DeskFile,
+  type ItemFile,
+  type OpenProject,
+  type Selector,
+  type Sheet,
+  type SheetChange,
+  type Viewport,
+  type Workspace,
+} from '@carrel/core'
+import type { DeskView, ItemView, ShellState, ThatView } from '../shared/workspace-api.js'
 
 /**
  * Turns the workspace on disk into what the shell shows, and remembers what
@@ -10,10 +26,12 @@ import type { DeskView, ItemView, ShellState } from '../shared/workspace-api.js'
 export class ShellController {
   private readonly workspace: Workspace
   private readonly library: Library
+  private readonly anchors: Anchors
 
-  constructor(workspace: Workspace, library = new Library(workspace)) {
+  constructor(workspace: Workspace, library = new Library(workspace), anchors = new Anchors(workspace)) {
     this.workspace = workspace
     this.library = library
+    this.anchors = anchors
   }
 
   async state(): Promise<ShellState> {
@@ -119,6 +137,37 @@ export class ShellController {
     return itemView(await this.library.setTitle(folder, id, title))
   }
 
+  /** A *that.* from the renderer or a live page: checked, turned into selectors, kept. */
+  async makeThat(request: unknown): Promise<ThatView> {
+    if (typeof request !== 'object' || request === null) throw new Error('That is not a place in a source.')
+    const { itemId, page, text, seconds, image } = request as Record<string, unknown>
+    if (typeof itemId !== 'string') throw new Error('That is not a place in a source.')
+    const folder = await this.openFolder()
+    await this.library.read(folder, itemId)
+    const selectors: Selector[] = []
+    if (page !== undefined) selectors.push(pageSelector(Number(page)))
+    let quoted: string | undefined
+    if (text !== undefined) {
+      const { source, start, end } = (text ?? {}) as Record<string, unknown>
+      if (typeof source !== 'string' || typeof start !== 'number' || typeof end !== 'number') throw new Error('That selection is not in the text.')
+      selectors.push(...textSelectors(source, start, end))
+      quoted = source.slice(start, end)
+    }
+    if (seconds !== undefined) selectors.push(momentSelector(Number(seconds)))
+    const png = image instanceof Uint8Array ? image : undefined
+    return thatView(await this.anchors.make(folder, { itemId, selectors, ...(quoted ? { text: quoted } : {}), ...(png ? { image: png } : {}) }))
+  }
+
+  async thats(): Promise<ThatView[]> {
+    const { open } = await this.state()
+    return open ? (await this.anchors.list(open.project)).map(thatView) : []
+  }
+
+  async thatImage(id: string): Promise<Uint8Array | null> {
+    const path = await this.anchors.imagePath(await this.openFolder(), id)
+    return path ? new Uint8Array(await readFile(path)) : null
+  }
+
   private async openFolder(): Promise<string> {
     const { open } = await this.state()
     if (!open) throw new Error('Create a project first.')
@@ -143,6 +192,17 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
 function itemView(item: ItemFile): ItemView {
   const base = { id: item.id, kind: item.kind, title: item.title }
   return item.source.storage === 'linked' ? { ...base, url: item.source.url } : { ...base, file: { name: item.source.file, size: item.source.size } }
+}
+
+function thatView(anchor: AnchorFile): ThatView {
+  return {
+    id: anchor.id,
+    itemId: anchor.itemId,
+    label: anchor.label,
+    ...(anchor.snapshot.text ? { text: anchor.snapshot.text } : {}),
+    image: anchor.snapshot.image !== undefined,
+    createdAt: anchor.createdAt,
+  }
 }
 
 function view(desk: DeskFile): DeskView {

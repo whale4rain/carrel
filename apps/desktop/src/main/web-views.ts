@@ -1,5 +1,6 @@
 import { pickLive, type LiveBlocker, type LiveSheet, type Rect } from '@carrel/desk'
 import { shell, WebContentsView, type BrowserWindow } from 'electron'
+import { SELECTION_IN_PAGE } from './page-text.js'
 
 /** A web sheet as the renderer lays it out, in window pixels. */
 export interface WebSheetLayout extends LiveSheet {
@@ -22,9 +23,17 @@ export interface WebHooks {
   saveSnapshot(itemId: string, png: Buffer): Promise<void>
   /** The page told us its title. */
   title(itemId: string, title: string): void
+  /** ⌘. (Ctrl+.) in the page, with its selected text. */
+  that(itemId: string, text: { source: string; start: number; end: number }): void
 }
 
 /** Web pages get their own session: their cookies and logins stay apart from the desk's. */
+function isPageSelection(value: unknown): value is { source: string; start: number; end: number } {
+  if (typeof value !== 'object' || value === null) return false
+  const text = value as Record<string, unknown>
+  return typeof text.source === 'string' && typeof text.start === 'number' && typeof text.end === 'number'
+}
+
 const WEB_PARTITION = 'persist:web'
 
 /** Live views kept loaded besides the live one, so switching back is quick. */
@@ -123,6 +132,14 @@ export class WebViews {
       return { action: 'deny' }
     })
     view.webContents.on('page-title-updated', (_event, title) => this.hooks.title(itemId, title))
+    // Keys go to the live page, not the desk, so ⌘. is caught here.
+    view.webContents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown' || input.key !== '.' || !(process.platform === 'darwin' ? input.meta : input.control)) return
+      event.preventDefault()
+      void view.webContents.executeJavaScript(SELECTION_IN_PAGE).then((text: unknown) => {
+        if (isPageSelection(text)) this.hooks.that(itemId, text)
+      }, () => undefined)
+    })
     // Loading a page resets its zoom, so the sheet's is put back.
     view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(page.zoom))
     this.window.contentView.addChildView(view)

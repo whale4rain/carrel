@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { workspaceChannels, type ItemView, type WebApi, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
+import { workspaceChannels, type ItemView, type ThatView, type WebApi, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   const reply = (await ipcRenderer.invoke(channel, ...args)) as WorkspaceReply
@@ -23,6 +23,9 @@ const workspace: WorkspaceApi = {
   itemBytes: (id) => call(workspaceChannels.itemBytes, id),
   snapshot: (id) => call(workspaceChannels.snapshot, id),
   sourceTitle: (id, title) => call(workspaceChannels.sourceTitle, id, title),
+  makeThat: (request) => call(workspaceChannels.makeThat, request),
+  thats: () => call(workspaceChannels.thats),
+  thatImage: (id) => call(workspaceChannels.thatImage, id),
 }
 
 function listen<T>(channel: string, listener: (payload: T) => void): () => void {
@@ -37,6 +40,8 @@ const web: WebApi = {
   onSnapshot: (listener) =>
     listen<{ sheet: string; itemId: string; png: Uint8Array }>('web:snapshot', ({ sheet, itemId, png }) => listener(sheet, itemId, png)),
   onItem: (listener) => listen<ItemView>('web:item', listener),
+  onThat: (listener) => listen<ThatView>('web:that', listener),
+  frame: (rect) => ipcRenderer.invoke('web:frame', rect) as Promise<Uint8Array>,
 }
 
 // The typed bridge between renderer and main.
