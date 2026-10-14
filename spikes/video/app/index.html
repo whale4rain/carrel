@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:; media-src 'self'; frame-src https://www.youtube-nocookie.com https://www.youtube.com; style-src 'self' 'unsafe-inline'" />
+    <title>Carrel · video spike</title>
+    <style>
+      html, body { margin: 0; height: 100%; font: 13px/1.4 system-ui, sans-serif; color: #1d1b17; }
+      body { display: flex; flex-direction: column; background: #efece4; }
+      #bar { height: 36px; display: flex; align-items: center; gap: 12px; padding: 0 16px; border-bottom: 1px solid #d9d2c3; background: #f7f4ec; }
+      #bar input { width: 320px; font: inherit; padding: 3px 6px; border: 1px solid #cfc7b8; border-radius: 3px; }
+      #desk { position: relative; flex: 1; overflow: hidden; background-image: linear-gradient(#e2dccf 1px, transparent 1px), linear-gradient(90deg, #e2dccf 1px, transparent 1px); background-size: 24px 24px; }
+      .sheet { position: absolute; transform-origin: 0 0; background: #fffdf8; border-radius: 4px; box-shadow: 0 1px 0 #d4ccbb, 0 0 0 1px #e1dacb; overflow: hidden; }
+      .head { height: 28px; display: flex; align-items: center; gap: 6px; padding: 0 8px; border-bottom: 1px solid #ece6d9; cursor: grab; user-select: none; }
+      .head .title { flex: 1; font-weight: 500; }
+      .head .time { font: 11px ui-monospace, monospace; color: #6b6458; }
+      .head button { border: 0; background: #ece6d9; border-radius: 3px; min-width: 20px; height: 20px; cursor: pointer; font: inherit; }
+      .head button.that { background: #fff3a0; font-style: italic; font-family: Georgia, serif; padding: 0 6px; }
+      .player { display: block; width: 480px; height: 270px; border: 0; background: #000; }
+      #shelf { height: 92px; display: flex; gap: 10px; align-items: center; padding: 0 16px; border-top: 1px solid #d9d2c3; background: #f7f4ec; overflow-x: auto; }
+      .chip { display: flex; gap: 8px; align-items: center; background: #fff3a0; border-radius: 4px; padding: 6px 8px 6px 6px; }
+      .chip img { height: 54px; border-radius: 2px; }
+      .chip .pos { font: 12px ui-monospace, monospace; }
+      .chip em { font-family: Georgia, serif; }
+    </style>
+  </head>
+  <body>
+    <div id="bar"><strong>Video spike</strong><span>Drag by the header, − and + to scale, <em>that.</em> to point at the moment.</span>
+      <input id="yt" placeholder="Paste a YouTube link and press Enter" /></div>
+    <div id="desk"></div>
+    <div id="shelf"><span style="color:#6b6458">Captured <em>that.</em> moments appear here.</span></div>
+    <script src="./renderer.js"></script>
+  </body>
+</html>
