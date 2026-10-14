@@ -42,3 +42,10 @@ jobs:
         run: pnpm --filter @carrel/desktop smoke
       - name: Spike check, live web on the desk
         run: pnpm --filter @carrel/spike-web check
+      - name: Spike check, video on the desk
+        run: pnpm --filter @carrel/spike-video check
+      - name: Spike check, video on the desk with YouTube (needs the network; reported, not required)
+        continue-on-error: true
+        run: pnpm --filter @carrel/spike-video check
+        env:
+          CARREL_SPIKE_YOUTUBE: aqz-KE-bpKQ
