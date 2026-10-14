@@ -46,8 +46,17 @@ desk in a temporary home, restarts, and checks they come back.
 | Delete | Delete or Backspace |
 | Undo, redo | ⌘Z / Ctrl+Z, ⇧⌘Z / Ctrl+Shift+Z or Ctrl+Y |
 | Clear the selection | Esc, or click the bare mat |
+| Pan | Two-finger scroll, Space-drag, or drag with the middle button; or click and drag on the map |
+| Zoom (25–200%) | Pinch, ⌘/Ctrl-scroll, ⌘+ and ⌘− (Ctrl on Windows), or − and + on the pill |
+| Actual size, fit all | ⌘0 or click the percentage; ⌘1 or **Fit** |
 
 ![Three sheets selected; Make a pile; the pile selected at night](screenshot-piles.png)
+
+![At 100% with the map; zoomed out and panned; Fit at night](screenshot-view.png)
+
+The view (pan and zoom) is saved with each desk and comes back after a
+restart; it isn't an event, since it doesn't change the desk. Only sheets
+near the screen are mounted.
 
 Each finished gesture is saved and logged as one event, and is one undo step.
 Undo history lasts while the desk is open.

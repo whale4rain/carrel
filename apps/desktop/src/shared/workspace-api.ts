@@ -1,8 +1,8 @@
 // What the renderer sees of projects and desks, and how it asks for changes.
 // Main owns the files; the renderer only gets summaries back.
-import type { Sheet, SheetChange } from '@carrel/core'
+import type { Sheet, SheetChange, Viewport } from '@carrel/core'
 
-export type { Sheet, SheetChange }
+export type { Sheet, SheetChange, Viewport }
 
 export interface DeskSummary {
   id: string
@@ -21,6 +21,7 @@ export interface DeskView {
   id: string
   name: string
   sheets: Sheet[]
+  viewport: Viewport
 }
 
 export interface WorkspaceApi {
@@ -32,6 +33,8 @@ export interface WorkspaceApi {
   desk(id: string): Promise<DeskView>
   /** Saves a desk's sheets after one gesture; `change` says what it did. */
   saveSheets(id: string, sheets: Sheet[], change: SheetChange): Promise<DeskView>
+  /** Remembers where the desk is looked at: pan and zoom. */
+  saveViewport(id: string, viewport: Viewport): Promise<DeskView>
 }
 
 export const workspaceChannels = {
@@ -42,6 +45,7 @@ export const workspaceChannels = {
   openDesk: 'workspace:open-desk',
   desk: 'workspace:desk',
   saveSheets: 'workspace:save-sheets',
+  saveViewport: 'workspace:save-viewport',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */

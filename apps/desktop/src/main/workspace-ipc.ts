@@ -30,6 +30,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     openDesk: (id) => controller.openDesk(text(id)),
     desk: (id) => controller.desk(text(id)),
     saveSheets: (id, sheets, change) => controller.saveSheets(text(id), sheets, change),
+    saveViewport: (id, viewport) => controller.saveViewport(text(id), viewport),
   }
   for (const [name, run] of Object.entries(api)) handle(workspaceChannels[name as keyof WorkspaceApi], run)
   return async () => {

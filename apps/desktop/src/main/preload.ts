@@ -15,6 +15,7 @@ const workspace: WorkspaceApi = {
   openDesk: (id) => call(workspaceChannels.openDesk, id),
   desk: (id) => call(workspaceChannels.desk, id),
   saveSheets: (id, sheets, change) => call(workspaceChannels.saveSheets, id, sheets, change),
+  saveViewport: (id, viewport) => call(workspaceChannels.saveViewport, id, viewport),
 }
 
 // The typed bridge between renderer and main.

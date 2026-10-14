@@ -192,6 +192,17 @@ export class Workspace {
     return next
   }
 
+  /**
+   * Remembers where a desk is looked at. The view isn't a change to the desk,
+   * so it isn't an event.
+   */
+  async saveViewport(folder: string, id: string, viewport: Viewport): Promise<DeskFile> {
+    const desk = await this.readDesk(folder, id)
+    const next: DeskFile = { ...desk, viewport }
+    await writeJson(this.deskFile(folder, id), next)
+    return next
+  }
+
   async readSettings(): Promise<Settings> {
     const settings = await readJson(this.settingsFile()).catch(() => undefined)
     return isSettings(settings) ? settings : {}

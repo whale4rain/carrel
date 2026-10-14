@@ -136,6 +136,12 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelector('.pile-label') === null"))) return 'undo did not take the pile apart'
   await key('Z', [mod])
   if (!(await waitFor(count(1)))) return 'undo did not take the added sheet away'
+  // Zoom out one step; the view is saved with the desk a moment later.
+  await key('-', [mod])
+  if (!(await waitFor("document.querySelector('.zoom-level')?.textContent === '80%'"))) return 'zooming out did not change the zoom'
+  if (!(await waitFor('window.carrel.workspace.state().then((s) => window.carrel.workspace.desk(s.open.desk)).then((d) => d.viewport.zoom === 0.8)'))) {
+    return 'the zoom was not saved'
+  }
   return undefined
 }
 
@@ -176,6 +182,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`(() => { const s = document.querySelector('.sheet'); return !!s && s.style.left === '${MOVED.x}px' && s.style.top === '${MOVED.y}px' && s.style.width === '${SCALED.w}px' })()`))) {
       return fail(`the sheet came back at ${String(await page("document.querySelector('.sheet')?.getAttribute('style') ?? 'nowhere'"))}`)
     }
+    if (!(await waitFor("document.querySelector('.zoom-level')?.textContent === '80%'"))) return fail('the desk did not come back at 80%')
   }
   // Calls run in order, so this answers only after the gestures' saves are written.
   await page('window.carrel.workspace.state()')
