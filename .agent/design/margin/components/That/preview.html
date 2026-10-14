@@ -1,0 +1,29 @@
+<!-- @dsCard group="Pointing" height=230 subtitle="The highlighter: in the source and in the margin" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--paper);font-family:var(--font-ui);color:var(--ink)}
+.wrap{padding:24px;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 32px;align-items:center}
+.chip{display:inline-flex;align-items:center;gap:6px;height:24px;padding:0 8px;border-radius:var(--radius-mark);font-family:var(--font-mono);font-size:12px;font-weight:500;background:var(--highlight);color:var(--highlight-ink);border:1px solid transparent}
+.chip.active{box-shadow:0 0 0 3px var(--highlight-soft)}
+.chip.proposed{background:var(--pencil-wash);color:var(--pencil);border:1px dashed var(--pencil)}
+.chip.asked{background:transparent;color:var(--ink);border:1px dashed var(--graphite)}
+.chip.snapshot{background:var(--paper-2);color:var(--ink-muted);border:1px solid var(--rule)}
+.note{font-size:13px;line-height:18px;color:var(--ink-muted)}
+.mark{font-family:var(--font-read);font-size:17px;line-height:28px}
+.mark span{background:var(--highlight-soft);border-radius:var(--radius-mark);padding:2px 0}
+</style>
+</head>
+<body>
+<div class="wrap">
+<span><span class="chip">p.42</span></span><span class="note">Default: points into a source</span>
+<span><span class="chip active">12:34</span></span><span class="note">Active: its source band brightens too</span>
+<span><span class="chip proposed">slide 7</span></span><span class="note">Proposed by the agent, in pencil</span>
+<span><span class="chip asked">that. ?</span></span><span class="note">Asked for: point at the evidence</span>
+<span><span class="chip snapshot">p.42 · saved</span></span><span class="note">Source changed: shows the saved copy</span>
+<span class="mark"><span>a small price change shifts it a lot</span></span><span class="note">In the source: the band under the words</span>
+</div>
+</body>
+</html>

@@ -1,0 +1,37 @@
+<!-- @dsCard group="Desk" height=560 subtitle="Project, desks, notes, conversations, library" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--paper-2);font-family:var(--font-ui);color:var(--ink)}
+nav{width:240px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;padding:14px 10px;font-size:13px}
+.proj{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:7px;background:var(--rule)}
+.mk{width:22px;height:22px;border-radius:5px;background:var(--ink);color:var(--paper);font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center}
+.search{display:flex;align-items:center;height:28px;padding:0 10px;border-radius:7px;border:1px solid var(--rule);color:var(--ink-muted)}
+.search span{flex:1}
+.k{font-family:var(--font-mono);font-size:11px}
+.grp{display:flex;flex-direction:column;gap:1px}
+.h{padding:0 10px 4px;font-size:11px;font-weight:600;letter-spacing:0.6px;color:var(--ink-muted)}
+.row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px}
+.row .n{margin-left:auto;font-family:var(--font-mono);font-size:12px;color:var(--ink-muted)}
+.on{background:var(--ink);color:var(--paper)}
+.dot{width:6px;height:6px;border-radius:3px;background:var(--highlight)}
+.sub{padding-left:24px}
+.tags{display:flex;flex-wrap:wrap;gap:4px;padding:2px 10px 0 24px}
+.tag{padding:1px 7px;border-radius:10px;border:1px solid var(--graphite);font-size:11px}
+.badge{margin-left:auto;font-family:var(--font-mono);font-size:11px;padding:0 6px;border-radius:8px;background:var(--pencil);color:var(--paper)}
+.muted{color:var(--ink-muted)}
+</style>
+</head>
+<body>
+<nav aria-label="Project">
+<div class="proj"><span class="mk">LE</span><b>Learn economics</b></div>
+<div class="search"><span>Search everything</span><span class="k">⌘K</span></div>
+<div class="grp"><span class="h">DESKS</span><span class="row on"><span class="dot"></span>Elasticity</span><span class="row sub">Supply &amp; demand</span><span class="row sub">Comparing textbooks</span><span class="row sub muted">+ New desk</span></div>
+<div class="grp"><span class="h">NOTES</span><span class="row">Elasticity</span><span class="row">Key formulas</span><span class="row">All notes<span class="n">24</span></span><div class="tags"><span class="tag">#elasticity</span><span class="tag">#exam</span><span class="tag">#micro</span></div></div>
+<div class="grp"><span class="h">CONVERSATIONS</span><span class="row">Project thread<span class="badge">2</span></span><span class="row sub">Coffee and substitutes</span></div>
+<div class="grp"><span class="h">LIBRARY</span><span class="row">Books &amp; papers<span class="n">7</span></span><span class="row">Videos · linked<span class="n">6</span></span><span class="row">Web pages · linked<span class="n">12</span></span><span class="row">Made by the agent<span class="n">2</span></span></div>
+</nav>
+</body>
+</html>
