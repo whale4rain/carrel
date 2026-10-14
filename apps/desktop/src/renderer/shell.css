@@ -1,0 +1,371 @@
+@import '@carrel/margin/margin.css';
+
+/* The app shell: sidebar, top bar and desk, framed per platform.
+   Sizes follow the MarginMac2 and MarginWin mockups; every color is a token. */
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--mat);
+  color: var(--ink);
+  font: var(--text-body);
+  overflow: hidden;
+  user-select: none;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  cursor: default;
+}
+
+kbd {
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.grow {
+  flex: 1;
+}
+
+.muted {
+  color: var(--ink-muted);
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+
+/* ---- Layout ---------------------------------------------------------- */
+
+.shell {
+  display: grid;
+  height: 100%;
+  grid-template-columns: 240px 1fr;
+  grid-template-rows: 52px 1fr;
+  grid-template-areas:
+    'sidebar topbar'
+    'sidebar desk';
+}
+
+.shell[data-frame='windows'] {
+  grid-template-rows: 36px 52px 1fr;
+  grid-template-areas:
+    'title title'
+    'sidebar topbar'
+    'sidebar desk';
+}
+
+/* Empty parts of the frame move the window; controls inside don't. */
+.titlestrip,
+.topbar,
+.shell[data-frame='mac'] .sidebar::before {
+  -webkit-app-region: drag;
+}
+
+.titlestrip button,
+.topbar button,
+.sidebar > * {
+  -webkit-app-region: no-drag;
+}
+
+/* ---- Windows title strip --------------------------------------------- */
+
+.titlestrip {
+  grid-area: title;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  /* The native caption buttons sit on the right, over this strip. */
+  padding: 0 calc(100% - env(titlebar-area-width, 100%)) 0 var(--space-4);
+  background: var(--paper-2);
+  border-bottom: 1px solid var(--rule);
+  font: var(--text-caption);
+}
+
+.titlestrip-mark {
+  font-weight: 600;
+}
+
+.titlestrip-path {
+  color: var(--ink-muted);
+}
+
+/* ---- Sidebar ---------------------------------------------------------- */
+
+.sidebar {
+  grid-area: sidebar;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-height: 0;
+  overflow-y: auto;
+  padding: 14px 10px;
+  background: var(--paper-2);
+  border-right: 1px solid var(--rule);
+  font: var(--text-label);
+  font-weight: 400;
+}
+
+/* On Mac the traffic lights sit at the top of the sidebar. */
+.shell[data-frame='mac'] .sidebar {
+  padding-top: 48px;
+}
+
+.shell[data-frame='mac'] .sidebar::before {
+  content: '';
+  position: absolute;
+  inset: 0 0 auto;
+  height: 40px;
+}
+
+.project {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 6px 10px;
+  border-radius: var(--radius-control);
+  background: var(--rule);
+}
+
+.project-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: var(--ink);
+  color: var(--paper);
+  font-size: 10px;
+  font-weight: 600;
+}
+
+.project-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  border: 1px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+.search span {
+  flex: 1;
+}
+
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.group h2 {
+  margin: 0;
+  padding: 0 10px 4px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.row:hover {
+  background: var(--rule);
+}
+
+.row.desk {
+  padding-left: 24px;
+}
+
+.row.thread {
+  padding-left: 36px;
+}
+
+/* The open desk: an ink row with a highlight dot on Mac... */
+.row.desk[aria-current='page'] {
+  padding-left: 10px;
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.open-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: var(--radius-seat);
+  background: var(--highlight);
+}
+
+/* ...and a light row with an ink bar on Windows. */
+.shell[data-frame='windows'] .row.desk[aria-current='page'] {
+  padding-left: 24px;
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 0 6px 6px 0;
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+.shell[data-frame='windows'] .open-dot {
+  display: none;
+}
+
+.count {
+  font: var(--text-position);
+  font-weight: 400;
+  color: var(--ink-muted);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  padding: 4px 10px 0 30px;
+}
+
+.tag {
+  padding: 1px 7px;
+  border-radius: 10px;
+  border: 1px solid var(--graphite);
+  font-size: 11px;
+}
+
+/* The agent's seat: a pencil-ringed italic "a". */
+.agent-seat {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  border-radius: var(--radius-seat);
+  background: var(--paper);
+  color: var(--pencil);
+  box-shadow: inset 0 0 0 1.5px var(--pencil);
+  font-family: var(--font-read);
+  font-style: italic;
+  font-size: 11px;
+}
+
+.unread {
+  padding: 0 6px;
+  border-radius: 8px;
+  background: var(--pencil);
+  color: var(--paper);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.sidebar-foot {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: auto;
+  padding-top: 10px;
+  border-top: 1px solid var(--rule);
+}
+
+/* ---- Top bar ---------------------------------------------------------- */
+
+.topbar {
+  grid-area: topbar;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 0 var(--space-4) 0 var(--space-6);
+  border-bottom: 1px solid var(--mat-line);
+}
+
+.crumb {
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+.desk-name {
+  margin: 0;
+  font-family: var(--font-read);
+  font-size: 16px;
+  font-weight: 500;
+}
+
+/* Blue means the agent, so its button is the one pencil control. */
+.agent-button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--pencil);
+  box-shadow: inset 0 0 0 1.5px var(--pencil);
+  font: var(--text-label);
+  font-size: 12px;
+}
+
+/* ---- Desk ------------------------------------------------------------- */
+
+.desk-mat {
+  grid-area: desk;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background-color: var(--mat);
+  background-image:
+    linear-gradient(var(--mat-line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--mat-line) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.desk-empty {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-4) var(--space-6);
+  border-radius: var(--radius-sheet);
+  background: var(--mat);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.desk-empty-title {
+  color: var(--ink);
+  font: var(--text-heading);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .row {
+    transition: background-color 180ms ease-out;
+  }
+}
