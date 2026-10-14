@@ -10,5 +10,7 @@ export default defineConfig({
   build: {
     outDir: '../../out/renderer',
     emptyOutDir: true,
+    // Keep fonts as files: the page's CSP doesn't allow data: URLs.
+    assetsInlineLimit: 0,
   },
 })

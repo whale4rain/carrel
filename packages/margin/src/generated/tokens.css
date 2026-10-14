@@ -1,0 +1,105 @@
+/* Generated from Margin tokens.json by @carrel/margin. Do not edit; run `pnpm --filter @carrel/margin tokens`. */
+
+:root {
+  --font-ui: "Instrument Sans", "Instrument Sans Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-read: Literata, "Literata Variable", Georgia, "Times New Roman", serif;
+  --font-mono: "JetBrains Mono", "JetBrains Mono Variable", ui-monospace, Menlo, monospace;
+  --text-display: 500 56px/60px var(--font-read);
+  --text-display-tracking: -0.5px;
+  --text-title: 500 28px/34px var(--font-read);
+  --text-heading: 600 18px/24px var(--font-ui);
+  --text-body: 400 15px/22px var(--font-ui);
+  --text-label: 500 13px/18px var(--font-ui);
+  --text-caption: 400 12px/16px var(--font-ui);
+  --text-reading: 400 19px/31px var(--font-read);
+  --text-marginalia: italic 400 15px/22px var(--font-read);
+  --text-position: 500 12px/16px var(--font-mono);
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-12: 48px;
+  --radius-mark: 2px;
+  --radius-sheet: 4px;
+  --radius-control: 8px;
+  --radius-seat: 999px;
+}
+
+/* Day is the default; data-theme on the root element picks one explicitly. */
+:root,
+[data-theme="day"] {
+  color-scheme: light;
+  --mat: #cfd8d1;
+  --mat-line: #bcc7bf;
+  --paper: #fcfcf9;
+  --paper-2: #f1f3ee;
+  --rule: #e2e5df;
+  --ink: #1b1f24;
+  --ink-muted: #59616a;
+  --margin-line: #df7377;
+  --pencil: #2457c5;
+  --pencil-wash: #e8efff;
+  --highlight: #ffe14d;
+  --highlight-ink: #1b1f24;
+  --highlight-soft: #fff2a8;
+  --graphite: #7f878e;
+  --focus: #1b1f24;
+  --success: #2c7a4b;
+  --warning: #9a5800;
+  --danger: #b3261e;
+  --shadow-sheet: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10);
+  --shadow-lift: 0 10px 30px rgba(18,30,24,0.22);
+}
+
+[data-theme="night"] {
+  color-scheme: dark;
+  --mat: #121a17;
+  --mat-line: #1f2b26;
+  --paper: #232829;
+  --paper-2: #2c3233;
+  --rule: #363c3d;
+  --ink: #e8ebe7;
+  --ink-muted: #a5aca8;
+  --margin-line: #b9585c;
+  --pencil: #8fb2ff;
+  --pencil-wash: #26314a;
+  --highlight: #e8c835;
+  --highlight-ink: #1b1f24;
+  --highlight-soft: #4b4320;
+  --graphite: #7a8388;
+  --focus: #e8ebe7;
+  --success: #72cf98;
+  --warning: #f1b55c;
+  --danger: #f2867e;
+  --shadow-sheet: 0 1px 0 rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.45);
+  --shadow-lift: 0 12px 34px rgba(0,0,0,0.6);
+}
+
+/* With no explicit choice, follow the system. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="day"]) {
+    color-scheme: dark;
+    --mat: #121a17;
+    --mat-line: #1f2b26;
+    --paper: #232829;
+    --paper-2: #2c3233;
+    --rule: #363c3d;
+    --ink: #e8ebe7;
+    --ink-muted: #a5aca8;
+    --margin-line: #b9585c;
+    --pencil: #8fb2ff;
+    --pencil-wash: #26314a;
+    --highlight: #e8c835;
+    --highlight-ink: #1b1f24;
+    --highlight-soft: #4b4320;
+    --graphite: #7a8388;
+    --focus: #e8ebe7;
+    --success: #72cf98;
+    --warning: #f1b55c;
+    --danger: #f2867e;
+    --shadow-sheet: 0 1px 0 rgba(0,0,0,0.5), 0 2px 8px rgba(0,0,0,0.45);
+    --shadow-lift: 0 12px 34px rgba(0,0,0,0.6);
+  }
+}

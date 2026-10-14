@@ -1,0 +1,6 @@
+/* The three Margin families, bundled so the app works offline. */
+@import '@fontsource-variable/instrument-sans/wght.css';
+@import '@fontsource-variable/instrument-sans/wght-italic.css';
+@import '@fontsource-variable/literata/wght.css';
+@import '@fontsource-variable/literata/wght-italic.css';
+@import '@fontsource-variable/jetbrains-mono/wght.css';
