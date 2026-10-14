@@ -1,4 +1,4 @@
-import { clampScale, MIN_H, MIN_W, type SheetBox } from './geometry.js'
+import { clampScale, footprint, intersects, MIN_H, MIN_W, type Rect, type SheetBox } from './geometry.js'
 
 // Changes to sheets. Each returns new sheets and leaves the input alone, so a
 // gesture can be previewed from its starting state and undone by keeping it.
@@ -72,3 +72,11 @@ export function changed<T extends SheetBox>(before: readonly T[], after: readonl
 function round(value: number): number {
   return Math.round(value * 10) / 10
 }
+
+/** Ids of the sheets a marquee touches. */
+export function inMarquee(sheets: readonly SheetBox[], marquee: Rect): string[] {
+  return sheets.filter((sheet) => intersects(footprint(sheet), marquee)).map((sheet) => sheet.id)
+}
+
+/** The scales the selection bar offers. */
+export const SCALES: readonly number[] = [1, 0.8, 0.6, 0.4, 0.3]

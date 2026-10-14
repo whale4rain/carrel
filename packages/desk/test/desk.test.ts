@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { changed, footprint, move, placeNew, raise, resize, scaleTo, snap, type SheetBox } from '../src/index.js'
+import { changed, inMarquee, footprint, move, placeNew, raise, resize, scaleTo, snap, type SheetBox } from '../src/index.js'
 
 const sheet = (id: string, over: Partial<SheetBox> = {}): SheetBox => ({ id, x: 0, y: 0, w: 400, h: 300, scale: 1, z: 1, ...over })
 
@@ -104,5 +104,13 @@ describe('snap', () => {
     const result = snap({ x: 303, y: 98, w: 100, h: 50 }, [other])
     expect([result.dx, result.dy]).toEqual([-3, 2])
     expect(result.guides.map((g) => g.axis)).toEqual(['x', 'y'])
+  })
+})
+
+describe('inMarquee', () => {
+  it('picks sheets whose footprint the marquee touches', () => {
+    const sheets = [sheet('a'), sheet('b', { x: 500, scale: 0.5 }), sheet('c', { x: 1000 })]
+    expect(inMarquee(sheets, { x: 390, y: 10, w: 120, h: 20 })).toEqual(['a', 'b'])
+    expect(inMarquee(sheets, { x: 710, y: 0, w: 200, h: 200 })).toEqual([])
   })
 })

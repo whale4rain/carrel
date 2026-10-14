@@ -1,21 +1,27 @@
 import {
+  bounds,
   changed,
   emptyHistory,
   footprint,
   handles,
+  inMarquee,
   move,
   placeNew,
   raise,
   record,
+  rectFrom,
   redo,
   remove,
   resize,
+  SCALES,
+  scaleTo,
   snap,
   touched,
   undo,
   type Guide,
   type Handle,
   type History,
+  type Rect,
 } from '@carrel/desk'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Sheet } from '../shared/workspace-api.js'
@@ -30,6 +36,8 @@ const BLANK = { w: 400, h: 300 }
 type Gesture =
   | { kind: 'move'; before: Sheet[]; start: Sheet[]; from: { x: number; y: number }; ids: Set<string>; moved: boolean }
   | { kind: 'resize'; before: Sheet[]; start: Sheet[]; from: { x: number; y: number }; id: string; handle: Handle }
+  // A marquee from the bare mat; `base` is what stays selected (Shift keeps the selection).
+  | { kind: 'marquee'; from: { x: number; y: number }; base: Set<string> }
 
 /**
  * The grid-paper mat and its sheets. Sheets move by their label row and
@@ -43,6 +51,8 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const [selected, setSelected] = useState<Set<string>>(new Set())
   const [guides, setGuides] = useState<Guide[]>([])
   const [gesture, setGesture] = useState<Gesture>()
+  const [marquee, setMarquee] = useState<Rect>()
+  const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
   const mat = useRef<HTMLElement>(null)
   const latest = useRef(sheets)
@@ -118,7 +128,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     if (!gesture) return
     // The gesture's latest preview, kept here because the release can arrive
     // before React renders the last move.
-    let preview = gesture.start
+    let preview = gesture.kind === 'marquee' ? [] : gesture.start
     const show = (next: Sheet[]): void => {
       preview = next
       setSheets(next)
@@ -127,7 +137,12 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       const at = point(event)
       const dx = at.x - gesture.from.x
       const dy = at.y - gesture.from.y
-      if (gesture.kind === 'move') {
+      if (gesture.kind === 'marquee') {
+        if (Math.hypot(dx, dy) < 3) return
+        const rect = rectFrom(gesture.from, at)
+        setMarquee(rect)
+        setSelected(new Set([...gesture.base, ...inMarquee(latest.current, rect)]))
+      } else if (gesture.kind === 'move') {
         if (!gesture.moved && Math.hypot(dx, dy) < 3) return
         gesture.moved = true
         const moved = move(gesture.start, gesture.ids, dx, dy)
@@ -145,6 +160,8 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       onMove(event)
       setGesture(undefined)
       setGuides([])
+      setMarquee(undefined)
+      if (gesture.kind === 'marquee') return
       const current = preview
       const ids = changed(gesture.before, current).map((sheet) => sheet.id)
       if (ids.length === 0) return
@@ -174,6 +191,13 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     [save],
   )
 
+  const scaleSelected = (scale: number): void => {
+    const current = latest.current
+    const next = scaleTo(current, selected, scale)
+    const ids = changed(current, next).map((sheet) => sheet.id)
+    if (ids.length > 0) save(next, 'scaled', ids, current)
+  }
+
   const removeSelected = useCallback((): void => {
     const current = latest.current
     const next = remove(current, selected)
@@ -193,6 +217,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       if (event.key === 'Escape') setSelected(new Set())
       else if (mod && key === 'z') travel(event.shiftKey ? 'redo' : 'undo')
       else if (event.ctrlKey && !event.metaKey && key === 'y') travel('redo')
+      else if (mod && key === 'a') setSelected(new Set(latest.current.map((sheet) => sheet.id)))
       else if ((event.key === 'Delete' || event.key === 'Backspace') && selected.size > 0) removeSelected()
       else return
       event.preventDefault()
@@ -201,6 +226,11 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     return () => window.removeEventListener('keydown', onKey)
   }, [gesture, removeSelected, selected, travel])
 
+  // Scale choices close when the selection changes.
+  useEffect(() => setScaling(false), [selected])
+
+  const chosen = sheets.filter((sheet) => selected.has(sheet.id))
+  const around = gesture ? undefined : bounds(chosen.map(footprint))
   const single = selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
 
   return (
@@ -209,7 +239,10 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       aria-label="Desk"
       ref={mat}
       onPointerDown={(event) => {
-        if (event.target === event.currentTarget) setSelected(new Set())
+        if (event.target !== event.currentTarget || event.button !== 0) return
+        const base = event.shiftKey ? new Set(selected) : new Set<string>()
+        setSelected(base)
+        setGesture({ kind: 'marquee', from: point(event), base })
       }}
       onDoubleClick={(event) => {
         if (event.target === event.currentTarget) addSheet()
@@ -259,6 +292,32 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
             </div>
           )
         })()}
+      {marquee && <div className="marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
+      {around && (
+        <div
+          className="selection-bar"
+          role="toolbar"
+          aria-label="Actions for the selection"
+          style={barPlace(around, mat.current?.clientHeight ?? Infinity)}
+          onPointerDown={(event) => event.stopPropagation()}
+        >
+          <span className="selection-count">{chosen.length} selected</span>
+          {scaling ? (
+            SCALES.map((scale) => {
+              const current = chosen.every((sheet) => sheet.scale === scale)
+              return (
+                <button key={scale} type="button" className={current ? 'main' : undefined} aria-pressed={current} onClick={() => scaleSelected(scale)}>
+                  {Math.round(scale * 100)}%
+                </button>
+              )
+            })
+          ) : (
+            <button type="button" className="main" onClick={() => setScaling(true)}>
+              Scale
+            </button>
+          )}
+        </div>
+      )}
       {guides.map((guide, i) => (
         <span
           key={i}
@@ -282,4 +341,10 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       )}
     </main>
   )
+}
+
+/** Under the selection, or above it when there's no room below. */
+function barPlace(around: Rect, height: number): { left: number; top: number } {
+  const below = around.y + around.h + 12
+  return { left: Math.max(8, around.x), top: below + 40 > height ? Math.max(8, around.y - 48) : below }
 }

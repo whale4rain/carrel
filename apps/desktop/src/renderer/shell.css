@@ -628,3 +628,56 @@ kbd {
   box-shadow: var(--shadow-sheet);
   font: var(--text-label);
 }
+
+.marquee {
+  position: absolute;
+  z-index: 100000;
+  border: 1px dashed var(--ink-muted);
+  background: color-mix(in srgb, var(--ink) 4%, transparent);
+  pointer-events: none;
+}
+
+/* Margin's Selection component: an ink bar under the selection. */
+.selection-bar {
+  position: absolute;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--radius-control);
+  background: var(--ink);
+  color: var(--paper);
+  box-shadow: var(--shadow-lift);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.selection-bar .selection-count {
+  padding: 0 10px;
+  opacity: 0.7;
+}
+
+.selection-bar button {
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--paper);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.selection-bar button.main {
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.selection-bar button:focus-visible {
+  outline: 2px solid var(--highlight);
+  outline-offset: 2px;
+}
