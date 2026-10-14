@@ -486,3 +486,145 @@ kbd {
 .welcome-body code {
   font: var(--text-position);
 }
+
+/* ---- Sheets on the desk ------------------------------------------------ */
+
+.desk-mat {
+  touch-action: none;
+}
+
+.desk-empty {
+  pointer-events: none;
+}
+
+/* The footprint on the desk; the paper inside keeps its full size and scales. */
+.sheet {
+  position: absolute;
+}
+
+.sheet-paper {
+  transform-origin: 0 0;
+  background: var(--paper);
+  border-radius: var(--radius-sheet);
+  box-shadow: var(--shadow-sheet);
+  overflow: hidden;
+}
+
+.sheet[data-lifted] .sheet-paper {
+  box-shadow: var(--shadow-lift);
+}
+
+/* The selection outline sits on the footprint, so it stays 1.5px at any scale. */
+.sheet[data-selected]::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: var(--radius-sheet);
+  box-shadow: 0 0 0 1.5px var(--ink);
+  pointer-events: none;
+}
+
+/* Sheets move by their label row; there is no title bar. */
+.sheet-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 36px;
+  padding: 0 var(--space-4);
+  font: var(--text-caption);
+  color: var(--ink-muted);
+  cursor: grab;
+}
+
+.sheet[data-lifted] .sheet-label {
+  cursor: grabbing;
+}
+
+.handles {
+  position: absolute;
+  pointer-events: none;
+}
+
+.handle {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  margin: -4px 0 0 -4px;
+  background: var(--paper);
+  border: 1.5px solid var(--ink);
+  pointer-events: auto;
+}
+
+.handle-nw { left: 0; top: 0; cursor: nwse-resize; }
+.handle-n { left: 50%; top: 0; cursor: ns-resize; }
+.handle-ne { left: 100%; top: 0; cursor: nesw-resize; }
+.handle-e { left: 100%; top: 50%; cursor: ew-resize; }
+.handle-se { left: 100%; top: 100%; cursor: nwse-resize; }
+.handle-s { left: 50%; top: 100%; cursor: ns-resize; }
+.handle-sw { left: 0; top: 100%; cursor: nesw-resize; }
+.handle-w { left: 0; top: 50%; cursor: ew-resize; }
+
+.size-label {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: -4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-mark);
+  background: var(--ink);
+  color: var(--paper);
+  white-space: nowrap;
+}
+
+/* Snap guides: dashed margin-line, only while dragging. */
+.guide {
+  position: absolute;
+  z-index: 100000;
+  pointer-events: none;
+}
+
+.guide-x {
+  border-left: 1px dashed var(--margin-line);
+}
+
+.guide-y {
+  border-top: 1px dashed var(--margin-line);
+}
+
+.desk-tools {
+  position: absolute;
+  right: var(--space-4);
+  bottom: var(--space-4);
+  z-index: 100001;
+  display: flex;
+  gap: var(--space-1);
+  padding: var(--space-1);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+}
+
+.desk-tools button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  font: var(--text-label);
+}
+
+.desk-tools button:hover {
+  background: var(--paper-2);
+}
+
+.desk-error {
+  position: absolute;
+  left: 50%;
+  bottom: var(--space-4);
+  z-index: 100001;
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  transform: translateX(-50%);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  color: var(--danger);
+  box-shadow: var(--shadow-sheet);
+  font: var(--text-label);
+}

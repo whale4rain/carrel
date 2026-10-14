@@ -35,6 +35,9 @@ importers:
       '@carrel/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@carrel/desk':
+        specifier: workspace:*
+        version: link:../../packages/desk
       '@carrel/margin':
         specifier: workspace:*
         version: link:../../packages/margin
@@ -69,6 +72,8 @@ importers:
       tnega:
         specifier: 0.5.0
         version: 0.5.0
+
+  packages/desk: {}
 
   packages/margin:
     dependencies:

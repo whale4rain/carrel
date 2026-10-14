@@ -1,5 +1,5 @@
-import type { OpenProject, Workspace } from '@carrel/core'
-import type { ShellState } from '../shared/workspace-api.js'
+import type { DeskFile, OpenProject, Sheet, SheetChange, Workspace } from '@carrel/core'
+import type { DeskView, ShellState } from '../shared/workspace-api.js'
 
 /**
  * Turns the workspace on disk into what the shell shows, and remembers what
@@ -51,6 +51,17 @@ export class ShellController {
     return this.state()
   }
 
+  async desk(id: string): Promise<DeskView> {
+    return view(await this.workspace.readDesk(await this.openFolder(), id))
+  }
+
+  /** Sheets come from the renderer, so they're checked before they reach the file. */
+  async saveSheets(id: string, sheets: unknown, change: unknown): Promise<DeskView> {
+    if (!Array.isArray(sheets) || !sheets.every(isSheet)) throw new Error('Those are not sheets.')
+    if (!isChange(change)) throw new Error('That is not a sheet change.')
+    return view(await this.workspace.saveSheets(await this.openFolder(), id, sheets, { kind: change.kind, ids: change.ids }))
+  }
+
   private async openFolder(): Promise<string> {
     const { open } = await this.state()
     if (!open) throw new Error('Create a project first.')
@@ -70,4 +81,38 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
     desks: opened.desks.map(({ id, name }) => ({ id, name })),
     desk: desk ?? '',
   }
+}
+
+function view(desk: DeskFile): DeskView {
+  return { id: desk.id, name: desk.name, sheets: desk.sheets }
+}
+
+const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
+
+function isSheet(value: unknown): value is Sheet {
+  if (typeof value !== 'object' || value === null) return false
+  const sheet = value as Record<string, unknown>
+  return (
+    typeof sheet.id === 'string' &&
+    (sheet.itemId === null || typeof sheet.itemId === 'string') &&
+    finite(sheet.x) &&
+    finite(sheet.y) &&
+    finite(sheet.w) &&
+    finite(sheet.h) &&
+    finite(sheet.scale) &&
+    sheet.scale >= 0.3 &&
+    sheet.scale <= 1 &&
+    finite(sheet.z)
+  )
+}
+
+function isChange(value: unknown): value is SheetChange {
+  if (typeof value !== 'object' || value === null) return false
+  const change = value as Record<string, unknown>
+  return (
+    typeof change.kind === 'string' &&
+    /^[a-z-]+$/.test(change.kind) &&
+    Array.isArray(change.ids) &&
+    change.ids.every((id) => typeof id === 'string')
+  )
 }

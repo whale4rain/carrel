@@ -87,3 +87,29 @@ describe('Workspace', () => {
     expect(await workspace.readSettings()).toEqual({})
   })
 })
+
+describe('sheets', () => {
+  it('saves a desk\'s sheets and records the gesture as one event', async () => {
+    const opened = await workspace.createProject('Learn economics')
+    const deskId = opened.desks[0]?.id ?? ''
+    const sheet = { id: 's1', itemId: null, x: 48, y: 48, w: 400, h: 300, scale: 1, z: 1 }
+    await workspace.saveSheets('Learn economics', deskId, [sheet], { kind: 'added', ids: ['s1'] })
+    await workspace.saveSheets('Learn economics', deskId, [{ ...sheet, x: 120 }], { kind: 'moved', ids: ['s1'] })
+
+    const restarted = new Workspace(carrelRoots(home))
+    expect((await restarted.readDesk('Learn economics', deskId)).sheets).toEqual([{ ...sheet, x: 120 }])
+    const events = await restarted.readEvents('Learn economics')
+    expect(events.slice(-2).map((event) => [event.type, event.payload])).toEqual([
+      ['sheets.added', { desk: deskId, sheets: ['s1'] }],
+      ['sheets.moved', { desk: deskId, sheets: ['s1'] }],
+    ])
+  })
+
+  it('refuses two sheets with one id', async () => {
+    const opened = await workspace.createProject('Learn economics')
+    const sheet = { id: 's1', itemId: null, x: 0, y: 0, w: 400, h: 300, scale: 1, z: 1 }
+    await expect(
+      workspace.saveSheets('Learn economics', opened.desks[0]?.id ?? '', [sheet, sheet], { kind: 'added', ids: ['s1'] }),
+    ).rejects.toThrow(/share an id/)
+  })
+})
