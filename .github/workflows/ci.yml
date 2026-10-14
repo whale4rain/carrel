@@ -40,3 +40,5 @@ jobs:
       - run: pnpm build
       - name: Start the desktop app
         run: pnpm --filter @carrel/desktop smoke
+      - name: Spike check, live web on the desk
+        run: pnpm --filter @carrel/spike-web check
