@@ -79,6 +79,8 @@ describe('sheets through the shell', () => {
     expect(paper).toEqual({ id: paper?.id, kind: 'paper', title: 'Supply', file: { name: 'Supply.pdf', size: 8 } })
     expect(page).toEqual({ id: page.id, kind: 'web_page', title: 'example.com · rent', url: 'https://example.com/rent' })
     expect((await controller().items()).map((item) => item.title).sort()).toEqual(['Supply', 'example.com · rent'])
+    expect(new TextDecoder().decode(await controller().itemBytes(paper?.id ?? ''))).toBe('%PDF-1.4')
+    await expect(controller().itemBytes(page.id)).rejects.toThrow(/linked/)
     await expect(controller().addFiles('nope')).rejects.toThrow(/not files/)
   })
 

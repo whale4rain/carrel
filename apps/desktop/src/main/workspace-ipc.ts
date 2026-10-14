@@ -1,4 +1,5 @@
 import { dialog, ipcMain } from 'electron'
+import { delimiter } from 'node:path'
 import { workspaceChannels, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 import type { ShellController } from './shell-state.js'
 
@@ -33,6 +34,9 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     saveViewport: (id, viewport) => controller.saveViewport(text(id), viewport),
     items: () => controller.items(),
     chooseFiles: async () => {
+      // The smoke check stands in for the person at the file dialog.
+      const stand = process.env.CARREL_CHOOSE_FILES
+      if (stand) return stand.split(delimiter)
       const chosen = await dialog.showOpenDialog({
         title: 'Add books and papers',
         properties: ['openFile', 'multiSelections'],
@@ -42,6 +46,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     },
     addFiles: (paths) => controller.addFiles(paths),
     addLink: (url) => controller.addLink(text(url)),
+    itemBytes: (id) => controller.itemBytes(text(id)),
   }
   for (const [name, run] of Object.entries(api)) handle(workspaceChannels[name as keyof WorkspaceApi], run)
   return async () => {

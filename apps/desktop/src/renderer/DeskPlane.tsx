@@ -40,6 +40,7 @@ import {
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { ItemView, Sheet } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
+import { PdfView } from './PdfView.js'
 import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 
 const api = window.carrel.workspace
@@ -90,6 +91,11 @@ export function DeskPlane({
   const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
   const [view, setView] = useState<View>({ x: 0, y: 0, zoom: 1 })
+  // Where each source sheet is reading (a page, a time), for its label.
+  const [positions, setPositions] = useState<ReadonlyMap<string, string>>(new Map())
+  const reportPosition = useCallback((sheet: string, at: string): void => {
+    setPositions((known) => (known.get(sheet) === at ? known : new Map(known).set(sheet, at)))
+  }, [])
   const [screen, setScreen] = useState({ w: 0, h: 0 })
   const mat = useRef<HTMLElement>(null)
   const viewRef = useRef(view)
@@ -180,6 +186,9 @@ export function DeskPlane({
     const element = mat.current
     if (!element) return
     const onWheel = (event: WheelEvent): void => {
+      // A source that scrolls (a PDF) takes plain scrolling over it.
+      const target = event.target as HTMLElement | null
+      if (!event.ctrlKey && !event.metaKey && target?.closest('[data-scrolls]')) return
       event.preventDefault()
       const at = onScreen(event)
       if (event.ctrlKey || event.metaKey) {
@@ -502,9 +511,17 @@ export function DeskPlane({
                 <div className="sheet-label" onPointerDown={(event) => startMove(event, sheet.id)}>
                   {item && <span className="sheet-kind">{KIND_LABEL[item.kind]}</span>}
                   <span className="sheet-title">{title}</span>
+                  {positions.has(sheet.id) && <span className="position">{positions.get(sheet.id)}</span>}
                   <span className="position">{Math.round(sheet.scale * 100)}%</span>
                 </div>
-                {item && (
+                {item?.file ? (
+                  <PdfView
+                    itemId={item.id}
+                    width={sheet.w}
+                    detail={sheet.scale * view.zoom}
+                    onPage={(page) => reportPosition(sheet.id, page)}
+                  />
+                ) : item && (
                   <div className="source-face">
                     <h3>{item.title}</h3>
                     <p className="position">{sourceLine(item)}</p>

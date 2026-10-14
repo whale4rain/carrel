@@ -771,6 +771,7 @@ kbd {
 }
 
 .sheet-title {
+  flex: 1;
   overflow: hidden;
   min-width: 0;
   text-overflow: ellipsis;
@@ -779,7 +780,6 @@ kbd {
 
 .sheet-label .position {
   flex: none;
-  margin-left: auto;
 }
 
 .source-face {
@@ -851,4 +851,87 @@ kbd {
 
 .add-link button {
   text-align: center;
+}
+
+/* A PDF inside its sheet: pages on a paper-2 well, scrolled within the sheet. */
+.pdf-view {
+  height: calc(100% - 36px);
+  overflow: hidden auto;
+  scrollbar-width: thin;
+  padding: 16px;
+  box-sizing: border-box;
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+  overscroll-behavior: contain;
+}
+
+.pdf-page {
+  position: relative;
+  margin-bottom: 12px;
+  background: white;
+  box-shadow: var(--shadow-sheet);
+}
+
+.pdf-page canvas {
+  display: block;
+}
+
+.viewer-note {
+  margin: 0;
+  padding: var(--space-4);
+  border-top: 1px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+/* pdf.js text layer: invisible text over the page, so it can be selected. */
+.textLayer {
+  position: absolute;
+  inset: 0;
+  overflow: clip;
+  line-height: 1;
+  text-size-adjust: none;
+  forced-color-adjust: none;
+  transform-origin: 0 0;
+  --min-font-size: 1;
+  --text-scale-factor: calc(var(--total-scale-factor) * var(--min-font-size));
+  --min-font-size-inv: calc(1 / var(--min-font-size));
+}
+
+.textLayer :is(span, br) {
+  position: absolute;
+  color: transparent;
+  white-space: pre;
+  cursor: text;
+  transform-origin: 0% 0%;
+}
+
+.textLayer > :not(.markedContent),
+.textLayer .markedContent span:not(.markedContent) {
+  --font-height: 0;
+  --scale-x: 1;
+  --rotate: 0deg;
+  z-index: 1;
+  font-size: calc(var(--text-scale-factor) * var(--font-height));
+  transform: rotate(var(--rotate)) scaleX(var(--scale-x)) scale(var(--min-font-size-inv));
+}
+
+.textLayer .markedContent {
+  display: contents;
+}
+
+.textLayer ::selection {
+  background: color-mix(in srgb, var(--pencil) 28%, transparent);
+}
+
+.textLayer br::selection {
+  background: transparent;
+}
+
+.textLayer .endOfContent {
+  position: absolute;
+  inset: 100% 0 0;
+  z-index: 0;
+  display: block;
+  cursor: default;
+  user-select: none;
 }

@@ -54,6 +54,8 @@ export interface WorkspaceApi {
   addFiles(paths: string[]): Promise<ItemView[]>
   /** Links a web page or video. */
   addLink(url: string): Promise<ItemView>
+  /** A stored item's file (a PDF), as bytes. */
+  itemBytes(id: string): Promise<Uint8Array>
 }
 
 export const workspaceChannels = {
@@ -69,6 +71,7 @@ export const workspaceChannels = {
   chooseFiles: 'workspace:choose-files',
   addFiles: 'workspace:add-files',
   addLink: 'workspace:add-link',
+  itemBytes: 'workspace:item-bytes',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */

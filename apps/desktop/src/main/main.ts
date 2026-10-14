@@ -58,6 +58,8 @@ const MOVED = { x: 148, y: 108, w: 440 }
 /** A web page the smoke adds by its link, and the title it gets. */
 const LINK = 'https://example.com/elasticity'
 const LINK_TITLE = 'example.com · elasticity'
+/** The text of the smoke's PDF, as its sheet's text layer has it. */
+const PDF_TEXT = "document.querySelector('.sheet[data-kind=\"paper\"] .textLayer')?.textContent"
 /** Then scaled to 60% from the selection bar. */
 const SCALED = { w: 264 }
 
@@ -174,6 +176,11 @@ async function deskInteractions(
   })()`)
   await page("document.querySelector('.add-link').requestSubmit()")
   if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) return 'adding a link made no web page sheet'
+  // A PDF through + Add (the smoke answers the file dialog); its page is drawn with selectable text.
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
+  await waitFor("document.querySelector('.add-menu') !== null")
+  await page("[...document.querySelectorAll('.add-menu button')].find((b) => b.textContent.startsWith('Book or paper'))?.click()")
+  if (!(await waitFor(`${PDF_TEXT} === 'Price elasticity of demand'`))) return `the PDF's text layer says ${String(await page(PDF_TEXT))}`
   return undefined
 }
 
@@ -218,6 +225,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) {
       return fail('the web page sheet did not come back')
     }
+    if (!(await waitFor(`${PDF_TEXT} === 'Price elasticity of demand'`))) return fail(`the PDF came back saying ${String(await page(PDF_TEXT))}`)
   }
   // Calls run in order, so this answers only after the gestures' saves are written.
   await page('window.carrel.workspace.state()')
