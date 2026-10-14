@@ -55,6 +55,8 @@ async function createWindow(): Promise<void> {
 
 /** Where the smoke's sheet should end up: added at (48, 48), dragged by (100, 60), widened by 40. */
 const MOVED = { x: 148, y: 108, w: 440 }
+/** Then scaled to 60% from the selection bar. */
+const SCALED = { w: 264 }
 
 /**
  * Drives the desk with real mouse events: adds a sheet, drags it by its label
@@ -115,6 +117,15 @@ async function deskInteractions(
   if (!(await waitFor(count(2)))) return 'undo did not bring the deleted sheet back'
   await key('Z', [mod, 'shift'])
   if (!(await waitFor(count(1)))) return 'redo did not delete the sheet again'
+  // A marquee from the bare mat selects the sheet; the selection bar scales it.
+  const mat = await page<{ x: number; y: number }>("(() => { const r = document.querySelector('.desk-mat').getBoundingClientRect(); return { x: Math.round(r.left), y: Math.round(r.top) } })()")
+  await drag({ x: mat.x + 20, y: mat.y + 20 }, 200, 150)
+  if (!(await waitFor("document.querySelector('.selection-bar .selection-count')?.textContent === '1 selected'"))) return 'the marquee did not select the sheet'
+  const press = (label: string): Promise<unknown> =>
+    page(`[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent === '${label}')?.click()`)
+  await press('Scale')
+  await press('60%')
+  if (!(await waitFor(`${style}.width === '${SCALED.w}px'`))) return `scaling left the sheet at ${String(await page(`${style}.cssText`))}`
   return undefined
 }
 
@@ -152,7 +163,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     const desks = await page<string[]>("[...document.querySelectorAll('[aria-label=\"Desks\"] .row.desk')].map((row) => row.textContent)")
     if (!desks.includes('First desk')) return fail(`the sidebar lists ${JSON.stringify(desks)}`)
     // The sheet moved and resized in the first run comes back where it was left.
-    if (!(await waitFor(`(() => { const s = document.querySelector('.sheet'); return !!s && s.style.left === '${MOVED.x}px' && s.style.top === '${MOVED.y}px' && s.style.width === '${MOVED.w}px' })()`))) {
+    if (!(await waitFor(`(() => { const s = document.querySelector('.sheet'); return !!s && s.style.left === '${MOVED.x}px' && s.style.top === '${MOVED.y}px' && s.style.width === '${SCALED.w}px' })()`))) {
       return fail(`the sheet came back at ${String(await page("document.querySelector('.sheet')?.getAttribute('style') ?? 'nowhere'"))}`)
     }
   }
