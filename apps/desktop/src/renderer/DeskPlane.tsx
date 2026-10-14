@@ -5,7 +5,10 @@ import {
   footprint,
   handles,
   inMarquee,
+  makePile,
   move,
+  PILE_LABEL,
+  piles,
   placeNew,
   raise,
   record,
@@ -16,8 +19,10 @@ import {
   SCALES,
   scaleTo,
   snap,
+  spread,
   touched,
   undo,
+  withPiles,
   type Guide,
   type Handle,
   type History,
@@ -103,15 +108,20 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const startMove = (event: ReactPointerEvent, id: string): void => {
     if (event.button !== 0) return
     event.stopPropagation()
+    // A sheet in a pile stands for the whole pile.
+    const group = withPiles(sheets, [id])
     let ids: Set<string>
     if (event.shiftKey) {
       ids = new Set(selected)
-      if (ids.has(id)) ids.delete(id)
-      else ids.add(id)
+      const dropping = ids.has(id)
+      for (const one of group) {
+        if (dropping) ids.delete(one)
+        else ids.add(one)
+      }
       setSelected(ids)
       return
     }
-    ids = selected.has(id) ? selected : new Set([id])
+    ids = selected.has(id) ? selected : group
     setSelected(ids)
     const start = raise(sheets, ids)
     setSheets(start)
@@ -141,7 +151,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
         if (Math.hypot(dx, dy) < 3) return
         const rect = rectFrom(gesture.from, at)
         setMarquee(rect)
-        setSelected(new Set([...gesture.base, ...inMarquee(latest.current, rect)]))
+        setSelected(new Set([...gesture.base, ...withPiles(latest.current, inMarquee(latest.current, rect))]))
       } else if (gesture.kind === 'move') {
         if (!gesture.moved && Math.hypot(dx, dy) < 3) return
         gesture.moved = true
@@ -191,6 +201,18 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     [save],
   )
 
+  const pileSelected = (): void => {
+    const current = latest.current
+    const next = makePile(current, selected, crypto.randomUUID())
+    save(next, 'piled', changed(current, next).map((sheet) => sheet.id), current)
+  }
+
+  const spreadSelected = (pile: string): void => {
+    const current = latest.current
+    const next = spread(current, pile)
+    save(next, 'spread', changed(current, next).map((sheet) => sheet.id), current)
+  }
+
   const scaleSelected = (scale: number): void => {
     const current = latest.current
     const next = scaleTo(current, selected, scale)
@@ -230,6 +252,11 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   useEffect(() => setScaling(false), [selected])
 
   const chosen = sheets.filter((sheet) => selected.has(sheet.id))
+  const stacks = piles(sheets)
+  // The selection is exactly one pile, or holds part of one.
+  const chosenPiles = new Set(chosen.map((sheet) => sheet.pile))
+  const onePile = chosenPiles.size === 1 ? [...chosenPiles][0] : undefined
+  const hasPile = chosen.some((sheet) => sheet.pile !== undefined)
   const around = gesture ? undefined : bounds(chosen.map(footprint))
   const single = selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
 
@@ -258,12 +285,14 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
         const box = footprint(sheet)
         const isSelected = selected.has(sheet.id)
         const lifted = gesture?.kind === 'move' && gesture.moved && gesture.ids.has(sheet.id)
+        const stack = sheet.pile === undefined ? undefined : stacks.get(sheet.pile)
         return (
           <section
             key={sheet.id}
             className="sheet"
             data-selected={isSelected || undefined}
             data-lifted={lifted || undefined}
+            data-pile-top={stack?.at(-1) === sheet || undefined}
             aria-label="Blank sheet"
             style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: sheet.z }}
           >
@@ -274,6 +303,19 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
               </div>
             </div>
           </section>
+        )
+      })}
+      {[...stacks].map(([pile, stack]) => {
+        const first = stack[0]!
+        return (
+          <div
+            key={pile}
+            className="pile-label"
+            style={{ left: first.x, top: first.y - PILE_LABEL, zIndex: stack.at(-1)!.z }}
+            onPointerDown={(event) => startMove(event, first.id)}
+          >
+            Pile · {stack.length} <span className="position">{Math.round(first.scale * 100)}%</span>
+          </div>
         )
       })}
       {single &&
@@ -302,7 +344,16 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
           onPointerDown={(event) => event.stopPropagation()}
         >
           <span className="selection-count">{chosen.length} selected</span>
-          {scaling ? (
+          {onePile !== undefined && chosen.length === stacks.get(onePile)?.length ? (
+            <button type="button" className="main" onClick={() => spreadSelected(onePile)}>
+              Spread out
+            </button>
+          ) : chosen.length >= 2 ? (
+            <button type="button" className="main" onClick={pileSelected}>
+              Make a pile
+            </button>
+          ) : null}
+          {hasPile ? null : scaling ? (
             SCALES.map((scale) => {
               const current = chosen.every((sheet) => sheet.scale === scale)
               return (
@@ -312,7 +363,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
               )
             })
           ) : (
-            <button type="button" className="main" onClick={() => setScaling(true)}>
+            <button type="button" className={chosen.length === 1 ? 'main' : undefined} onClick={() => setScaling(true)}>
               Scale
             </button>
           )}

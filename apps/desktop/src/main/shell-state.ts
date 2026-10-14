@@ -102,7 +102,8 @@ function isSheet(value: unknown): value is Sheet {
     finite(sheet.scale) &&
     sheet.scale >= 0.3 &&
     sheet.scale <= 1 &&
-    finite(sheet.z)
+    finite(sheet.z) &&
+    (sheet.pile === undefined || typeof sheet.pile === 'string')
   )
 }
 

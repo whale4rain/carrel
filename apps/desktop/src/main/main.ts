@@ -126,6 +126,16 @@ async function deskInteractions(
   await press('Scale')
   await press('60%')
   if (!(await waitFor(`${style}.width === '${SCALED.w}px'`))) return `scaling left the sheet at ${String(await page(`${style}.cssText`))}`
+  // Two sheets into a pile, then both steps undone.
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  if (!(await waitFor(count(2)))) return 'adding a sheet for the pile did nothing'
+  await key('A', [mod])
+  await press('Make a pile')
+  if (!(await waitFor("document.querySelector('.pile-label')?.textContent.startsWith('Pile · 2') === true"))) return 'Make a pile made no pile'
+  await key('Z', [mod])
+  if (!(await waitFor("document.querySelector('.pile-label') === null"))) return 'undo did not take the pile apart'
+  await key('Z', [mod])
+  if (!(await waitFor(count(1)))) return 'undo did not take the added sheet away'
   return undefined
 }
 

@@ -681,3 +681,26 @@ kbd {
   outline: 2px solid var(--highlight);
   outline-offset: 2px;
 }
+
+/* A pile: its sheets cascade at 30% under a label; the top one lifts a little. */
+.pile-label {
+  position: absolute;
+  display: flex;
+  gap: var(--space-1);
+  align-items: baseline;
+  height: 20px;
+  padding: 0 2px;
+  font: var(--text-label);
+  font-weight: 500;
+  white-space: nowrap;
+  cursor: grab;
+  user-select: none;
+}
+
+.pile-label .position {
+  color: var(--ink-muted);
+}
+
+.sheet[data-pile-top]:not([data-lifted]) .sheet-paper {
+  box-shadow: var(--shadow-lift);
+}
