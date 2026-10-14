@@ -131,12 +131,22 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       return fail(`the sheet came back at ${String(await page("document.querySelector('.sheet')?.getAttribute('style') ?? 'nowhere'"))}`)
     }
   }
+  // Calls run in order, so this answers only after the gestures' saves are written.
+  await page('window.carrel.workspace.state()')
   console.log('carrel smoke: ok')
   app.exit(0)
 }
 
 app.whenReady().then(async () => {
-  serveWorkspace(new ShellController(workspace))
+  const settled = serveWorkspace(new ShellController(workspace))
+  // Let the last save land before quitting.
+  let quitting = false
+  app.on('before-quit', (event) => {
+    if (quitting) return
+    event.preventDefault()
+    quitting = true
+    void settled().finally(() => app.quit())
+  })
   await createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow()
