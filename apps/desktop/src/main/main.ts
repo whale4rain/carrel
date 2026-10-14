@@ -70,12 +70,12 @@ async function deskInteractions(
   const center = async (selector: string): Promise<{ x: number; y: number }> =>
     page(`(() => { const r = document.querySelector('${selector}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
   const drag = async (from: { x: number; y: number }, dx: number, dy: number): Promise<void> => {
-    const send = (type: 'mouseDown' | 'mouseMove' | 'mouseUp', x: number, y: number): void =>
-      window.webContents.sendInputEvent({ type, x, y, button: 'left', clickCount: 1 })
+    const send = (type: 'mouseDown' | 'mouseMove' | 'mouseUp', x: number, y: number, held = false): void =>
+      window.webContents.sendInputEvent({ type, x, y, button: 'left', clickCount: 1, modifiers: held ? ['leftbuttondown'] : [] })
     send('mouseMove', from.x, from.y)
     send('mouseDown', from.x, from.y)
     for (let step = 1; step <= 10; step++) {
-      send('mouseMove', from.x + (dx * step) / 10, from.y + (dy * step) / 10)
+      send('mouseMove', from.x + (dx * step) / 10, from.y + (dy * step) / 10, true)
       await new Promise((resolve) => setTimeout(resolve, 16))
     }
     send('mouseUp', from.x + dx, from.y + dy)
@@ -90,6 +90,11 @@ async function deskInteractions(
   if (!(await waitFor(`${style}.width === '${MOVED.w}px' && ${style}.left === '${MOVED.x}px'`))) {
     return `the right handle left the sheet at ${String(await page(`${style}.cssText`))}`
   }
+  // What the screen shows must also be what was saved.
+  const saved = await page<string>(
+    'window.carrel.workspace.state().then((s) => window.carrel.workspace.desk(s.open.desk)).then((d) => JSON.stringify(d.sheets.map(({ x, y, w }) => ({ x, y, w }))))',
+  )
+  if (saved !== JSON.stringify([MOVED])) return `the desk shows the moved sheet but saved ${saved}`
   return undefined
 }
 

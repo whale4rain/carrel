@@ -91,6 +91,13 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
 
   useEffect(() => {
     if (!gesture) return
+    // The gesture's latest preview, kept here because the release can arrive
+    // before React renders the last move.
+    let preview = gesture.start
+    const show = (next: Sheet[]): void => {
+      preview = next
+      setSheets(next)
+    }
     const onMove = (event: PointerEvent): void => {
       const at = point(event)
       const dx = at.x - gesture.from.x
@@ -103,16 +110,17 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
         const lead = moved.find((sheet) => gesture.ids.has(sheet.id))
         const others = moved.filter((sheet) => !gesture.ids.has(sheet.id)).map(footprint)
         const snapped = lead ? snap(footprint(lead), others) : { dx: 0, dy: 0, guides: [] }
-        setSheets(move(moved, gesture.ids, snapped.dx, snapped.dy))
+        show(move(moved, gesture.ids, snapped.dx, snapped.dy))
         setGuides(snapped.guides)
       } else {
-        setSheets(gesture.start.map((sheet) => (sheet.id === gesture.id ? resize(sheet, gesture.handle, dx, dy) : sheet)))
+        show(gesture.start.map((sheet) => (sheet.id === gesture.id ? resize(sheet, gesture.handle, dx, dy) : sheet)))
       }
     }
-    const onUp = (): void => {
+    const onUp = (event: PointerEvent): void => {
+      onMove(event)
       setGesture(undefined)
       setGuides([])
-      const current = latest.current
+      const current = preview
       const touched = changed(gesture.before, current).map((sheet) => sheet.id)
       if (touched.length === 0) return
       // A click without a drag still raised the sheet, which is worth keeping.
