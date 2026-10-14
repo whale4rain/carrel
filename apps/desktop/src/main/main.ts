@@ -75,7 +75,7 @@ async function createWindow(): Promise<void> {
   // `CARREL_SHOT=file.png` saves the window's page and quits, for PR screenshots.
   const shot = process.env.CARREL_SHOT
   if (shot) {
-    await new Promise((resolve) => setTimeout(resolve, 8000))
+    await new Promise((resolve) => setTimeout(resolve, 800))
     await writeFile(shot, (await window.webContents.capturePage()).toPNG())
     app.exit(0)
   }
