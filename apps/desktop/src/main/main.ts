@@ -95,6 +95,26 @@ async function deskInteractions(
     'window.carrel.workspace.state().then((s) => window.carrel.workspace.desk(s.open.desk)).then((d) => JSON.stringify(d.sheets.map(({ x, y, w }) => ({ x, y, w }))))',
   )
   if (saved !== JSON.stringify([MOVED])) return `the desk shows the moved sheet but saved ${saved}`
+  const key = async (keyCode: string, modifiers: Array<'shift' | 'meta' | 'control'> = []): Promise<void> => {
+    window.webContents.sendInputEvent({ type: 'keyDown', keyCode, modifiers })
+    window.webContents.sendInputEvent({ type: 'keyUp', keyCode, modifiers })
+    await new Promise((resolve) => setTimeout(resolve, 50))
+  }
+  const mod = process.platform === 'darwin' ? 'meta' : 'control'
+  await key('Z', [mod])
+  if (!(await waitFor(`${style}.width === '${MOVED.w - 40}px'`))) return `undo left the sheet at ${String(await page(`${style}.cssText`))}`
+  await key('Z', [mod, 'shift'])
+  if (!(await waitFor(`${style}.width === '${MOVED.w}px'`))) return `redo left the sheet at ${String(await page(`${style}.cssText`))}`
+  // A second sheet, deleted, brought back, and deleted again: the desk keeps one.
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  const count = (n: number): string => `document.querySelectorAll('.sheet').length === ${n}`
+  if (!(await waitFor(count(2)))) return 'adding a second sheet did nothing'
+  await key('Delete')
+  if (!(await waitFor(count(1)))) return 'Delete did not remove the selected sheet'
+  await key('Z', [mod])
+  if (!(await waitFor(count(2)))) return 'undo did not bring the deleted sheet back'
+  await key('Z', [mod, 'shift'])
+  if (!(await waitFor(count(1)))) return 'redo did not delete the sheet again'
   return undefined
 }
 
