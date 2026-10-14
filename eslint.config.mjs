@@ -13,7 +13,7 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
   {
-    files: ['apps/desktop/src/renderer/**/*.{ts,tsx}'],
+    files: ['apps/desktop/src/renderer/**/*.{ts,tsx}', 'spikes/*/app/renderer.ts'],
     languageOptions: { globals: globals.browser },
   },
 )
