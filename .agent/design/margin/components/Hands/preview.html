@@ -1,0 +1,32 @@
+<!-- @dsCard group="Agency" height=250 subtitle="Ink, pencil, and pencil becoming ink" -->
+<!doctype html>
+<html>
+<head>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+body{margin:0;background:var(--paper);font-family:var(--font-ui);color:var(--ink)}
+.wrap{padding:24px;display:flex;flex-direction:column;gap:14px;max-width:620px}
+.mine{margin:0;font-size:15px;line-height:22px}
+.agent{margin:0;font-family:var(--font-read);font-style:italic;font-size:15px;line-height:22px;color:var(--pencil)}
+.prop{display:flex;flex-direction:column;gap:10px;padding:12px 14px;border-radius:var(--radius-control);background:var(--pencil-wash);border:1px dashed var(--pencil)}
+.tag{font-size:12px;line-height:16px;font-weight:600;letter-spacing:0.6px;color:var(--pencil)}
+.row{display:flex;gap:8px}
+button{font-family:var(--font-ui);font-size:13px;font-weight:500;height:32px;padding:0 12px;border-radius:var(--radius-control);cursor:pointer}
+.accept{background:var(--ink);color:var(--paper);border:none}
+.dismiss{background:transparent;color:var(--ink);border:1px solid var(--graphite)}
+button:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.kbd{font-family:var(--font-mono);font-size:11px;opacity:0.8;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="wrap">
+<p class="mine">Coffee: price up, quantity barely moves, so inelastic.</p>
+<p class="agent">A daily habit has few close substitutes, which is why.</p>
+<div class="prop">
+<span class="tag">SUGGEST</span>
+<p class="agent" style="font-style:normal;font-family:var(--font-ui)">Rule of thumb: |E| above 1 means elastic.</p>
+<div class="row"><button type="button" class="accept">Accept<span class="kbd">Tab</span></button><button type="button" class="dismiss">Dismiss<span class="kbd">Esc</span></button></div>
+</div>
+</div>
+</body>
+</html>

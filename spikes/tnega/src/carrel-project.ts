@@ -1,0 +1,198 @@
+import { mkdir } from 'node:fs/promises'
+import { join } from 'node:path'
+import { agents, systemPrompt, type AgentRegistry, type LLMAdapter, type LiveAgent } from 'tnega/agent'
+import { blackboardLocal } from 'tnega/blackboard-local'
+import { USER_ADDRESS, agentAddress, type BoxEnvelope, type BoxService } from 'tnega/box'
+import { boxBlackboard } from 'tnega/box-blackboard'
+import { Context } from 'tnega/core'
+import type { ProjectRecord, ProjectsService } from 'tnega/project'
+import { projectLocal } from 'tnega/project-local'
+import { projectLoop } from 'tnega/project-loop'
+import type { SessionEvent } from 'tnega/session'
+import type { ThreadService } from 'tnega/thread'
+import { threadLocal } from 'tnega/thread-local'
+import { tools, type ToolDefinition, type ToolsService } from 'tnega/tools'
+
+/**
+ * Carrel's project thread is a direct study partner, not tnega's coordinator
+ * that hands work to Threads, so Carrel brings its own prompt.
+ */
+export const CARREL_PROMPT = `You are the study partner inside Carrel, a desk for long-running study. The user lays out books, videos, web pages and notes, and asks you about them. Answer directly and briefly. When a question is about what the user has read or noted, call search_project first and cite the note titles you used.`
+
+export interface CarrelProjectOptions {
+  /** Folder that holds tnega's state for Carrel (in the app: ~/.carrel/tnega). */
+  root: string
+  llm: LLMAdapter
+  /** Carrel tools to register for the project thread. */
+  tools?: readonly ToolDefinition[]
+}
+
+/** What the UI sees while the agent answers. */
+export type StreamEvent =
+  | { type: 'chunk'; text: string }
+  | { type: 'tool-call'; name: string; arguments: unknown }
+  | { type: 'tool-result'; name: string }
+  | { type: 'reply'; text: string }
+
+export interface OpenCarrelProject {
+  record: ProjectRecord
+  ctx: Context
+  box: BoxService
+  threads: ThreadService
+  registry: AgentRegistry
+  tools: ToolsService
+  /** Sends a message to the project thread and resolves with the agent's reply. */
+  ask(text: string, onEvent?: (event: StreamEvent) => void): Promise<string>
+  dispose(): Promise<void>
+}
+
+/**
+ * A Carrel project as a tnega Project, composed from tnega's published seams:
+ * Blackboard, Box, Projects, Threads, the Agent registry, Tools and the
+ * Project Loop. This is a slimmed-down version of what tnega's own
+ * ProjectHost assembles, without its coordinator tool allowlist, worktrees,
+ * shell or approvals.
+ */
+export class CarrelTnega {
+  private index: { ctx: Context; projects: ProjectsService } | undefined
+  private readonly options: CarrelProjectOptions
+
+  constructor(options: CarrelProjectOptions) {
+    this.options = options
+  }
+
+  async create(name: string): Promise<ProjectRecord> {
+    return await (await this.projects()).create({ name })
+  }
+
+  async list(): Promise<ProjectRecord[]> {
+    return await (await this.projects()).list()
+  }
+
+  async open(projectId: string): Promise<OpenCarrelProject> {
+    const record = await (await this.projects()).get(projectId)
+    if (!record) throw new Error(`project not found: ${projectId}`)
+    const directory = join(this.options.root, 'projects', record.id)
+    await mkdir(directory, { recursive: true })
+
+    const ctx = new Context()
+    try {
+      await ctx.plugin(tools)
+      await ctx.plugin(systemPrompt)
+      await ctx.plugin(blackboardLocal, { root: join(directory, 'blackboard') })
+      await ctx.plugin(boxBlackboard, { projectId: record.id })
+      await ctx.plugin(agents)
+      await ctx.plugin(threadLocal, {
+        projectId: record.id,
+        root: directory,
+        llm: this.options.llm,
+        coordinatorPrompt: CARREL_PROMPT,
+        permission: 'read-only',
+      })
+      const toolService = ctx.get('tools') as ToolsService
+      for (const definition of this.options.tools ?? []) toolService.register(definition)
+      const threads = ctx.get('threads') as ThreadService
+      await threads.ensureRoot(record)
+      // The loop delivers Box messages to the agent and publishes its replies.
+      await ctx.plugin(projectLoop, { projectId: record.id, sweepIntervalMs: 0 })
+    } catch (error) {
+      await ctx.fiber.dispose()
+      throw error
+    }
+
+    const box = ctx.get('box') as BoxService
+    const threads = ctx.get('threads') as ThreadService
+    const registry = ctx.get('agents') as AgentRegistry
+    const toolService = ctx.get('tools') as ToolsService
+
+    const ask = async (text: string, onEvent?: (event: StreamEvent) => void): Promise<string> => {
+      // tnega's Project Loop delivers on an unref'd timer; hold the event loop
+      // open while we wait so a headless caller (a script, a test) doesn't exit.
+      const keepAlive = setInterval(() => undefined, 1000)
+      const agent = await threads.activate(record.coordinatorId)
+      const stop = onEvent ? forwardStream(agent, onEvent) : () => undefined
+      try {
+        const reply = Promise.race([waitForReply(ctx, record.coordinatorId), turnFailure(agent)])
+        await box.send({
+          sender: USER_ADDRESS,
+          recipients: [agentAddress(record.coordinatorId)],
+          placement: { kind: 'main' },
+          kind: 'user-message',
+          text,
+        })
+        const envelope = await reply
+        onEvent?.({ type: 'reply', text: envelope.text })
+        return envelope.text
+      } finally {
+        stop()
+        clearInterval(keepAlive)
+      }
+    }
+
+    return {
+      record,
+      ctx,
+      box,
+      threads,
+      registry,
+      tools: toolService,
+      ask,
+      dispose: () => ctx.fiber.dispose(),
+    }
+  }
+
+  async dispose(): Promise<void> {
+    const index = this.index
+    this.index = undefined
+    if (index) await index.ctx.fiber.dispose()
+  }
+
+  private async projects(): Promise<ProjectsService> {
+    if (!this.index) {
+      const ctx = new Context()
+      await ctx.plugin(blackboardLocal, { root: join(this.options.root, 'blackboard') })
+      await ctx.plugin(projectLocal, { root: join(this.options.root, 'projects') })
+      this.index = { ctx, projects: ctx.get('projects') as ProjectsService }
+    }
+    return this.index.projects
+  }
+}
+
+/** Turns the agent's Session events into the few things the UI draws. */
+function forwardStream(agent: LiveAgent, onEvent: (event: StreamEvent) => void): () => void {
+  return agent.ctx.on('session/event', (event: SessionEvent) => {
+    const payload = event.payload as Record<string, unknown>
+    if (event.type === 'assistant/chunk' && typeof payload.content === 'string' && payload.content) {
+      onEvent({ type: 'chunk', text: payload.content })
+    } else if (event.type === 'tool/call') {
+      onEvent({ type: 'tool-call', name: String(payload.name), arguments: payload.arguments })
+    } else if (event.type === 'tool/result') {
+      onEvent({ type: 'tool-result', name: String(payload.name) })
+    }
+  })
+}
+
+/** The agent's published reply in the main conversation. */
+function waitForReply(ctx: Context, agentId: string): Promise<BoxEnvelope> {
+  return new Promise((resolve) => {
+    const dispose = ctx.on('box/sent', ({ envelope }: { envelope: BoxEnvelope }) => {
+      if (envelope.sender.kind !== 'agent' || envelope.sender.id !== agentId) return
+      if (envelope.placement.kind !== 'main') return
+      dispose()
+      resolve(envelope)
+    })
+  })
+}
+
+/** Rejects when the agent's turn ends in an error, so a failed request doesn't hang. */
+function turnFailure(agent: LiveAgent): Promise<never> {
+  return new Promise((_, reject) => {
+    const dispose = agent.ctx.on('session/event', (event: SessionEvent) => {
+      if (event.type !== 'turn/end') return
+      const payload = event.payload as { finishReason?: string; reason?: { error?: { message?: string } } }
+      if (payload.finishReason !== 'error') return
+      dispose()
+      reject(new Error(payload.reason?.error?.message ?? 'the agent turn failed'))
+    })
+  })
+}
