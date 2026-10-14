@@ -378,7 +378,9 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     }
     // The web page's chip makes its page live and marks the words there.
     await page(`${chip('127.0.0.1')}.click()`)
-    if (!(await waitFor("document.querySelector('.web-page[data-live]') !== null"))) return fail('opening the web chip did not open its page')
+    if (!(await waitFor("document.querySelector('.web-page[data-live]') !== null"))) {
+      return fail(`opening the web chip did not open its page: ${JSON.stringify(webViews.get(window.webContents.id)?.status)}`)
+    }
     if (!(await waitForIn(livePage, "CSS.highlights?.get('carrel-that-active')?.size === 1"))) return fail('the web page did not mark its that.')
     // A that. whose words are gone opens its saved copy.
     await page(`window.carrel.workspace.items().then((items) => window.carrel.workspace.makeThat({

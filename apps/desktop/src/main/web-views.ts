@@ -69,6 +69,8 @@ export class WebViews {
   private queue: Promise<void> = Promise.resolve()
   private next: WebLayout | undefined
   private reason: LiveBlocker | undefined
+  /** The layout last applied, to explain a decision. */
+  private applied: WebLayout | undefined
   /** *that.*s asked for before their page was opened, by sheet. */
   private readonly waiting = new Map<string, string>()
 
@@ -78,8 +80,8 @@ export class WebViews {
   ) {}
 
   /** Which sheet is live, or why none is. */
-  get status(): { live: string | undefined; reason: LiveBlocker | undefined } {
-    return { live: this.live, reason: this.reason }
+  get status(): { live: string | undefined; reason: LiveBlocker | undefined; layout: WebLayout | undefined } {
+    return { live: this.live, reason: this.reason, layout: this.applied }
   }
 
   /** Layouts apply in order; the newest one waiting replaces older ones. */
@@ -98,6 +100,7 @@ export class WebViews {
 
   private async apply(layout: WebLayout): Promise<void> {
     const decision = pickLive(layout)
+    this.applied = layout
     this.reason = 'reason' in decision ? decision.reason : undefined
     const present = new Set(layout.sheets.map((sheet) => sheet.id))
 
