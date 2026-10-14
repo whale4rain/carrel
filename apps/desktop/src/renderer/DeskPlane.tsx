@@ -23,6 +23,7 @@ import {
   scaleTo,
   snap,
   spread,
+  tidy,
   toDesk,
   touched,
   undo,
@@ -312,6 +313,14 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     )
   }
 
+  // Rows as wide as the screen shows; one undoable step.
+  const tidyUp = (): void => {
+    const current = latest.current
+    const next = tidy(current, Math.max(800, (screen.w - 96) / view.zoom))
+    const ids = changed(current, next).map((sheet) => sheet.id)
+    if (ids.length > 0) save(next, 'tidied', ids, current)
+  }
+
   const scaleSelected = (scale: number): void => {
     const current = latest.current
     const next = scaleTo(current, selected, scale)
@@ -516,6 +525,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
         onZoom={zoomBy}
         onActualSize={actualSize}
         onFit={fit}
+        onTidy={tidyUp}
         onAddSheet={addSheet}
       />
       {error && (

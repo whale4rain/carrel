@@ -136,6 +136,17 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelector('.pile-label') === null"))) return 'undo did not take the pile apart'
   await key('Z', [mod])
   if (!(await waitFor(count(1)))) return 'undo did not take the added sheet away'
+  // Two overlapping sheets, tidied apart, then undone.
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  if (!(await waitFor(count(2)))) return 'adding a sheet to tidy did nothing'
+  const overlap = "(() => { const [a, b] = [...document.querySelectorAll('.sheet')].map((s) => s.getBoundingClientRect()); return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom })()"
+  if (!(await waitFor(`${overlap} === true`))) return 'the new sheet did not land on the first'
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === 'Tidy up')?.click()")
+  if (!(await waitFor(`${overlap} === false`))) return 'Tidy up left sheets overlapping'
+  await key('Z', [mod])
+  await key('Z', [mod])
+  if (!(await waitFor(count(1)))) return 'undo did not take back Tidy up and the added sheet'
+  if (!(await waitFor(`${style}.left === '${MOVED.x}px' && ${style}.top === '${MOVED.y}px'`))) return `undoing Tidy up left the sheet at ${String(await page(`${style}.cssText`))}`
   // Zoom out one step; the view is saved with the desk a moment later.
   await key('-', [mod])
   if (!(await waitFor("document.querySelector('.zoom-level')?.textContent === '80%'"))) return 'zooming out did not change the zoom'

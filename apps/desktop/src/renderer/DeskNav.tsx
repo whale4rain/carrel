@@ -16,6 +16,7 @@ export function DeskNav(props: {
   onZoom: (direction: 1 | -1) => void
   onActualSize: () => void
   onFit: () => void
+  onTidy: () => void
   onAddSheet: () => void
 }) {
   const { view, screen, sheets } = props
@@ -71,6 +72,9 @@ export function DeskNav(props: {
         </button>
         <button type="button" onClick={props.onFit}>
           Fit
+        </button>
+        <button type="button" onClick={props.onTidy} disabled={sheets.length < 2}>
+          Tidy up
         </button>
         <button type="button" onClick={props.onAddSheet}>
           + Sheet

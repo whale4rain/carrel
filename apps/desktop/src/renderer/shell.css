@@ -656,8 +656,12 @@ kbd {
   font: var(--text-label);
 }
 
-.desk-tools button:hover {
+.desk-tools button:hover:not(:disabled) {
   background: var(--paper-2);
+}
+
+.desk-tools button:disabled {
+  color: var(--graphite);
 }
 
 .desk-tools .zoom-level {
