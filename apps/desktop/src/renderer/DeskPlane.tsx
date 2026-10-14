@@ -2,6 +2,8 @@ import {
   bounds,
   changed,
   emptyHistory,
+  fitView,
+  intersects,
   footprint,
   handles,
   inMarquee,
@@ -13,6 +15,7 @@ import {
   raise,
   record,
   rectFrom,
+  rectToScreen,
   redo,
   remove,
   resize,
@@ -20,21 +23,31 @@ import {
   scaleTo,
   snap,
   spread,
+  toDesk,
   touched,
   undo,
+  visibleRect,
   withPiles,
+  zoomAt,
+  zoomStep,
   type Guide,
   type Handle,
   type History,
   type Rect,
+  type View,
 } from '@carrel/desk'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
 import type { Sheet } from '../shared/workspace-api.js'
+import { DeskNav } from './DeskNav.js'
 
 const api = window.carrel.workspace
 
 /** A new blank sheet's size at 100%. */
 const BLANK = { w: 400, h: 300 }
+/** Sheets this far outside the screen (in screen pixels) stay mounted. */
+const MOUNT_MARGIN = 400
+/** The grid paper's square at 100%. */
+const GRID = 24
 
 // `before` is the desk as the gesture found it; `start` is where it began
 // (a move first raises its sheets).
@@ -43,12 +56,18 @@ type Gesture =
   | { kind: 'resize'; before: Sheet[]; start: Sheet[]; from: { x: number; y: number }; id: string; handle: Handle }
   // A marquee from the bare mat; `base` is what stays selected (Shift keeps the selection).
   | { kind: 'marquee'; from: { x: number; y: number }; base: Set<string> }
+  // Panning with Space held or the middle button; `from` is in screen pixels.
+  | { kind: 'pan'; from: { x: number; y: number }; start: View }
 
 /**
  * The grid-paper mat and its sheets. Sheets move by their label row and
  * resize by eight handles; every finished gesture is saved as one change and
  * is one step for undo (⌘Z / Ctrl+Z) and redo (⇧⌘Z / Ctrl+Shift+Z or Ctrl+Y).
  * Undo history lasts while the desk is open.
+ *
+ * The desk pans with two-finger scroll, Space-drag or the middle button, and
+ * zooms with pinch, ⌘/Ctrl-scroll, ⌘+ and ⌘−; the view is saved with the desk.
+ * Only sheets near the screen are mounted.
  */
 export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
@@ -59,7 +78,14 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const [marquee, setMarquee] = useState<Rect>()
   const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
+  const [view, setView] = useState<View>({ x: 0, y: 0, zoom: 1 })
+  const [screen, setScreen] = useState({ w: 0, h: 0 })
   const mat = useRef<HTMLElement>(null)
+  const viewRef = useRef(view)
+  viewRef.current = view
+  // The view as last loaded or saved, so loading one doesn't save it back.
+  const savedView = useRef<View>(view)
+  const space = useRef(false)
   const latest = useRef(sheets)
   latest.current = sheets
   const history = useRef<History<Sheet>>(emptyHistory())
@@ -72,6 +98,8 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     void api.desk(deskId).then((desk) => {
       if (!current) return
       setSheets(desk.sheets)
+      savedView.current = desk.viewport
+      setView(desk.viewport)
       setLoaded(true)
     })
     return () => {
@@ -93,13 +121,69 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     [deskId],
   )
 
-  const point = (event: { clientX: number; clientY: number }): { x: number; y: number } => {
+  // Remember the view a moment after it stops changing.
+  useEffect(() => {
+    if (!loaded) return
+    const saved = savedView.current
+    if (saved.x === view.x && saved.y === view.y && saved.zoom === view.zoom) return
+    const timer = setTimeout(() => {
+      savedView.current = view
+      api.saveViewport(deskId, view).catch((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)))
+    }, 400)
+    return () => clearTimeout(timer)
+  }, [deskId, loaded, view])
+
+  useEffect(() => {
+    const element = mat.current
+    if (!element) return
+    const observer = new ResizeObserver(() => setScreen({ w: element.clientWidth, h: element.clientHeight }))
+    observer.observe(element)
+    return () => observer.disconnect()
+  }, [])
+
+  /** Where the pointer is on the screen, relative to the mat. */
+  const onScreen = (event: { clientX: number; clientY: number }): { x: number; y: number } => {
     const box = mat.current?.getBoundingClientRect()
     return { x: event.clientX - (box?.left ?? 0), y: event.clientY - (box?.top ?? 0) }
   }
 
+  /** Where the pointer is on the desk. */
+  const point = (event: { clientX: number; clientY: number }): { x: number; y: number } => toDesk(viewRef.current, onScreen(event))
+
+  const zoomBy = useCallback(
+    (direction: 1 | -1): void => {
+      setView((current) => zoomAt(current, { x: screen.w / 2, y: screen.h / 2 }, zoomStep(current.zoom, direction)))
+    },
+    [screen],
+  )
+  const actualSize = useCallback((): void => {
+    setView((current) => zoomAt(current, { x: screen.w / 2, y: screen.h / 2 }, 1))
+  }, [screen])
+  const fit = useCallback((): void => {
+    const all = bounds(latest.current.map(footprint))
+    if (all) setView(fitView(all, screen.w, screen.h))
+  }, [screen])
+
+  // Scroll pans; pinch (which arrives as Ctrl-scroll) and ⌘/Ctrl-scroll zoom around the pointer.
+  useEffect(() => {
+    const element = mat.current
+    if (!element) return
+    const onWheel = (event: WheelEvent): void => {
+      event.preventDefault()
+      const at = onScreen(event)
+      if (event.ctrlKey || event.metaKey) {
+        setView((current) => zoomAt(current, at, current.zoom * Math.exp(-event.deltaY * 0.01)))
+      } else {
+        setView((current) => ({ ...current, x: current.x - event.deltaX, y: current.y - event.deltaY }))
+      }
+    }
+    element.addEventListener('wheel', onWheel, { passive: false })
+    return () => element.removeEventListener('wheel', onWheel)
+  }, [])
+
   const addSheet = (): void => {
-    const spot = placeNew(sheets)
+    const shown = visibleRect(view, screen.w, screen.h)
+    const spot = placeNew(sheets, { x: Math.round(shown.x + 48 / view.zoom), y: Math.round(shown.y + 48 / view.zoom) })
     const sheet: Sheet = { id: crypto.randomUUID(), itemId: null, ...spot, ...BLANK, scale: 1, z: Math.max(0, ...sheets.map((s) => s.z)) + 1 }
     save([...sheets, sheet], 'added', [sheet.id], sheets)
     setSelected(new Set([sheet.id]))
@@ -138,12 +222,17 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
     if (!gesture) return
     // The gesture's latest preview, kept here because the release can arrive
     // before React renders the last move.
-    let preview = gesture.kind === 'marquee' ? [] : gesture.start
+    let preview = gesture.kind === 'move' || gesture.kind === 'resize' ? gesture.start : []
     const show = (next: Sheet[]): void => {
       preview = next
       setSheets(next)
     }
     const onMove = (event: PointerEvent): void => {
+      if (gesture.kind === 'pan') {
+        const at = onScreen(event)
+        setView({ ...gesture.start, x: gesture.start.x + at.x - gesture.from.x, y: gesture.start.y + at.y - gesture.from.y })
+        return
+      }
       const at = point(event)
       const dx = at.x - gesture.from.x
       const dy = at.y - gesture.from.y
@@ -171,7 +260,7 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       setGesture(undefined)
       setGuides([])
       setMarquee(undefined)
-      if (gesture.kind === 'marquee') return
+      if (gesture.kind === 'marquee' || gesture.kind === 'pan') return
       const current = preview
       const ids = changed(gesture.before, current).map((sheet) => sheet.id)
       if (ids.length === 0) return
@@ -204,13 +293,23 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const pileSelected = (): void => {
     const current = latest.current
     const next = makePile(current, selected, crypto.randomUUID())
-    save(next, 'piled', changed(current, next).map((sheet) => sheet.id), current)
+    save(
+      next,
+      'piled',
+      changed(current, next).map((sheet) => sheet.id),
+      current,
+    )
   }
 
   const spreadSelected = (pile: string): void => {
     const current = latest.current
     const next = spread(current, pile)
-    save(next, 'spread', changed(current, next).map((sheet) => sheet.id), current)
+    save(
+      next,
+      'spread',
+      changed(current, next).map((sheet) => sheet.id),
+      current,
+    )
   }
 
   const scaleSelected = (scale: number): void => {
@@ -236,7 +335,12 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       if (gesture) return
       const mod = event.metaKey || event.ctrlKey
       const key = event.key.toLowerCase()
+      if (event.key === ' ') space.current = true
       if (event.key === 'Escape') setSelected(new Set())
+      else if (mod && (event.key === '=' || event.key === '+')) zoomBy(1)
+      else if (mod && event.key === '-') zoomBy(-1)
+      else if (mod && event.key === '0') actualSize()
+      else if (mod && event.key === '1') fit()
       else if (mod && key === 'z') travel(event.shiftKey ? 'redo' : 'undo')
       else if (event.ctrlKey && !event.metaKey && key === 'y') travel('redo')
       else if (mod && key === 'a') setSelected(new Set(latest.current.map((sheet) => sheet.id)))
@@ -244,9 +348,16 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       else return
       event.preventDefault()
     }
+    const onKeyUp = (event: KeyboardEvent): void => {
+      if (event.key === ' ') space.current = false
+    }
     window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [gesture, removeSelected, selected, travel])
+    window.addEventListener('keyup', onKeyUp)
+    return () => {
+      window.removeEventListener('keydown', onKey)
+      window.removeEventListener('keyup', onKeyUp)
+    }
+  }, [actualSize, fit, gesture, removeSelected, selected, travel, zoomBy])
 
   // Scale choices close when the selection changes.
   useEffect(() => setScaling(false), [selected])
@@ -257,7 +368,12 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
   const chosenPiles = new Set(chosen.map((sheet) => sheet.pile))
   const onePile = chosenPiles.size === 1 ? [...chosenPiles][0] : undefined
   const hasPile = chosen.some((sheet) => sheet.pile !== undefined)
-  const around = gesture ? undefined : bounds(chosen.map(footprint))
+  const chosenBox = gesture ? undefined : bounds(chosen.map(footprint))
+  const around = chosenBox && rectToScreen(view, chosenBox)
+  // Mount only sheets near the screen, plus any being worked on.
+  const near = visibleRect(view, screen.w + MOUNT_MARGIN * 2, screen.h + MOUNT_MARGIN * 2)
+  const reach = { ...near, x: near.x - MOUNT_MARGIN / view.zoom, y: near.y - MOUNT_MARGIN / view.zoom }
+  const mounted = screen.w === 0 ? sheets : sheets.filter((sheet) => selected.has(sheet.id) || intersects(footprint(sheet), reach))
   const single = selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
 
   return (
@@ -265,7 +381,17 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
       className="desk-mat"
       aria-label="Desk"
       ref={mat}
+      data-panning={gesture?.kind === 'pan' || undefined}
+      style={{
+        backgroundSize: `${GRID * view.zoom}px ${GRID * view.zoom}px`,
+        backgroundPosition: `${view.x}px ${view.y}px`,
+      }}
       onPointerDown={(event) => {
+        if (event.button === 1 || (event.button === 0 && space.current)) {
+          event.preventDefault()
+          setGesture({ kind: 'pan', from: onScreen(event), start: view })
+          return
+        }
         if (event.target !== event.currentTarget || event.button !== 0) return
         const base = event.shiftKey ? new Set(selected) : new Set<string>()
         setSelected(base)
@@ -281,48 +407,62 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
           Add a book, a video or a web page to start, or double-click for a blank sheet.
         </p>
       )}
-      {sheets.map((sheet) => {
-        const box = footprint(sheet)
-        const isSelected = selected.has(sheet.id)
-        const lifted = gesture?.kind === 'move' && gesture.moved && gesture.ids.has(sheet.id)
-        const stack = sheet.pile === undefined ? undefined : stacks.get(sheet.pile)
-        return (
-          <section
-            key={sheet.id}
-            className="sheet"
-            data-selected={isSelected || undefined}
-            data-lifted={lifted || undefined}
-            data-pile-top={stack?.at(-1) === sheet || undefined}
-            aria-label="Blank sheet"
-            style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: sheet.z }}
-          >
-            <div className="sheet-paper" style={{ width: sheet.w, height: sheet.h, transform: `scale(${sheet.scale})` }}>
-              <div className="sheet-label" onPointerDown={(event) => startMove(event, sheet.id)}>
-                <span>Blank sheet</span>
-                <span className="position">{Math.round(sheet.scale * 100)}%</span>
+      <div className="desk-world" style={{ transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})`, ['--zoom' as string]: view.zoom }}>
+        {mounted.map((sheet) => {
+          const box = footprint(sheet)
+          const isSelected = selected.has(sheet.id)
+          const lifted = gesture?.kind === 'move' && gesture.moved && gesture.ids.has(sheet.id)
+          const stack = sheet.pile === undefined ? undefined : stacks.get(sheet.pile)
+          return (
+            <section
+              key={sheet.id}
+              className="sheet"
+              data-selected={isSelected || undefined}
+              data-lifted={lifted || undefined}
+              data-pile-top={stack?.at(-1) === sheet || undefined}
+              aria-label="Blank sheet"
+              style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: sheet.z }}
+            >
+              <div className="sheet-paper" style={{ width: sheet.w, height: sheet.h, transform: `scale(${sheet.scale})` }}>
+                <div className="sheet-label" onPointerDown={(event) => startMove(event, sheet.id)}>
+                  <span>Blank sheet</span>
+                  <span className="position">{Math.round(sheet.scale * 100)}%</span>
+                </div>
               </div>
+            </section>
+          )
+        })}
+        {[...stacks].map(([pile, stack]) => {
+          const first = stack[0]!
+          return (
+            <div
+              key={pile}
+              className="pile-label"
+              style={{ left: first.x, top: first.y - PILE_LABEL, zIndex: stack.at(-1)!.z }}
+              onPointerDown={(event) => startMove(event, first.id)}
+            >
+              Pile · {stack.length} <span className="position">{Math.round(first.scale * 100)}%</span>
             </div>
-          </section>
-        )
-      })}
-      {[...stacks].map(([pile, stack]) => {
-        const first = stack[0]!
-        return (
-          <div
-            key={pile}
-            className="pile-label"
-            style={{ left: first.x, top: first.y - PILE_LABEL, zIndex: stack.at(-1)!.z }}
-            onPointerDown={(event) => startMove(event, first.id)}
-          >
-            Pile · {stack.length} <span className="position">{Math.round(first.scale * 100)}%</span>
-          </div>
-        )
-      })}
+          )
+        })}
+        {marquee && <div className="marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
+        {guides.map((guide, i) => (
+          <span
+            key={i}
+            className={`guide guide-${guide.axis}`}
+            style={
+              guide.axis === 'x'
+                ? { left: guide.at, top: guide.from, height: guide.to - guide.from }
+                : { top: guide.at, left: guide.from, width: guide.to - guide.from }
+            }
+          />
+        ))}
+      </div>
       {single &&
         (() => {
-          const box = footprint(single)
+          const box = rectToScreen(view, footprint(single))
           return (
-            <div className="handles" style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: single.z }}>
+            <div className="handles" style={{ left: box.x, top: box.y, width: box.w, height: box.h }}>
               {handles.map((handle) => (
                 <span key={handle} className={`handle handle-${handle}`} onPointerDown={(event) => startResize(event, single.id, handle)} />
               ))}
@@ -334,7 +474,6 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
             </div>
           )
         })()}
-      {marquee && <div className="marquee" style={{ left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h }} />}
       {around && (
         <div
           className="selection-bar"
@@ -369,22 +508,16 @@ export function DeskPlane({ deskId, name }: { deskId: string; name: string }) {
           )}
         </div>
       )}
-      {guides.map((guide, i) => (
-        <span
-          key={i}
-          className={`guide guide-${guide.axis}`}
-          style={
-            guide.axis === 'x'
-              ? { left: guide.at, top: guide.from, height: guide.to - guide.from }
-              : { top: guide.at, left: guide.from, width: guide.to - guide.from }
-          }
-        />
-      ))}
-      <div className="desk-tools">
-        <button type="button" onClick={addSheet}>
-          + Sheet
-        </button>
-      </div>
+      <DeskNav
+        view={view}
+        screen={screen}
+        sheets={sheets.map(footprint)}
+        onView={setView}
+        onZoom={zoomBy}
+        onActualSize={actualSize}
+        onFit={fit}
+        onAddSheet={addSheet}
+      />
       {error && (
         <p className="desk-error" role="alert">
           Couldn't save: {error}

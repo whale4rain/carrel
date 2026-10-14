@@ -105,6 +105,15 @@ describe('sheets', () => {
     ])
   })
 
+  it('remembers a desk view without logging an event', async () => {
+    const opened = await workspace.createProject('Learn economics')
+    const deskId = opened.desks[0]?.id ?? ''
+    const before = (await workspace.readEvents('Learn economics')).length
+    await workspace.saveViewport('Learn economics', deskId, { x: 10, y: 20, zoom: 0.75 })
+    expect((await workspace.readDesk('Learn economics', deskId)).viewport).toEqual({ x: 10, y: 20, zoom: 0.75 })
+    expect(await workspace.readEvents('Learn economics')).toHaveLength(before)
+  })
+
   it('refuses two sheets with one id', async () => {
     const opened = await workspace.createProject('Learn economics')
     const sheet = { id: 's1', itemId: null, x: 0, y: 0, w: 400, h: 300, scale: 1, z: 1 }

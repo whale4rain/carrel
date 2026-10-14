@@ -1,4 +1,4 @@
-import type { DeskFile, OpenProject, Sheet, SheetChange, Workspace } from '@carrel/core'
+import type { DeskFile, OpenProject, Sheet, SheetChange, Viewport, Workspace } from '@carrel/core'
 import type { DeskView, ShellState } from '../shared/workspace-api.js'
 
 /**
@@ -62,6 +62,12 @@ export class ShellController {
     return view(await this.workspace.saveSheets(await this.openFolder(), id, sheets, { kind: change.kind, ids: change.ids }))
   }
 
+  async saveViewport(id: string, viewport: unknown): Promise<DeskView> {
+    if (!isViewport(viewport)) throw new Error('That is not a view of a desk.')
+    const { x, y, zoom } = viewport
+    return view(await this.workspace.saveViewport(await this.openFolder(), id, { x, y, zoom }))
+  }
+
   private async openFolder(): Promise<string> {
     const { open } = await this.state()
     if (!open) throw new Error('Create a project first.')
@@ -84,7 +90,7 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
 }
 
 function view(desk: DeskFile): DeskView {
-  return { id: desk.id, name: desk.name, sheets: desk.sheets }
+  return { id: desk.id, name: desk.name, sheets: desk.sheets, viewport: desk.viewport }
 }
 
 const finite = (value: unknown): value is number => typeof value === 'number' && Number.isFinite(value)
@@ -105,6 +111,12 @@ function isSheet(value: unknown): value is Sheet {
     finite(sheet.z) &&
     (sheet.pile === undefined || typeof sheet.pile === 'string')
   )
+}
+
+function isViewport(value: unknown): value is Viewport {
+  if (typeof value !== 'object' || value === null) return false
+  const viewport = value as Record<string, unknown>
+  return finite(viewport.x) && finite(viewport.y) && finite(viewport.zoom) && viewport.zoom >= 0.25 && viewport.zoom <= 2
 }
 
 function isChange(value: unknown): value is SheetChange {

@@ -70,6 +70,14 @@ describe('sheets through the shell', () => {
     expect((await controller().desk(desk)).sheets).toEqual([blank])
   })
 
+  it('remembers the view of a desk, within zoom limits', async () => {
+    const state = await controller().createProject('Learn economics')
+    const desk = state.open?.desk ?? ''
+    await controller().saveViewport(desk, { x: -40, y: 12, zoom: 0.5 })
+    expect((await controller().desk(desk)).viewport).toEqual({ x: -40, y: 12, zoom: 0.5 })
+    await expect(controller().saveViewport(desk, { x: 0, y: 0, zoom: 9 })).rejects.toThrow(/not a view/)
+  })
+
   it('refuses sheets that are not sheets', async () => {
     const state = await controller().createProject('Learn economics')
     const desk = state.open?.desk ?? ''
