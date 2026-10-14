@@ -9,6 +9,7 @@ export {
   type ProjectFile,
   type Settings,
   type Sheet,
+  type SheetChange,
   type Viewport,
   type WorkspaceEvent,
 } from './workspace.js'

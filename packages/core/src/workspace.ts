@@ -35,10 +35,10 @@ export interface Viewport {
   zoom: number
 }
 
-/** Where an item sits on a desk. Sheets arrive in milestone 2. */
+/** Where an item sits on a desk. A sheet with no item is a blank sheet. */
 export interface Sheet {
   id: string
-  itemId: string
+  itemId: string | null
   x: number
   y: number
   w: number
@@ -54,6 +54,14 @@ export interface DeskFile {
   createdAt: string
   viewport: Viewport
   sheets: Sheet[]
+}
+
+export interface SheetChange {
+  /** What the gesture did: added, moved, resized, scaled, raised, removed... */
+  kind: string
+  /** The sheets it touched. */
+  ids: string[]
+  actor?: Actor
 }
 
 export interface WorkspaceEvent {
@@ -159,6 +167,27 @@ export class Workspace {
     await writeJson(this.projectFile(folder), { ...project, desks: [...project.desks, desk.id] })
     await this.event(folder, 'user', 'desk.created', { id: desk.id, name })
     return desk
+  }
+
+  async readDesk(folder: string, id: string): Promise<DeskFile> {
+    const { desks } = await this.openProject(folder)
+    const desk = desks.find((entry) => entry.id === id)
+    if (!desk) throw new Error('That desk is not in this project.')
+    return desk
+  }
+
+  /**
+   * Replaces a desk's sheets after one gesture (a move, a resize, an added
+   * sheet), and records it as one event naming what changed.
+   */
+  async saveSheets(folder: string, id: string, sheets: Sheet[], change: SheetChange): Promise<DeskFile> {
+    const desk = await this.readDesk(folder, id)
+    const ids = new Set(sheets.map((sheet) => sheet.id))
+    if (ids.size !== sheets.length) throw new Error('Two sheets share an id.')
+    const next: DeskFile = { ...desk, sheets }
+    await writeJson(this.deskFile(folder, id), next)
+    await this.event(folder, change.actor ?? 'user', `sheets.${change.kind}`, { desk: id, sheets: change.ids })
+    return next
   }
 
   async readSettings(): Promise<Settings> {

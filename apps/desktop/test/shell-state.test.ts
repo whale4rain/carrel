@@ -59,3 +59,21 @@ describe('ShellController', () => {
     await expect(controller().openDesk('not-a-desk')).rejects.toThrow(/not in this project/)
   })
 })
+
+describe('sheets through the shell', () => {
+  const blank = { id: 's1', itemId: null, x: 48, y: 48, w: 400, h: 300, scale: 1, z: 1 }
+
+  it('saves sheets on the open project and reads them back after a restart', async () => {
+    const state = await controller().createProject('Learn economics')
+    const desk = state.open?.desk ?? ''
+    await controller().saveSheets(desk, [blank], { kind: 'added', ids: ['s1'] })
+    expect((await controller().desk(desk)).sheets).toEqual([blank])
+  })
+
+  it('refuses sheets that are not sheets', async () => {
+    const state = await controller().createProject('Learn economics')
+    const desk = state.open?.desk ?? ''
+    await expect(controller().saveSheets(desk, [{ ...blank, scale: 3 }], { kind: 'scaled', ids: ['s1'] })).rejects.toThrow(/not sheets/)
+    await expect(controller().saveSheets(desk, [blank], { kind: '../x', ids: [] })).rejects.toThrow(/not a sheet change/)
+  })
+})

@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react'
 import { frameFor } from '../shared/frame.js'
 import type { ShellState } from '../shared/workspace-api.js'
-import { Desk, Welcome } from './Desk.js'
+import { Welcome } from './Desk.js'
+import { DeskPlane } from './DeskPlane.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
 import './shell.css'
@@ -43,7 +44,7 @@ export function App() {
         <>
           <Sidebar frame={frame} state={state} actions={actions} />
           <TopBar frame={frame} project={open?.project} desk={desk?.name} />
-          {open && desk ? <Desk name={desk.name} /> : <Welcome onCreate={actions.createProject} />}
+          {open && desk ? <DeskPlane key={desk.id} deskId={desk.id} name={desk.name} /> : <Welcome onCreate={actions.createProject} />}
         </>
       )}
     </div>

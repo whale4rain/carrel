@@ -53,6 +53,51 @@ async function createWindow(): Promise<void> {
   }
 }
 
+/** Where the smoke's sheet should end up: added at (48, 48), dragged by (100, 60), widened by 40. */
+const MOVED = { x: 148, y: 108, w: 440 }
+
+/**
+ * Drives the desk with real mouse events: adds a sheet, drags it by its label
+ * row, and widens it by its right handle. Returns what went wrong, if anything.
+ */
+async function deskInteractions(
+  window: BrowserWindow,
+  page: <T>(script: string) => Promise<T>,
+  waitFor: (script: string) => Promise<boolean>,
+): Promise<string | undefined> {
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent.includes('Sheet'))?.click()")
+  if (!(await waitFor("document.querySelectorAll('.sheet').length === 1"))) return 'adding a sheet did nothing'
+  const center = async (selector: string): Promise<{ x: number; y: number }> =>
+    page(`(() => { const r = document.querySelector('${selector}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
+  const drag = async (from: { x: number; y: number }, dx: number, dy: number): Promise<void> => {
+    const send = (type: 'mouseDown' | 'mouseMove' | 'mouseUp', x: number, y: number, held = false): void =>
+      window.webContents.sendInputEvent({ type, x, y, button: 'left', clickCount: 1, modifiers: held ? ['leftbuttondown'] : [] })
+    send('mouseMove', from.x, from.y)
+    send('mouseDown', from.x, from.y)
+    for (let step = 1; step <= 10; step++) {
+      send('mouseMove', from.x + (dx * step) / 10, from.y + (dy * step) / 10, true)
+      await new Promise((resolve) => setTimeout(resolve, 16))
+    }
+    send('mouseUp', from.x + dx, from.y + dy)
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  const style = "document.querySelector('.sheet').style"
+  await drag(await center('.sheet-label'), 100, 60)
+  if (!(await waitFor(`${style}.left === '${MOVED.x}px' && ${style}.top === '${MOVED.y}px'`))) {
+    return `dragging the label row left the sheet at ${String(await page(`${style}.cssText`))}`
+  }
+  await drag(await center('.handle-e'), 40, 0)
+  if (!(await waitFor(`${style}.width === '${MOVED.w}px' && ${style}.left === '${MOVED.x}px'`))) {
+    return `the right handle left the sheet at ${String(await page(`${style}.cssText`))}`
+  }
+  // What the screen shows must also be what was saved.
+  const saved = await page<string>(
+    'window.carrel.workspace.state().then((s) => window.carrel.workspace.desk(s.open.desk)).then((d) => JSON.stringify(d.sheets.map(({ x, y, w }) => ({ x, y, w }))))',
+  )
+  if (saved !== JSON.stringify([MOVED])) return `the desk shows the moved sheet but saved ${saved}`
+  return undefined
+}
+
 async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promise<void>): Promise<void> {
   const page = <T>(script: string): Promise<T> => window.webContents.executeJavaScript(script) as Promise<T>
   const waitFor = async (script: string): Promise<boolean> => {
@@ -77,6 +122,8 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     await page("window.carrel.workspace.createProject('Smoke test').then(() => window.carrel.workspace.createDesk('Second desk'))")
     await reload()
     if (!(await waitFor(`${openDesk} === 'Second desk'`))) return fail('the new desk did not open')
+    const problem = await deskInteractions(window, page, waitFor)
+    if (problem) return fail(problem)
   }
   if (mode === 'reopen') {
     if (!(await waitFor(`${openDesk} === 'Second desk'`))) {
@@ -84,13 +131,27 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     }
     const desks = await page<string[]>("[...document.querySelectorAll('[aria-label=\"Desks\"] .row.desk')].map((row) => row.textContent)")
     if (!desks.includes('First desk')) return fail(`the sidebar lists ${JSON.stringify(desks)}`)
+    // The sheet moved and resized in the first run comes back where it was left.
+    if (!(await waitFor(`(() => { const s = document.querySelector('.sheet'); return !!s && s.style.left === '${MOVED.x}px' && s.style.top === '${MOVED.y}px' && s.style.width === '${MOVED.w}px' })()`))) {
+      return fail(`the sheet came back at ${String(await page("document.querySelector('.sheet')?.getAttribute('style') ?? 'nowhere'"))}`)
+    }
   }
+  // Calls run in order, so this answers only after the gestures' saves are written.
+  await page('window.carrel.workspace.state()')
   console.log('carrel smoke: ok')
   app.exit(0)
 }
 
 app.whenReady().then(async () => {
-  serveWorkspace(new ShellController(workspace))
+  const settled = serveWorkspace(new ShellController(workspace))
+  // Let the last save land before quitting.
+  let quitting = false
+  app.on('before-quit', (event) => {
+    if (quitting) return
+    event.preventDefault()
+    quitting = true
+    void settled().finally(() => app.quit())
+  })
   await createWindow()
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) void createWindow()

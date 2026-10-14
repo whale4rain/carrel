@@ -123,6 +123,7 @@ Rules for every task:
 ```
 apps/desktop      Electron app (main process via esbuild, renderer via Vite + React)
 packages/core     Carrel data model and workspace files, on tnega
+packages/desk     Desk engine: sheet geometry, snapping, selection (pure, no DOM)
 packages/margin   Margin tokens and components
 kits/             First-party learning kits (later)
 ```

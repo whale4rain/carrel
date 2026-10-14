@@ -1,0 +1,13 @@
+{
+  "name": "@carrel/desk",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Desk engine: sheet geometry, snapping, selection, piles. Pure, no DOM.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  }
+}
