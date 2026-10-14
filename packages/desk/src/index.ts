@@ -2,3 +2,4 @@ export { bounds, clampScale, footprint, intersects, MAX_SCALE, MIN_H, MIN_SCALE,
 export { changed, handles, inMarquee, move, placeNew, raise, resize, SCALES, scaleTo, type Handle } from './sheets.js'
 export { snap, SNAP_DISTANCE, type Guide, type Snapped } from './snap.js'
 export { emptyHistory, HISTORY_LIMIT, record, redo, remove, touched, undo, type History, type Step } from './history.js'
+export { makePile, PILE_LABEL, PILE_SCALE, PILE_STEP, pileOf, piles, spread, SPREAD_GAP, withPiles } from './piles.js'

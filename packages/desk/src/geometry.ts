@@ -15,6 +15,8 @@ export interface SheetBox extends Rect {
   scale: number
   /** Stacking order; higher draws on top. */
   z: number
+  /** The pile it lies in, if any. */
+  pile?: string
 }
 
 export const MIN_SCALE = 0.3

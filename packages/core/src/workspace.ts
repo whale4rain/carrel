@@ -45,6 +45,8 @@ export interface Sheet {
   h: number
   scale: number
   z: number
+  /** The pile it lies in, if any. */
+  pile?: string
 }
 
 export interface DeskFile {

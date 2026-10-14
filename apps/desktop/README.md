@@ -42,9 +42,12 @@ desk in a temporary home, restarts, and checks they come back.
 | Resize | Drag one of the eight handles of a single selected sheet |
 | Select | Click a label; Shift-click to add; drag a marquee on the bare mat; ⌘A / Ctrl+A |
 | Scale | **Scale** in the selection bar, then 100–30% |
+| Pile | Select two or more, **Make a pile**: they stack at 30% under a "Pile · N" label. Drag the label to move the pile, click it to select it, **Spread out** to lay it out in a row |
 | Delete | Delete or Backspace |
 | Undo, redo | ⌘Z / Ctrl+Z, ⇧⌘Z / Ctrl+Shift+Z or Ctrl+Y |
 | Clear the selection | Esc, or click the bare mat |
+
+![Three sheets selected; Make a pile; the pile selected at night](screenshot-piles.png)
 
 Each finished gesture is saved and logged as one event, and is one undo step.
 Undo history lasts while the desk is open.
