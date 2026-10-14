@@ -42,7 +42,7 @@ function run(mode, home) {
 
 const home = await mkdtemp(join(tmpdir(), 'carrel-smoke-'))
 const ok = (await run('create', home)) && (await run('reopen', home))
-await rm(home, { recursive: true, force: true })
+await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 if (!ok) {
   console.error('carrel smoke: failed')
   process.exit(1)

@@ -13,7 +13,7 @@ beforeEach(async () => {
 })
 
 afterEach(async () => {
-  await rm(home, { recursive: true, force: true })
+  await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
 
 describe('ShellController', () => {
