@@ -83,21 +83,13 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await expect(textLayer).toHaveText('Price elasticity of demand')
 
   console.log('carrel e2e: PDF shown')
-  // that.: select a word on the page and press ⌘. (Ctrl+.).
-  await textLayer.evaluate((layer) => {
-    const walker = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT)
-    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
-      const text = node as Text
-      const at = text.data.indexOf('elasticity')
-      if (at < 0) continue
-      const range = document.createRange()
-      range.setStart(text, at)
-      range.setEnd(text, at + 'elasticity'.length)
-      getSelection()?.removeAllRanges()
-      getSelection()?.addRange(range)
-      return
-    }
-  })
+  // that.: drag across the words with the mouse and press ⌘. (Ctrl+.).
+  const words = (await textLayer.locator('span').first().boundingBox())!
+  await page.mouse.move(words.x + 1, words.y + words.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(words.x + words.width - 1, words.y + words.height / 2, { steps: 5 })
+  await page.mouse.up()
+  expect(await page.evaluate(() => getSelection()?.toString())).toBe('Price elasticity of demand')
   await page.keyboard.press(`${mod}+Period`)
   const chip = page.locator('.that-tray .that-chip', { hasText: 'p.1' })
   await expect(chip).toBeVisible()
