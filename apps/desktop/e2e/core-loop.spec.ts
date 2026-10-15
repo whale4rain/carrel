@@ -5,12 +5,13 @@
 // Run `pnpm build` first.
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { join } from 'node:path'
+import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { _electron as electron, expect, test, type ElectronApplication, type Page } from '@playwright/test'
 import { tinyPdf } from '../scripts/tiny-pdf.mjs'
 
-const appDir = fileURLToPath(new URL('..', import.meta.url))
+// No trailing separator: on Windows a path ending in \ before the closing quote escapes the quote.
+const appDir = resolve(dirname(fileURLToPath(import.meta.url)), '..')
 const mod = process.platform === 'darwin' ? 'Meta' : 'Control'
 const NOTE_TITLE = 'Elasticity'
 const NOTE_TEXT = 'Coffee is a habit, so it is inelastic.'
