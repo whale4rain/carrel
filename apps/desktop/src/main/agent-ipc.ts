@@ -66,7 +66,8 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
         },
         propose: async (change, why) => {
           const asked = agent.asking(folder)
-          const proposal = await controller.propose(folder, change, { ...(why ? { why } : {}), ...(asked ? { asked } : {}) })
+          const thread = agent.askingIn(folder)
+          const proposal = await controller.propose(folder, change, { ...(why ? { why } : {}), ...(asked ? { asked } : {}), ...(thread ? { thread } : {}) })
           for (const window of BrowserWindow.getAllWindows()) window.webContents.send(agentChannels.proposal, proposal)
           return proposal
         },
@@ -96,15 +97,25 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
     model = undefined
     return status()
   })
-  handle(agentChannels.thread, async () => {
-    const turns = await agent.turns(await openFolder())
+  const threadOf = (value: unknown): string | undefined => {
+    if (value === undefined || value === null) return undefined
+    if (typeof value !== 'string') throw new Error('That is not a thread.')
+    return value
+  }
+  handle(agentChannels.thread, async (_event, thread) => {
+    const turns = await agent.turns(await openFolder(), threadOf(thread))
     return { turns, total: totalCost(turns) }
+  })
+  handle(agentChannels.sides, async () => agent.sides(await openFolder()))
+  handle(agentChannels.startSide, async (_event, title) => {
+    if (typeof title !== 'string' || title.trim().length === 0) throw new Error('Name the side thread first.')
+    return agent.startSide(await openFolder(), title)
   })
   handle(agentChannels.proposals, () => controller.proposalList())
   handle(agentChannels.decide, (_event, id, accept) => controller.decideProposal(id, accept))
-  handle(agentChannels.thatTurn, (_event, turnId) => controller.thatTurn(turnId))
-  handle(agentChannels.addToNote, (_event, turnId, noteId) => controller.addTurnToNote(turnId, noteId ?? undefined))
-  handle(agentChannels.ask, async (event, text, context) => {
+  handle(agentChannels.thatTurn, (_event, turnId, thread) => controller.thatTurn(turnId, threadOf(thread)))
+  handle(agentChannels.addToNote, (_event, turnId, noteId, thread) => controller.addTurnToNote(turnId, noteId ?? undefined, threadOf(thread)))
+  handle(agentChannels.ask, async (event, text, context, thread) => {
     if (typeof text !== 'string' || text.trim().length === 0) throw new Error('Ask something first.')
     const folder = await openFolder()
     const asked = isAskContext(context) ? context : { points: [] }
@@ -114,7 +125,7 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
       (live) => {
         if (!event.sender.isDestroyed()) event.sender.send(agentChannels.live, live)
       },
-      { context: await contextLine(controller, folder, asked), points: asked.points },
+      { context: await contextLine(controller, folder, asked), points: asked.points, ...(threadOf(thread) ? { thread: threadOf(thread)! } : {}) },
     )
     return answer
   })

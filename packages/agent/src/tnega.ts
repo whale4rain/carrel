@@ -2,7 +2,7 @@ import { mkdir } from 'node:fs/promises'
 import { join } from 'node:path'
 import { agents, systemPrompt, type AgentRegistry, type LLMAdapter, type LiveAgent } from 'tnega/agent'
 import { blackboardLocal } from 'tnega/blackboard-local'
-import { USER_ADDRESS, agentAddress, type BoxEnvelope, type BoxService } from 'tnega/box'
+import { USER_ADDRESS, agentAddress, type BoxEnvelope, type BoxPlacement, type BoxService } from 'tnega/box'
 import { boxBlackboard } from 'tnega/box-blackboard'
 import { Context } from 'tnega/core'
 import type { ProjectRecord, ProjectsService } from 'tnega/project'
@@ -25,6 +25,10 @@ export const CARREL_PROMPT = `You are the study partner inside Carrel, a desk fo
 - Cite a passage with a that. chip, written exactly as a tool gave it, like [p.12](that:abc). Use the chip of a that. you were given, or make one with make_that on a PDF page. Never invent a chip.
 - Never claim the person's work as yours. You cannot change their notes, sources or desks yourself: propose a note (propose_note_edit) or a source (propose_source), and the person accepts or dismisses it. Propose only when they ask, or clearly want it; then say in one line what you proposed.`
 
+/** A side thread is the same partner, kept to one topic. */
+export const SIDE_PROMPT = `${CARREL_PROMPT}
+- This is a side thread the person opened for one topic. Stay on it; the project thread holds everything else.`
+
 export interface CarrelProjectOptions {
   /** Folder that holds tnega's state for Carrel (in the app: ~/.carrel/agent). */
   root: string
@@ -45,8 +49,10 @@ export interface OpenCarrelProject {
   threads: ThreadService
   registry: AgentRegistry
   tools: ToolsService
-  /** Sends a message to the project thread and resolves with the agent's reply. */
-  ask(text: string, onEvent?: (event: StreamEvent) => void): Promise<string>
+  /** Sends a message to the project thread (or a side thread, by id) and resolves with the agent's reply. */
+  ask(text: string, onEvent?: (event: StreamEvent) => void, thread?: string): Promise<string>
+  /** Starts a side thread: a tnega Thread under the project's coordinator. Returns its id. */
+  startSide(title: string): Promise<string>
   dispose(): Promise<void>
 }
 
@@ -92,6 +98,7 @@ export class CarrelTnega {
         root: directory,
         llm: this.options.llm,
         coordinatorPrompt: CARREL_PROMPT,
+        threadPrompt: SIDE_PROMPT,
         permission: 'read-only',
       })
       const toolService = ctx.get('tools') as ToolsService
@@ -110,19 +117,22 @@ export class CarrelTnega {
     const registry = ctx.get('agents') as AgentRegistry
     const toolService = ctx.get('tools') as ToolsService
 
-    const ask = async (text: string, onEvent?: (event: StreamEvent) => void): Promise<string> => {
+    const ask = async (text: string, onEvent?: (event: StreamEvent) => void, thread?: string): Promise<string> => {
       // tnega's Project Loop delivers on an unref'd timer; hold the event loop
       // open while we wait so a headless caller (a script, a test) doesn't exit.
       const keepAlive = setInterval(() => undefined, 1000)
-      const agent = await threads.activate(record.coordinatorId)
+      const agentId = thread ?? record.coordinatorId
+      if (thread !== undefined && (await threads.get(thread))?.projectId !== record.id) throw new Error('That side thread is not in this project.')
+      const agent = await threads.activate(agentId)
       const stop = onEvent ? forwardStream(agent, onEvent) : () => undefined
       try {
-        const reply = Promise.race([waitForReply(ctx, record.coordinatorId), turnFailure(agent)])
+        const placement: BoxPlacement = thread === undefined ? { kind: 'main' } : { kind: 'thread', threadId: thread }
+        const reply = Promise.race([waitForReply(ctx, agentId, placement), turnFailure(agent)])
         await box.send({
           sender: USER_ADDRESS,
-          recipients: [agentAddress(record.coordinatorId)],
-          placement: { kind: 'main' },
-          kind: 'user-message',
+          recipients: [agentAddress(agentId)],
+          placement,
+          kind: thread === undefined ? 'user-message' : 'user-thread',
           text,
         })
         const envelope = await reply
@@ -142,6 +152,7 @@ export class CarrelTnega {
       registry,
       tools: toolService,
       ask,
+      startSide: async (title) => (await threads.spawn({ parentId: record.coordinatorId, goal: title, label: title.slice(0, 60) })).id,
       dispose: () => ctx.fiber.dispose(),
     }
   }
@@ -177,12 +188,12 @@ function forwardStream(agent: LiveAgent, onEvent: (event: StreamEvent) => void):
   })
 }
 
-/** The agent's published reply in the main conversation. */
-function waitForReply(ctx: Context, agentId: string): Promise<BoxEnvelope> {
+/** The agent's published reply, in the main conversation or its side thread. */
+function waitForReply(ctx: Context, agentId: string, placement: BoxPlacement): Promise<BoxEnvelope> {
   return new Promise((resolve) => {
     const dispose = ctx.on('box/sent', ({ envelope }: { envelope: BoxEnvelope }) => {
       if (envelope.sender.kind !== 'agent' || envelope.sender.id !== agentId) return
-      if (envelope.placement.kind !== 'main') return
+      if (envelope.placement.kind !== placement.kind || envelope.kind !== 'agent-reply') return
       dispose()
       resolve(envelope)
     })

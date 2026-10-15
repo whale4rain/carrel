@@ -234,7 +234,8 @@ export class ShellController {
 
   async thatText(folder: string, id: string): Promise<ThatText> {
     const anchor = await this.anchors.read(folder, id)
-    const item = threadOf(anchor.itemId) ? { title: 'Project thread' } : await this.library.read(folder, anchor.itemId).catch(() => undefined)
+    const thread = threadOf(anchor.itemId)
+    const item = thread ? { title: await this.knownThread(folder, thread).catch(() => 'A thread no longer here') } : await this.library.read(folder, anchor.itemId).catch(() => undefined)
     return { id, item: anchor.itemId, source: item?.title ?? 'A source no longer here', label: anchor.label, ...(anchor.snapshot.text ? { quote: anchor.snapshot.text } : {}) }
   }
 
@@ -251,7 +252,7 @@ export class ShellController {
   }
 
   /** The agent proposes a change; it waits in pencil. */
-  async propose(folder: string, change: ProposalChange, options: { why?: string; asked?: string }): Promise<ProposalView> {
+  async propose(folder: string, change: ProposalChange, options: { why?: string; asked?: string; thread?: string }): Promise<ProposalView> {
     if (change.kind === 'note' && change.note !== undefined) await this.notes.read(folder, change.note)
     return this.proposalView(folder, await this.proposals.make(folder, change, options))
   }
@@ -362,28 +363,37 @@ export class ShellController {
    * A *that.* on a turn of the project thread: something the agent (or you)
    * said, kept with its words. A turn already pointed at keeps its one *that.*
    */
-  async thatTurn(turnId: unknown): Promise<ThatView> {
+  async thatTurn(turnId: unknown, thread: string = PROJECT_THREAD): Promise<ThatView> {
     if (typeof turnId !== 'string') throw new Error('That is not a turn.')
     const folder = await this.openFolder()
-    const known = (await this.anchors.list(folder, threadItem(PROJECT_THREAD))).find((anchor) => turnOf(anchor.selectors) === turnId)
+    await this.knownThread(folder, thread)
+    const known = (await this.anchors.list(folder, threadItem(thread))).find((anchor) => turnOf(anchor.selectors) === turnId)
     if (known) return thatView(known)
-    const turn = (await this.threads.turns(folder)).find((candidate) => candidate.id === turnId)
-    if (!turn) throw new Error('That turn is not in the project thread.')
-    return thatView(await this.anchors.make(folder, { itemId: threadItem(PROJECT_THREAD), selectors: [turnSelector(turn.id)], text: turn.text }))
+    const turn = (await this.threads.turns(folder, thread)).find((candidate) => candidate.id === turnId)
+    if (!turn) throw new Error('That turn is not in the thread.')
+    return thatView(await this.anchors.make(folder, { itemId: threadItem(thread), selectors: [turnSelector(turn.id)], text: turn.text }))
+  }
+
+  /** A thread's title: the project thread, or a side thread of this project. */
+  private async knownThread(folder: string, thread: string): Promise<string> {
+    if (thread === PROJECT_THREAD) return 'Project thread'
+    const side = (await this.threads.sides(folder)).find((candidate) => candidate.id === thread)
+    if (!side) throw new Error('That side thread is not in this project.')
+    return side.title
   }
 
   /**
    * Adds a turn to a note, as you would by copying it: its words, then a
    * chip back to the turn. With no note given, it starts a new one.
    */
-  async addTurnToNote(turnId: unknown, noteId: unknown): Promise<ItemView> {
+  async addTurnToNote(turnId: unknown, noteId: unknown, thread: string = PROJECT_THREAD): Promise<ItemView> {
     if (noteId !== undefined && typeof noteId !== 'string') throw new Error('That is not a note.')
-    const that = await this.thatTurn(turnId)
+    const that = await this.thatTurn(turnId, thread)
     const folder = await this.openFolder()
     const added = fromMarkdown(`${that.text ?? ''}\n\n[${that.label}](that:${that.id})`).content
     if (noteId === undefined) {
       // A new note is titled with the question the turn answered.
-      const turns = await this.threads.turns(folder)
+      const turns = await this.threads.turns(folder, thread)
       const at = turns.findIndex((turn) => turn.id === turnId)
       const asked = turns.slice(0, at).findLast((turn) => turn.by === 'user')?.text.replace(/\s+/g, ' ').trim()
       const title = !asked ? 'From the project thread' : asked.length > 80 ? `${asked.slice(0, 79).trimEnd()}…` : asked

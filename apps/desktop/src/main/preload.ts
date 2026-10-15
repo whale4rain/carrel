@@ -55,14 +55,16 @@ const web: WebApi = {
 const agent: AgentApi = {
   status: () => call(agentChannels.status),
   saveKey: (key) => call(agentChannels.saveKey, key),
-  thread: () => call(agentChannels.thread),
-  ask: (text, context) => call(agentChannels.ask, text, context),
+  thread: (thread) => call(agentChannels.thread, thread),
+  sides: () => call(agentChannels.sides),
+  startSide: (title) => call(agentChannels.startSide, title),
+  ask: (text, context, thread) => call(agentChannels.ask, text, context, thread),
   onLive: (listener) => listen<AgentLive>(agentChannels.live, listener),
   onThat: (listener) => listen<ThatView>(agentChannels.that, listener),
   proposals: () => call(agentChannels.proposals),
   decide: (id, accept) => call(agentChannels.decide, id, accept),
-  thatTurn: (turnId) => call(agentChannels.thatTurn, turnId),
-  addToNote: (turnId, noteId) => call(agentChannels.addToNote, turnId, noteId),
+  thatTurn: (turnId, thread) => call(agentChannels.thatTurn, turnId, thread),
+  addToNote: (turnId, noteId, thread) => call(agentChannels.addToNote, turnId, noteId, thread),
   onProposal: (listener) => listen<ProposalView>(agentChannels.proposal, listener),
 }
 

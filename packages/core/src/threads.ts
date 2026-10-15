@@ -1,7 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { appendLine, isMissing } from './files.js'
+import { appendLine, isMissing, readJson, writeJson } from './files.js'
 import type { Actor, Workspace } from './workspace.js'
 
 /**
@@ -10,7 +10,8 @@ import type { Actor, Workspace } from './workspace.js'
  *
  * ~/Carrel/<project>/threads/<thread>.jsonl
  *
- * The project's ongoing thread is `project`.
+ * The project's ongoing thread is `project`; side threads are listed in
+ * threads/side-threads.json.
  */
 export const PROJECT_THREAD = 'project'
 
@@ -50,6 +51,17 @@ export interface Turn {
 
 export type NewTurn = Omit<Turn, 'id' | 'createdAt'>
 
+/** A side thread: a topic that deserves its own conversation. */
+export interface SideThread {
+  /** Also its tnega Thread's id. */
+  id: string
+  title: string
+  createdAt: string
+}
+
+/** Longest side thread title. */
+const TITLE = 80
+
 export class Threads {
   constructor(
     private readonly workspace: Workspace,
@@ -83,6 +95,28 @@ export class Threads {
     return kept
   }
 
+  /** The project's side threads, newest first. The project thread is not among them. */
+  async sides(folder: string): Promise<SideThread[]> {
+    const index = await readJson(this.indexFile(folder))
+    const list = Array.isArray(index) ? index.filter(isSideThread) : []
+    return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+  }
+
+  /** Keeps a new side thread, titled in a line. */
+  async startSide(folder: string, id: string, title: string): Promise<SideThread> {
+    if (id === PROJECT_THREAD || !/^[\w-]+$/.test(id)) throw new Error(`"${id}" can't be a side thread.`)
+    const line = title.replace(/\s+/g, ' ').trim() || 'Side thread'
+    const side: SideThread = { id, title: line.length > TITLE ? `${line.slice(0, TITLE - 1).trimEnd()}…` : line, createdAt: this.now().toISOString() }
+    const known = await this.sides(folder)
+    await writeJson(this.indexFile(folder), [...known.filter((other) => other.id !== id), side])
+    await this.workspace.event(folder, 'user', 'thread.started', { thread: id, title: side.title })
+    return side
+  }
+
+  private indexFile(folder: string): string {
+    return join(this.workspace.roots.content, folder, 'threads', 'side-threads.json')
+  }
+
   private threadFile(folder: string, thread: string): string {
     if (!/^[\w-]+$/.test(thread)) throw new Error(`"${thread}" is not a thread.`)
     return join(this.workspace.roots.content, folder, 'threads', `${thread}.jsonl`)
@@ -100,6 +134,12 @@ export function totalCost(turns: readonly Turn[]): TurnCost {
     if (turn.cost.completionTokens !== undefined) total.completionTokens = (total.completionTokens ?? 0) + turn.cost.completionTokens
   }
   return total
+}
+
+function isSideThread(value: unknown): value is SideThread {
+  if (typeof value !== 'object' || value === null) return false
+  const side = value as Record<string, unknown>
+  return typeof side.id === 'string' && typeof side.title === 'string' && typeof side.createdAt === 'string'
 }
 
 function isTurn(value: unknown): value is Turn {
