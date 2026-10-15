@@ -1,10 +1,12 @@
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import {
   Anchors,
   isNoteDoc,
   Library,
   Notes,
+  plainText,
+  SearchIndex,
   momentSelector,
   pageSelector,
   regionSelector,
@@ -22,7 +24,10 @@ import {
   type Viewport,
   type Workspace,
 } from '@carrel/core'
-import type { DeskView, ItemView, NoteView, ShellState, ThatView } from '../shared/workspace-api.js'
+import type { DeskView, ItemView, NoteView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
+
+/** Reads each page's text from a stored PDF. */
+export type PageReader = (path: string) => Promise<string[]>
 
 /**
  * Turns the workspace on disk into what the shell shows, and remembers what
@@ -33,12 +38,18 @@ export class ShellController {
   private readonly library: Library
   private readonly anchors: Anchors
   private readonly notes: Notes
+  private readonly index: SearchIndex
+  private readonly readPages: PageReader | undefined
+  /** PDFs being read for search, by item. */
+  private readonly reading = new Map<string, Promise<void>>()
 
-  constructor(workspace: Workspace, library = new Library(workspace), anchors = new Anchors(workspace), notes = new Notes(workspace)) {
+  constructor(workspace: Workspace, options: { readPages?: PageReader } = {}) {
     this.workspace = workspace
-    this.library = library
-    this.anchors = anchors
-    this.notes = notes
+    this.library = new Library(workspace)
+    this.anchors = new Anchors(workspace)
+    this.notes = new Notes(workspace)
+    this.index = new SearchIndex(workspace)
+    this.readPages = options.readPages
   }
 
   async state(): Promise<ShellState> {
@@ -130,7 +141,59 @@ export class ShellController {
     const folder = await this.openFolder()
     const added: ItemView[] = []
     for (const path of paths) added.push(itemView(await this.library.addFile(folder, path)))
+    // Their pages are read for search now, so the first search needn't wait.
+    for (const item of added) void this.readForSearch(folder, item.id).catch(() => undefined)
     return added
+  }
+
+  /**
+   * Searches the open project: note text, source titles, *that.* quotes and
+   * PDF pages. The index is brought up to date first; a PDF's pages are read
+   * once, and again only when its file changes.
+   */
+  async search(query: string): Promise<SearchHitView[]> {
+    const { open } = await this.state()
+    if (!open || query.trim().length === 0) return []
+    const folder = open.project
+    const items = await this.library.list(folder)
+    const notes = await Promise.all((await this.notes.list(folder)).map((note) => this.notes.read(folder, note.id)))
+    const thats = await this.anchors.list(folder)
+    this.index.sync(folder, {
+      notes: notes.map((note) => ({ id: note.id, title: note.title, text: plainText(note.doc) })),
+      items: items.map((item) => ({ id: item.id, title: item.title })),
+      thats: thats.map((that) => ({ id: that.id, itemId: that.itemId, label: that.label, text: that.snapshot.text ?? '' })),
+    })
+    this.index.keepPages(
+      folder,
+      items.map((item) => item.id),
+    )
+    for (const item of items) if (item.source.storage === 'stored') await this.readForSearch(folder, item.id).catch(() => undefined)
+    return this.index.search(folder, query)
+  }
+
+  /** Reads a stored PDF's pages into the index, unless they are there already. */
+  private readForSearch(folder: string, id: string): Promise<void> {
+    const key = `${folder}/${id}`
+    const known = this.reading.get(key)
+    if (known) return known
+    const run = (async () => {
+      const read = this.readPages
+      if (!read) return
+      const item = await this.library.read(folder, id)
+      if (item.source.storage !== 'stored') return
+      const path = await this.library.filePath(folder, id)
+      const info = await stat(path)
+      const stamp = `${info.size}:${Math.round(info.mtimeMs)}`
+      if (this.index.hasPages(folder, id, stamp)) return
+      this.index.setPages(folder, id, stamp, item.title, await read(path))
+    })().finally(() => this.reading.delete(key))
+    this.reading.set(key, run)
+    return run
+  }
+
+  /** Lets go of the search index (tests, quitting). */
+  close(): void {
+    this.index.close()
   }
 
   async addLink(url: string): Promise<ItemView> {

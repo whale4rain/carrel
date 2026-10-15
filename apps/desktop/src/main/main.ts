@@ -6,6 +6,7 @@ import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
 import { frameFor } from '../shared/frame.js'
 import { DESK_ORIGIN, deskUrl, serveDesk } from './desk-origin.js'
+import { pdfPages } from './pdf-text.js'
 import { ShellController } from './shell-state.js'
 import { titleBarOverlay, windowOptions } from './window-options.js'
 import { serveWorkspace } from './workspace-ipc.js'
@@ -26,7 +27,7 @@ const currentTheme = (): Theme => (nativeTheme.shouldUseDarkColors ? 'night' : '
 
 // `CARREL_HOME` puts ~/Carrel and ~/.carrel somewhere else (checks, screenshots).
 const workspace = new Workspace(carrelRoots(process.env.CARREL_HOME ?? homedir()))
-const controller = new ShellController(workspace)
+const controller = new ShellController(workspace, { readPages: pdfPages })
 
 // Each window's web pages, by its renderer.
 const webViews = new Map<number, WebViews>()
@@ -371,6 +372,17 @@ async function deskInteractions(
   window.webContents.insertText(' #micro')
   if (!(await waitFor("[...document.querySelectorAll('.sidebar .tag')].some((tag) => tag.textContent === '#micro')"))) return 'the note\'s #tag did not show in the sidebar'
   if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"] .cited-by button')?.textContent === '1 note'"))) return 'the PDF did not say a note cites it'
+  // Search everything (⌘K): words on the PDF's page find the page, and choosing it shows the PDF.
+  await key('K', [mod])
+  if (!(await waitFor("document.activeElement?.closest('.search-palette') != null"))) return '⌘K did not open search'
+  window.webContents.insertText('price demand')
+  if (!(await waitFor("document.querySelector('.search-hit[data-kind=\"page\"] .search-match') != null"))) {
+    return `search did not find the PDF's page: ${String(await page("document.querySelector('.search-palette')?.innerText ?? 'no palette'"))}`
+  }
+  await page("document.querySelector('.search-hit[data-kind=\"page\"]').click()")
+  if (!(await waitFor("document.querySelector('.search-palette') === null && document.querySelector('.sheet[data-kind=\"paper\"]')?.hasAttribute('data-selected') === true"))) {
+    return 'choosing a search result did not show its PDF'
+  }
   return undefined
 }
 

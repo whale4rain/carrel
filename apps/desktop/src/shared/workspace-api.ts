@@ -63,6 +63,20 @@ export interface ThatRequest {
   image?: Uint8Array
 }
 
+/** One search result. */
+export interface SearchHitView {
+  /** A note, a source (by its title), a *that.*, or a page of a PDF. */
+  kind: 'note' | 'source' | 'that' | 'page'
+  /** The note, item or *that.* it found. */
+  id: string
+  /** The source a page or a *that.* is in. */
+  itemId?: string
+  page?: number
+  title: string
+  /** Words around the match; matches sit between \u0001 and \u0002. */
+  snippet: string
+}
+
 /** A rectangle in window pixels. */
 export interface WindowRect {
   x: number
@@ -110,6 +124,8 @@ export interface WorkspaceApi {
   note(id: string): Promise<NoteView>
   /** Writes a note's text; returns the note, retitled from its first line. */
   saveNote(id: string, doc: NoteDoc): Promise<ItemView>
+  /** Searches the open project's notes, sources, *that.*s and PDF pages. */
+  search(query: string): Promise<SearchHitView[]>
   /** Asks for PDFs with the system's file dialog; returns their paths, or none if cancelled. */
   chooseFiles(): Promise<string[]>
   /** Copies files (PDFs) into the project as items. */
@@ -161,6 +177,7 @@ export const workspaceChannels = {
   createNote: 'workspace:create-note',
   note: 'workspace:note',
   saveNote: 'workspace:save-note',
+  search: 'workspace:search',
   chooseFiles: 'workspace:choose-files',
   addFiles: 'workspace:add-files',
   addLink: 'workspace:add-link',

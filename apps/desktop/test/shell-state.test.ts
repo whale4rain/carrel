@@ -146,3 +146,38 @@ describe('notes through the shell', () => {
     await expect(shell.saveNote(note.id, { type: 'doc', content: [{ type: 'script' }] })).rejects.toThrow('That is not a note.')
   })
 })
+
+describe('search through the shell', () => {
+  it('finds notes, that.s and PDF pages, and reads each PDF once', async () => {
+    const reads: string[] = []
+    const shell = new ShellController(new Workspace(carrelRoots(home)), {
+      readPages: async (path) => {
+        reads.push(path)
+        return ['Chapter 5', 'Elasticity of demand']
+      },
+    })
+    try {
+      await shell.createProject('Learn economics')
+      const pdf = join(home, 'Supply.pdf')
+      await writeFile(pdf, '%PDF-1.4')
+      const [paper] = await shell.addFiles([pdf])
+      await shell.makeThat({ itemId: paper?.id, page: 1, text: { source: 'Demand is elastic.', start: 0, end: 17 } })
+      const note = await shell.createNote()
+      await shell.saveNote(note.id, { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Coffee has low elasticity' }] }] })
+      const hits = await shell.search('elast')
+      expect(hits.map((hit) => [hit.kind, hit.title])).toEqual(
+        expect.arrayContaining([
+          ['note', 'Coffee has low elasticity'],
+          ['that', 'Supply p.1'],
+          ['page', 'Supply'],
+        ]),
+      )
+      expect(hits.find((hit) => hit.kind === 'page')).toMatchObject({ itemId: paper?.id, page: 2 })
+      await shell.search('supply')
+      expect(reads).toHaveLength(1)
+      expect(await shell.search('  ')).toEqual([])
+    } finally {
+      shell.close()
+    }
+  })
+})

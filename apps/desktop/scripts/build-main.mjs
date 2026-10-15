@@ -6,7 +6,8 @@ const shared = {
   platform: 'node',
   target: 'node22',
   sourcemap: true,
-  external: ['electron'],
+  // pdf.js stays a package of its own: it loads its worker and fonts beside itself.
+  external: ['electron', 'pdfjs-dist'],
 }
 
 await Promise.all([

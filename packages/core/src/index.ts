@@ -54,3 +54,4 @@ export {
   type NoteListItem,
   type NoteMark,
 } from './note-markdown.js'
+export { HIT_END, HIT_START, matchOf, SearchIndex, type Searchable, type SearchHit, type SearchKind } from './search.js'

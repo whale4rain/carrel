@@ -80,6 +80,16 @@ type Gesture =
  * zooms with pinch, ⌘/Ctrl-scroll, ⌘+ and ⌘−; the view is saved with the desk.
  * Only sheets near the screen are mounted.
  */
+/** Something to show on the desk: an item, and maybe a *that.* or a page in it. `nonce` lets it be asked again. */
+export interface ShowRequest {
+  itemId: string
+  nonce: number
+  /** A note: start writing in it. */
+  write?: boolean
+  that?: string
+  page?: number
+}
+
 export function DeskPlane({
   deskId,
   name,
@@ -92,8 +102,8 @@ export function DeskPlane({
   /** The project's sources and notes, by id. */
   items: ReadonlyMap<string, ItemView>
   onItemsAdded: (items: ItemView[]) => void
-  /** An item asked for from outside the desk (the sidebar): brought into view, or put on the desk. */
-  show?: { itemId: string; nonce: number; write?: boolean } | undefined
+  /** An item asked for from outside the desk (the sidebar, search): brought into view, or put on the desk. */
+  show?: ShowRequest | undefined
 }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -536,15 +546,27 @@ export function DeskPlane({
     }
   }
 
-  // The sidebar asks for a note: bring its sheet forward, or lay it on the desk in the middle of the view.
+  // The sidebar or search asks for an item: bring its sheet forward, or lay it on the desk in the
+  // middle of the view. A *that.* or a page in it is opened once its sheet is there.
   const [writing, setWriting] = useState<string>()
   const handled = useRef<number | undefined>(undefined)
+  const placed = useRef<number | undefined>(undefined)
+  const [goTo, setGoTo] = useState<{ sheet: string; page: number; nonce: number }>()
   useEffect(() => {
     if (!show || !loaded || screen.w === 0 || handled.current === show.nonce) return
     const item = items.get(show.itemId)
     if (!item) return
+    const sheet = latest.current.find((candidate) => candidate.itemId === item.id)
+    const that = show.that === undefined ? undefined : thats.find((known) => known.id === show.that)
+    if (sheet && that) openThat(that)
+    else if (placed.current !== show.nonce) {
+      placed.current = show.nonce
+      showItem(item, show.write === true)
+    }
+    // A sheet just laid down comes back here on the next render.
+    if (!sheet && (that || show.page !== undefined)) return
     handled.current = show.nonce
-    showItem(item, show.write === true)
+    if (sheet && show.page !== undefined) setGoTo({ sheet: sheet.id, page: show.page, nonce: show.nonce })
   })
   function showItem(item: ItemView, write: boolean): void {
     const sheet = latest.current.find((candidate) => candidate.itemId === item.id)
@@ -770,6 +792,7 @@ export function DeskPlane({
                     detail={sheet.scale * view.zoom}
                     thats={thatsOf(item.id)}
                     focus={focus?.sheet === sheet.id ? focus : undefined}
+                    goTo={goTo?.sheet === sheet.id ? goTo : undefined}
                     onPage={(page) => reportPosition(sheet.id, page)}
                     onFound={found}
                   />
