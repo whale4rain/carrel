@@ -84,8 +84,11 @@ async function prime(layout: Layout): Promise<void> {
     sheet.view.setBounds(viewBounds(layoutSheet, HEADER, layout.deskOrigin))
     sheet.view.webContents.setZoomFactor(layoutSheet.scale)
     sheet.view.setVisible(true)
-    await new Promise((resolve) => setTimeout(resolve, 80))
-    await capture(id)
+    // A busy runner can take a while to give the view a surface; try again until it has one.
+    for (let tries = 0; tries < 25 && !sheet.snapshot; tries++) {
+      await new Promise((resolve) => setTimeout(resolve, 80))
+      await capture(id)
+    }
     if (live !== id) sheet.view.setVisible(false)
   }
 }
