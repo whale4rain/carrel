@@ -1996,19 +1996,23 @@ kbd {
   cursor: grab;
 }
 
+/* Add to note: an outline button (Margin AgentPanel). */
 .turn-note {
   max-width: 240px;
+  height: 22px;
   overflow: hidden;
-  padding: 0;
+  padding: 0 8px;
+  border: 1px solid var(--graphite);
+  border-radius: var(--radius-control);
   font: var(--text-caption);
   font-size: 11px;
-  color: var(--ink-muted);
+  color: var(--ink);
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .turn-note:hover {
-  color: var(--ink);
+  background: var(--paper-2);
 }
 
 .turn-that:focus-visible,
