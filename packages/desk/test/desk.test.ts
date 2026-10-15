@@ -1,11 +1,30 @@
 import { describe, expect, it } from 'vitest'
-import { changed, inMarquee, footprint, move, placeNew, raise, resize, scaleTo, snap, type SheetBox } from '../src/index.js'
+import { changed, foldTo, inMarquee, footprint, move, placeNew, raise, resize, scaleTo, snap, type SheetBox } from '../src/index.js'
 
 const sheet = (id: string, over: Partial<SheetBox> = {}): SheetBox => ({ id, x: 0, y: 0, w: 400, h: 300, scale: 1, z: 1, ...over })
 
 describe('footprint', () => {
   it('is the size times the scale', () => {
     expect(footprint(sheet('a', { x: 10, y: 20, scale: 0.5 }))).toEqual({ x: 10, y: 20, w: 200, h: 150 })
+  })
+
+  it('is only the label row when folded', () => {
+    expect(footprint(sheet('a', { scale: 0.5, folded: true }))).toEqual({ x: 0, y: 0, w: 200, h: 18 })
+  })
+})
+
+describe('foldTo', () => {
+  it('folds the chosen sheets and opens them again at their size', () => {
+    const folded = foldTo([sheet('a'), sheet('b')], new Set(['b']), true)
+    expect(folded.map((s) => s.folded)).toEqual([undefined, true])
+    const opened = foldTo(folded, new Set(['b']), false)
+    expect(opened[1]).toEqual(sheet('b'))
+    expect('folded' in opened[1]!).toBe(false)
+  })
+
+  it('leaves sheets already that way untouched', () => {
+    const sheets = [sheet('a')]
+    expect(foldTo(sheets, new Set(['a']), false)[0]).toBe(sheets[0])
   })
 })
 

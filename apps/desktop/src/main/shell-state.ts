@@ -483,7 +483,8 @@ function isSheet(value: unknown): value is Sheet {
     sheet.scale >= 0.3 &&
     sheet.scale <= 1 &&
     finite(sheet.z) &&
-    (sheet.pile === undefined || typeof sheet.pile === 'string')
+    (sheet.pile === undefined || typeof sheet.pile === 'string') &&
+    (sheet.folded === undefined || sheet.folded === true)
   )
 }
 

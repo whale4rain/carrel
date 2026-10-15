@@ -571,6 +571,25 @@ kbd {
   cursor: grab;
 }
 
+.sheet-fold {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: none;
+  border-radius: var(--radius-mark);
+  background: transparent;
+  color: var(--ink-muted);
+  font: var(--text-label);
+  line-height: 1;
+  cursor: pointer;
+}
+
+.sheet-fold:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
 .sheet[data-lifted] .sheet-label {
   cursor: grabbing;
 }

@@ -38,6 +38,17 @@ export function scaleTo<T extends SheetBox>(sheets: readonly T[], ids: ReadonlyS
   return sheets.map((sheet) => (ids.has(sheet.id) ? { ...sheet, scale: next } : sheet))
 }
 
+/** Folds sheets down to their label rows, or opens them again. */
+export function foldTo<T extends SheetBox>(sheets: readonly T[], ids: ReadonlySet<string>, folded: boolean): T[] {
+  return sheets.map((sheet) => {
+    if (!ids.has(sheet.id) || (sheet.folded ?? false) === folded) return sheet
+    if (folded) return { ...sheet, folded: true }
+    const open = { ...sheet }
+    delete open.folded
+    return open
+  })
+}
+
 /** Brings sheets to the top, keeping their order among themselves. */
 export function raise<T extends SheetBox>(sheets: readonly T[], ids: ReadonlySet<string>): T[] {
   const top = Math.max(0, ...sheets.map((sheet) => sheet.z))
