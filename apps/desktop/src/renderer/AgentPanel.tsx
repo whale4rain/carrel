@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import type { AgentStatus, AskContext, ProposalView, ThreadView, Turn, TurnCost, TurnStep } from '../shared/agent-api.js'
+import { PROJECT_THREAD, type AgentStatus, type AskContext, type ProposalView, type SideThread, type ThreadView, type Turn, type TurnCost, type TurnStep } from '../shared/agent-api.js'
 import type { ItemView, ThatView } from '../shared/workspace-api.js'
 import { Markdown } from './Markdown.js'
 import { ProposalCard } from './ProposalCard.js'
@@ -7,13 +7,20 @@ import { THAT_DRAG } from './ThatTray.js'
 
 const agent = window.carrel.agent
 
+/** The panel's thread before a side thread's first question names it. */
+export const NEW_SIDE = 'new'
+
 /**
- * The project's ongoing thread with the agent, docked on the right (⌘J).
+ * The project's ongoing thread with the agent, docked on the right (⌘J), or
+ * one of its side threads (the Threads menu in the header).
  * Your turns sit right on paper-2; the agent's answers sit left in Literata,
  * each opened by one folded line of what it did and what it sent.
  */
 export function AgentPanel({
   project,
+  threadId,
+  sides,
+  onThread,
   pointing,
   context,
   onUnpoint,
@@ -26,6 +33,11 @@ export function AgentPanel({
   onClose,
 }: {
   project: string
+  /** The project thread, a side thread's id, or NEW_SIDE. */
+  threadId: string
+  sides: readonly SideThread[]
+  /** Show another thread: the project thread, a side thread, or a new one. Its first answer gives a new side thread its id. */
+  onThread: (id: string) => void
   /** The *that.*s you are pointing at; they go with your next question. */
   pointing: readonly ThatView[]
   context: () => AskContext
@@ -38,7 +50,7 @@ export function AgentPanel({
   /** A proposal was accepted: the note or source it made or changed. */
   onAccepted: (item: ItemView) => void
   /** Add a turn to the note selected on the desk, or to a new note. */
-  onAddToNote: (turnId: string) => Promise<ItemView>
+  onAddToNote: (turnId: string, thread: string) => Promise<ItemView>
   /** A turn to bring into view, from a chip that points at it. */
   focusTurn?: { id: string; nonce: number } | undefined
   onClose: () => void
@@ -53,24 +65,30 @@ export function AgentPanel({
   // The that.s made on turns, by turn.
   const [pointed, setPointed] = useState<ReadonlyMap<string, ThatView>>(new Map())
   const [draft, setDraft] = useState('')
+  const [menu, setMenu] = useState(false)
+  // A new side thread's id, once its first question has named it.
+  const [started, setStarted] = useState<string>()
+  const here = started ?? threadId
+  const side = sides.find((candidate) => candidate.id === threadId)
   const [error, setError] = useState<string>()
   const body = useRef<HTMLDivElement>(null)
   const input = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     let current = true
-    void Promise.all([agent.status(), agent.thread(), window.carrel.workspace.thats(), agent.proposals()]).then(([known, turns, thats, proposed]) => {
+    const turns = threadId === NEW_SIDE ? Promise.resolve({ turns: [], total: { bytes: 0, calls: 0 } }) : agent.thread(threadId)
+    void Promise.all([agent.status(), turns, window.carrel.workspace.thats(), agent.proposals()]).then(([known, kept, thats, proposed]) => {
       if (!current) return
       setStatus(known)
-      setThread(turns)
+      setThread(kept)
       setProposals(proposed)
       setLabels(new Map(thats.map((that) => [that.id, that.label])))
-      setPointed(new Map(thats.flatMap((that) => (turnOf(that) ? [[turnOf(that)!, that] as const] : []))))
+      setPointed(new Map(thats.flatMap((that) => (that.itemId === `thread:${threadId}` && turnOf(that) ? [[turnOf(that)!, that] as const] : []))))
     })
     return () => {
       current = false
     }
-  }, [project])
+  }, [project, threadId])
 
   useEffect(
     () =>
@@ -102,10 +120,15 @@ export function AgentPanel({
     setLabels((known) => new Map([...known, ...pointing.map((that) => [that.id, that.label] as const)]))
     setAsking({ text, points: asked.points, steps: [], answer: '' })
     onAsked()
-    agent
-      .ask(text, asked)
-      .then(() => agent.thread())
-      .then(setThread, (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)))
+    // A new side thread is named by its first question.
+    const thread = here === NEW_SIDE ? agent.startSide(text).then((made) => (setStarted(made.id), made.id)) : Promise.resolve(here)
+    void thread
+      .then(async (id) => {
+        await agent.ask(text, asked, id)
+        if (here === NEW_SIDE) onThread(id)
+        else setThread(await agent.thread(id))
+      })
+      .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)))
       .finally(() => setAsking(undefined))
   }
 
@@ -121,7 +144,7 @@ export function AgentPanel({
   }, [focusTurn, thread.turns.length])
 
   const thatTurn = (turn: Turn): void => {
-    agent.thatTurn(turn.id).then(
+    agent.thatTurn(turn.id, here).then(
       (that) => {
         setPointed((known) => new Map(known).set(turn.id, that))
         setLabels((known) => new Map(known).set(that.id, that.label))
@@ -140,7 +163,9 @@ export function AgentPanel({
       (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
     )
   }
-  const newest = proposals.findLast((proposal) => proposal.state === 'open')
+  // Only this thread's proposals.
+  const ours = proposals.filter((proposal) => (proposal.thread ?? PROJECT_THREAD) === here)
+  const newest = ours.findLast((proposal) => proposal.state === 'open')
 
   // Proposals sit under the answer to the question that led to them; any
   // other (still being answered) at the end.
@@ -151,7 +176,7 @@ export function AgentPanel({
     else if (question) answered.set(turn.id, question)
   }
   const shownWith = new Set(answered.values())
-  const loose = proposals.filter((proposal) => !proposal.asked || !shownWith.has(proposal.asked))
+  const loose = ours.filter((proposal) => !proposal.asked || !shownWith.has(proposal.asked))
   const cards = (list: readonly ProposalView[]) =>
     list.map((proposal) => (
       <ProposalCard
@@ -173,9 +198,9 @@ export function AgentPanel({
         onOpenThat={onOpenThat}
         that={pointed.get(turn.id)}
         onThat={() => thatTurn(turn)}
-        onAddToNote={() => onAddToNote(turn.id)}
+        onAddToNote={() => onAddToNote(turn.id, here)}
       >
-        {asked && cards(proposals.filter((proposal) => proposal.asked === asked))}
+        {asked && cards(ours.filter((proposal) => proposal.asked === asked))}
       </TurnView>
     )
   }
@@ -189,7 +214,7 @@ export function AgentPanel({
   return (
     <aside
       className="agent-panel"
-      aria-label="Project thread"
+      aria-label={side ? `Side thread: ${side.title}` : threadId === NEW_SIDE ? 'New side thread' : 'Project thread'}
       onKeyDown={(event) => {
         // Tab accepts the newest proposal, Esc dismisses it, unless you are typing.
         if (!newest || draft.trim() || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
@@ -205,12 +230,44 @@ export function AgentPanel({
           a
         </span>
         <div className="agent-title">
-          <b>Project thread</b>
+          <button type="button" className="agent-threads" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((now) => !now)}>
+            <b>{side ? side.title : threadId === NEW_SIDE ? 'New side thread' : 'Project thread'}</b>
+            <span aria-hidden="true">▾</span>
+          </button>
           <span>
-            {project}
-            {since ? ` · ongoing since ${since}` : ''}
+            {side ? 'side thread' : project}
+            {since ? ` · ${side ? 'since' : 'ongoing since'} ${since}` : ''}
             {thread.total.calls > 0 ? ` · ${bytes(thread.total.bytes)} sent` : ''}
           </span>
+          {menu && (
+            <div className="agent-menu" role="menu" onKeyDown={(event) => event.key === 'Escape' && (event.stopPropagation(), setMenu(false))}>
+              {[{ id: PROJECT_THREAD, title: 'Project thread' }, ...sides].map((choice) => (
+                <button
+                  key={choice.id}
+                  type="button"
+                  role="menuitemradio"
+                  aria-checked={choice.id === threadId}
+                  onClick={() => {
+                    setMenu(false)
+                    if (choice.id !== threadId) onThread(choice.id)
+                  }}
+                >
+                  {choice.title}
+                </button>
+              ))}
+              <button
+                type="button"
+                role="menuitem"
+                className="agent-menu-new"
+                onClick={() => {
+                  setMenu(false)
+                  onThread(NEW_SIDE)
+                }}
+              >
+                + New side thread
+              </button>
+            </div>
+          )}
         </div>
         <button type="button" className="agent-close" aria-label="Close the thread" onClick={onClose}>
           ×
@@ -219,7 +276,11 @@ export function AgentPanel({
 
       <div className="agent-body" ref={body}>
         {thread.turns.length === 0 && !asking && (
-          <p className="agent-empty">Ask about what you are reading. The agent searches this project&rsquo;s notes, sources and pages before it answers.</p>
+          <p className="agent-empty">
+            {threadId === PROJECT_THREAD
+              ? 'Ask about what you are reading. The agent searches this project’s notes, sources and pages before it answers.'
+              : 'A side thread keeps one topic apart from the project thread. Your first question names it.'}
+          </p>
         )}
         {earlier.length > 0 && (
           <button type="button" className="agent-day" onClick={() => setUnfolded((now) => !now)}>

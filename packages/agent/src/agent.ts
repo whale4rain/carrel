@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { Threads, type Turn, type TurnStep, type Workspace } from '@carrel/core'
+import { PROJECT_THREAD, Threads, type SideThread, type Turn, type TurnStep, type Workspace } from '@carrel/core'
 import type { LLMAdapter } from 'tnega/agent'
 import type { ToolDefinition } from 'tnega/tools'
 import { MeteredModel } from './metered.js'
@@ -37,8 +37,8 @@ export class ProjectAgent {
   private readonly tools: (folder: string) => readonly ToolDefinition[]
   private readonly opened = new Map<string, Promise<OpenCarrelProject>>()
   private queue: Promise<unknown> = Promise.resolve()
-  /** The question being answered now, per project. */
-  private readonly answering = new Map<string, string>()
+  /** The question being answered now, and its thread, per project. */
+  private readonly answering = new Map<string, { question: string; thread: string }>()
 
   constructor(options: ProjectAgentOptions) {
     this.workspace = options.workspace
@@ -48,13 +48,29 @@ export class ProjectAgent {
     this.tools = options.tools
   }
 
-  turns(folder: string): Promise<Turn[]> {
-    return this.threads.turns(folder)
+  /** A thread's turns: the project thread's, or a side thread's by id. */
+  turns(folder: string, thread: string = PROJECT_THREAD): Promise<Turn[]> {
+    return this.threads.turns(folder, thread)
+  }
+
+  sides(folder: string): Promise<SideThread[]> {
+    return this.threads.sides(folder)
+  }
+
+  /** Opens a side thread for a topic: a tnega Thread, kept in the project under the same id. */
+  async startSide(folder: string, title: string): Promise<SideThread> {
+    const project = await this.project(folder)
+    return this.threads.startSide(folder, await project.startSide(title), title)
   }
 
   /** The question the agent is answering in a project now, by turn id, so a proposal can say what led to it. */
   asking(folder: string): string | undefined {
-    return this.answering.get(folder)
+    return this.answering.get(folder)?.question
+  }
+
+  /** The thread the agent is answering in now. */
+  askingIn(folder: string): string | undefined {
+    return this.answering.get(folder)?.thread
   }
 
   /**
@@ -67,12 +83,14 @@ export class ProjectAgent {
     folder: string,
     text: string,
     onEvent: (event: AgentEvent) => void = () => undefined,
-    options: { context?: string; points?: string[] } = {},
+    options: { context?: string; points?: string[]; thread?: string } = {},
   ): Promise<{ question: Turn; answer: Turn }> {
     const run = this.queue.then(async () => {
       const points = options.points?.length ? { points: options.points } : {}
-      const question = await this.threads.add(folder, { by: 'user', text, ...points })
-      this.answering.set(folder, question.id)
+      const thread = options.thread ?? PROJECT_THREAD
+      if (thread !== PROJECT_THREAD && !(await this.threads.sides(folder)).some((side) => side.id === thread)) throw new Error('That side thread is not in this project.')
+      const question = await this.threads.add(folder, { by: 'user', text, ...points }, thread)
+      this.answering.set(folder, { question: question.id, thread })
       const sent = options.context ? `${options.context}\n\n${text}` : text
       const steps: TurnStep[] = []
       let streamed = ''
@@ -81,30 +99,38 @@ export class ProjectAgent {
       let error: string | undefined
       try {
         const project = await this.project(folder)
-        reply = await project.ask(sent, (event) => {
-          if (event.type === 'chunk') {
-            streamed += event.text
-            onEvent({ type: 'text', text: streamed })
-          } else if (event.type === 'tool-call') {
-            const step = { tool: event.name, summary: describeStep(event.name, event.arguments) }
-            steps.push(step)
-            streamed = ''
-            onEvent({ type: 'step', step })
-            onEvent({ type: 'text', text: '' })
-          }
-        })
+        reply = await project.ask(
+          sent,
+          (event) => {
+            if (event.type === 'chunk') {
+              streamed += event.text
+              onEvent({ type: 'text', text: streamed })
+            } else if (event.type === 'tool-call') {
+              const step = { tool: event.name, summary: describeStep(event.name, event.arguments) }
+              steps.push(step)
+              streamed = ''
+              onEvent({ type: 'step', step })
+              onEvent({ type: 'text', text: '' })
+            }
+          },
+          thread === PROJECT_THREAD ? undefined : thread,
+        )
       } catch (reason) {
         error = reason instanceof Error ? reason.message : String(reason)
       } finally {
         this.answering.delete(folder)
       }
-      const answer = await this.threads.add(folder, {
-        by: 'agent',
-        text: reply,
-        ...(steps.length > 0 ? { steps } : {}),
-        cost: this.meter.take(),
-        ...(error !== undefined ? { error } : {}),
-      })
+      const answer = await this.threads.add(
+        folder,
+        {
+          by: 'agent',
+          text: reply,
+          ...(steps.length > 0 ? { steps } : {}),
+          cost: this.meter.take(),
+          ...(error !== undefined ? { error } : {}),
+        },
+        thread,
+      )
       return { question, answer }
     })
     this.queue = run.catch(() => undefined)

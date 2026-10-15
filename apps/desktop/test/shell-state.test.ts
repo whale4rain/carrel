@@ -249,7 +249,7 @@ describe('turns of the project thread through the shell', () => {
     const that = await shell.thatTurn(answer.id)
     expect(that).toMatchObject({ itemId: 'thread:project', label: 'turn', text: 'It is a **habit**.' })
     expect(await shell.thatTurn(answer.id)).toEqual(that)
-    await expect(shell.thatTurn('nope')).rejects.toThrow('not in the project thread')
+    await expect(shell.thatTurn('nope')).rejects.toThrow('not in the thread')
     expect(await shell.thatText('Learn economics', that.id)).toMatchObject({ source: 'Project thread', label: 'turn' })
 
     const fresh = await shell.addTurnToNote(answer.id, undefined)
@@ -260,6 +260,14 @@ describe('turns of the project thread through the shell', () => {
     const note = await shell.createNote()
     await shell.addTurnToNote(answer.id, note.id)
     expect((await shell.readItem('Learn economics', note.id)).text).toContain(`[turn](that:${that.id})`)
+
+    // A side thread's turns are pointed at the same way, under their own thread.
+    await expect(shell.thatTurn(answer.id, 'side-1')).rejects.toThrow('not in this project')
+    await threads.startSide('Learn economics', 'side-1', 'Coffee')
+    const aside = await threads.add('Learn economics', { by: 'agent', text: 'On the side.' }, 'side-1')
+    const sideThat = await shell.thatTurn(aside.id, 'side-1')
+    expect(sideThat.itemId).toBe('thread:side-1')
+    expect(await shell.thatText('Learn economics', sideThat.id)).toMatchObject({ source: 'Coffee' })
     shell.close()
   })
 })

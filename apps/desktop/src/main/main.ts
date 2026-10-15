@@ -428,6 +428,19 @@ async function deskInteractions(
     return `Add to note did not make a note: ${String(await page("document.querySelector('.agent-answer[data-that] .turn-note')?.textContent ?? 'no button'"))}`
   }
   if (!(await waitFor("[...document.querySelectorAll('.sheet[data-kind=\"note\"] .note-chip')].some((chip) => chip.textContent === 'turn')"))) return 'the new note does not cite the turn'
+  // A side thread from the Threads menu: its first question names it, it answers there, and the sidebar lists it.
+  await page("document.querySelector('.agent-threads').click()")
+  if (!(await waitFor("document.querySelector('.agent-menu-new') !== null"))) return 'the Threads menu did not open'
+  await page("document.querySelector('.agent-menu-new').click()")
+  if (!(await waitFor("document.querySelector('.agent-threads b')?.textContent === 'New side thread'"))) return 'no new side thread'
+  await page("document.querySelector('.agent-input textarea').focus()")
+  window.webContents.insertText('Side note on coffee')
+  await page("document.querySelector('.agent-send:not(:disabled)')?.click()")
+  if (!(await waitFor(`document.querySelector('.agent-threads b')?.textContent === 'Side note on coffee' && document.querySelectorAll('.agent-panel .agent-answer').length === 1 && (${answer}).includes('Your note') && document.querySelector('.row.convo.side[data-current]') !== null`))) {
+    return `the side thread did not answer: ${String(await page("document.querySelector('.agent-panel')?.textContent ?? 'no panel'"))}`
+  }
+  await page("document.querySelector('.row.convo:not(.side)').click()")
+  if (!(await waitFor("document.querySelector('.agent-threads b')?.textContent === 'Project thread' && document.querySelectorAll('.agent-panel .agent-me').length === 2"))) return 'the project thread did not come back'
   return undefined
 }
 
@@ -516,10 +529,11 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       const hit = await page<string>(`(() => { const e = document.elementFromPoint(${at.x}, ${at.y}); return (e?.className ?? 'none') + ' in ' + (e?.closest('.sheet')?.getAttribute('data-kind') ?? 'no sheet') })()`)
       return fail(`the note's chip did not open its PDF (at ${at.x},${at.y} is ${hit})`)
     }
-    // The agent's thread comes back with its turns and what they sent.
+    // The agent's thread comes back with its turns and what they sent, and the side thread is listed.
+    if (!(await waitFor("document.querySelector('.row.convo.side')?.textContent.includes('Side note on coffee') === true"))) return fail('the side thread was not listed after a restart')
     await page("document.querySelector('.agent-button').click()")
-    if (!(await waitFor("document.querySelectorAll('.agent-panel .agent-me').length === 2 && document.querySelector('.agent-panel .proposal[data-state=\"accepted\"]') !== null && document.querySelector('.agent-title span')?.textContent.includes('sent') === true"))) {
-      return fail(`the agent's thread did not come back: ${String(await page("document.querySelector('.agent-panel')?.innerText ?? 'no panel'"))}`)
+    if (!(await waitFor("document.querySelectorAll('.agent-panel .agent-me').length === 2 && document.querySelector('.agent-panel .proposal[data-state=\"accepted\"]') !== null && document.querySelector('.agent-title > span')?.textContent.includes('sent') === true"))) {
+      return fail(`the agent's thread did not come back: ${String(await page("document.querySelector('.agent-panel')?.textContent ?? 'no panel'"))}`)
     }
     await page("document.querySelector('.agent-close').click()")
     // The PDF's backlink brings its note forward.

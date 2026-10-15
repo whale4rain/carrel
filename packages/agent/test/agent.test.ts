@@ -114,6 +114,35 @@ describe('ProjectAgent', () => {
     }
   })
 
+  it('opens side threads that answer on their own, with the same tools, and survive a restart', async () => {
+    const model = scriptedModel()
+    const first = new ProjectAgent({ workspace, model: () => model.llm, tools: () => [searchProjectTool(async () => hits)] })
+    let side: string
+    try {
+      await first.ask('Learn economics', 'In the project thread')
+      const started = await first.startSide('Learn economics', 'Coffee and habits')
+      side = started.id
+      expect(started.title).toBe('Coffee and habits')
+      const { answer } = await first.ask('Learn economics', 'What about coffee?', undefined, { thread: side })
+      expect(answer).toMatchObject({ text: 'Your note “Elasticity” says coffee is inelastic.', steps: [{ tool: 'search_project' }] })
+      expect(model.seen.tools.at(-1)).toContain('search_project')
+      expect((await first.turns('Learn economics', side)).map((turn) => turn.text)).toEqual(['What about coffee?', answer.text])
+      expect(await first.turns('Learn economics')).toHaveLength(2)
+      expect((await first.sides('Learn economics')).map((known) => known.id)).toEqual([side])
+    } finally {
+      await first.dispose()
+    }
+    const second = new ProjectAgent({ workspace, model: () => model.llm, tools: () => [searchProjectTool(async () => hits)] })
+    try {
+      await second.ask('Learn economics', 'Still there?', undefined, { thread: side })
+      expect(await second.turns('Learn economics', side)).toHaveLength(4)
+      await expect(second.ask('Learn economics', 'Hello', undefined, { thread: 'not-a-thread' })).rejects.toThrow('not in this project')
+      expect(await second.turns('Learn economics', 'not-a-thread')).toEqual([])
+    } finally {
+      await second.dispose()
+    }
+  })
+
   it('keeps a failed answer with the reason, and stays usable', async () => {
     let model = failing
     const agent = new ProjectAgent({ workspace, model: () => model, tools: () => [] })

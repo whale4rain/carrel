@@ -25,6 +25,8 @@ export interface Proposal {
   why?: string
   /** The question that led to it, by turn id. */
   asked?: string
+  /** The side thread it was asked in; the project thread when left out. */
+  thread?: string
   state: ProposalState
   createdAt: string
   decidedAt?: string
@@ -63,12 +65,13 @@ export class Proposals {
   }
 
   /** The agent proposes a change; nothing else is touched. */
-  async make(folder: string, change: ProposalChange, options: { why?: string; asked?: string } = {}): Promise<Proposal> {
+  async make(folder: string, change: ProposalChange, options: { why?: string; asked?: string; thread?: string } = {}): Promise<Proposal> {
     const proposal: Proposal = {
       id: randomUUID(),
       change,
       ...(options.why ? { why: options.why } : {}),
       ...(options.asked ? { asked: options.asked } : {}),
+      ...(options.thread && options.thread !== 'project' ? { thread: options.thread } : {}),
       state: 'open',
       createdAt: this.now().toISOString(),
     }

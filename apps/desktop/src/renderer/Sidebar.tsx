@@ -2,6 +2,7 @@ import { useState } from 'react'
 import type { Frame } from '../shared/frame.js'
 import { shortcut } from '../shared/frame.js'
 import type { ItemView, ShellState } from '../shared/workspace-api.js'
+import type { SideThread } from '../shared/agent-api.js'
 import { BookIcon, ChevronIcon, LinkIcon, NoteIcon, SearchIcon, SparkIcon } from './icons.js'
 import { initials } from './initials.js'
 import { NameField } from './NameField.js'
@@ -15,8 +16,8 @@ export interface WorkspaceActions {
   openNote(id: string): void
   /** Opens Search everything. */
   search(): void
-  /** Opens the project thread beside the desk. */
-  openThread(): void
+  /** Opens the project thread (or a side thread, by id) beside the desk. */
+  openThread(id?: string): void
 }
 
 interface Props {
@@ -24,13 +25,17 @@ interface Props {
   state: ShellState
   actions: WorkspaceActions
   items: readonly ItemView[]
+  /** The project's side threads, newest first. */
+  sides: readonly SideThread[]
+  /** The thread open in the panel, if it is open. */
+  thread: string | undefined
 }
 
 /** How many notes the sidebar lists by name, most recent first. */
 const RECENT_NOTES = 5
 
 /** One project, its desks, and the things the project owns. */
-export function Sidebar({ frame, state, actions, items }: Props) {
+export function Sidebar({ frame, state, actions, items, sides, thread }: Props) {
   const notes = items.filter((item) => item.kind === 'note').sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
   const count = (...kinds: Array<ItemView['kind']>): number => items.filter((item) => kinds.includes(item.kind)).length
   const open = state.open
@@ -161,12 +166,20 @@ export function Sidebar({ frame, state, actions, items }: Props) {
 
           <section className="group" aria-label="Conversations">
             <h2>Conversations</h2>
-            <button type="button" className="row" onClick={actions.openThread}>
+            <button type="button" className="row convo" data-current={thread === 'project' || undefined} onClick={() => actions.openThread()}>
               <span className="agent-seat" aria-hidden>
                 a
               </span>
               <span className="grow">Project thread</span>
             </button>
+            {sides.map((side) => (
+              <button key={side.id} type="button" className="row convo side" data-current={thread === side.id || undefined} title={side.title} onClick={() => actions.openThread(side.id)}>
+                <span className="side-mark" aria-hidden>
+                  ↳
+                </span>
+                <span className="grow">{side.title}</span>
+              </button>
+            ))}
           </section>
 
           <section className="group" aria-label="Library">

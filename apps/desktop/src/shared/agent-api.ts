@@ -1,8 +1,11 @@
 // What the renderer sees of the agent: the open project's thread, and a way to ask.
-import type { Proposal, ProposalChange, Turn, TurnCost, TurnStep } from '@carrel/core'
+import type { Proposal, ProposalChange, SideThread, Turn, TurnCost, TurnStep } from '@carrel/core'
 import type { ItemView, ThatView } from './workspace-api.js'
 
-export type { Proposal, ProposalChange, Turn, TurnCost, TurnStep }
+export type { Proposal, ProposalChange, SideThread, Turn, TurnCost, TurnStep }
+
+/** The project's ongoing thread; side threads go by their own ids. */
+export const PROJECT_THREAD = 'project'
 
 /** A change the agent proposed, drawn in pencil until you accept or dismiss it. */
 export interface ProposalView extends Proposal {
@@ -40,9 +43,14 @@ export interface AgentApi {
   status(): Promise<AgentStatus>
   /** Keeps a model key, encrypted with the system keychain. */
   saveKey(key: string): Promise<AgentStatus>
-  thread(): Promise<ThreadView>
-  /** Asks in the open project's thread; resolves with the agent's turn once it is done. */
-  ask(text: string, context?: AskContext): Promise<Turn>
+  /** A thread's turns: the project thread, or a side thread by id. */
+  thread(thread?: string): Promise<ThreadView>
+  /** The project's side threads, newest first. */
+  sides(): Promise<SideThread[]>
+  /** Opens a side thread for a topic. */
+  startSide(title: string): Promise<SideThread>
+  /** Asks in a thread of the open project (the project thread unless given); resolves with the agent's turn once it is done. */
+  ask(text: string, context?: AskContext, thread?: string): Promise<Turn>
   /** The answer as it arrives. */
   onLive(listener: (event: AgentLive) => void): () => void
   /** The project's proposals, oldest first. */
@@ -52,9 +60,9 @@ export interface AgentApi {
   /** A proposal the agent just made. */
   onProposal(listener: (proposal: ProposalView) => void): () => void
   /** A *that.* on a turn of the thread (made once; asking again gives the same one). */
-  thatTurn(turnId: string): Promise<ThatView>
+  thatTurn(turnId: string, thread?: string): Promise<ThatView>
   /** Adds a turn's words and a chip back to it to a note, or to a new note. */
-  addToNote(turnId: string, noteId?: string): Promise<ItemView>
+  addToNote(turnId: string, noteId?: string, thread?: string): Promise<ItemView>
   /** A *that.* the agent made while answering, to show with the others. */
   onThat(listener: (that: ThatView) => void): () => void
 }
@@ -63,6 +71,8 @@ export const agentChannels = {
   status: 'agent:status',
   saveKey: 'agent:save-key',
   thread: 'agent:thread',
+  sides: 'agent:sides',
+  startSide: 'agent:start-side',
   ask: 'agent:ask',
   live: 'agent:live',
   that: 'agent:that',

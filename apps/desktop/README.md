@@ -265,6 +265,18 @@ thread at that turn, and it brightens. **Add to note** copies the answer and
 a chip back to it into the note selected on the desk, or into a new note
 titled with your question. That is your own edit, so it is written at once.
 
+### Side threads
+
+![A side thread beside the desk, listed under the project thread in the sidebar; right, the Threads menu; day and night](screenshot-side-threads.png)
+
+A topic that deserves its own conversation gets a side thread. Click the
+thread's name at the top of the panel for the Threads menu, then **New side
+thread**; your first question names it. Side threads are listed under the
+project thread in the sidebar, and they use the same tools, proposals and
+*that.*s. Each is a tnega Thread under the project's coordinator, and its
+turns are kept in `~/Carrel/<project>/threads/<id>.jsonl`, with the list in
+`threads/side-threads.json`.
+
 **The model.** DeepSeek (`deepseek-flash`) by default. The first time, the
 panel asks for a key and keeps it in `~/.carrel/model.json`, encrypted by the
 system keychain. `CARREL_LLM_API_KEY` overrides it; `CARREL_LLM_BASE_URL` and

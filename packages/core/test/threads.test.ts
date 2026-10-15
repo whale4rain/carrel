@@ -65,3 +65,19 @@ describe('Threads', () => {
     ).toEqual({ bytes: 150, calls: 3, promptTokens: 10, completionTokens: 5 })
   })
 })
+
+describe('side threads', () => {
+  it('are listed newest first, each with its own turns', async () => {
+    expect(await threads.sides('Learn economics')).toEqual([])
+    const coffee = await threads.startSide('Learn economics', 'abc-1', '  Why is   coffee\ninelastic? ')
+    expect(coffee).toMatchObject({ id: 'abc-1', title: 'Why is coffee inelastic?' })
+    const long = await threads.startSide('Learn economics', 'abc-2', 'x'.repeat(200))
+    expect(long.title).toHaveLength(80)
+    expect((await threads.sides('Learn economics')).map((side) => side.id).sort()).toEqual(['abc-1', 'abc-2'])
+    await threads.add('Learn economics', { by: 'user', text: 'On the side' }, 'abc-1')
+    expect((await threads.turns('Learn economics', 'abc-1')).map((turn) => turn.text)).toEqual(['On the side'])
+    expect(await threads.turns('Learn economics')).toEqual([])
+    await expect(threads.startSide('Learn economics', 'project', 'x')).rejects.toThrow("can't be a side thread")
+    expect((await workspace.readEvents('Learn economics')).at(-1)).toMatchObject({ type: 'turn.added', payload: { thread: 'abc-1' } })
+  })
+})
