@@ -8,8 +8,8 @@ const web = window.carrel.web
 
 /** The sheet's label row, in desk units at 100%. */
 const LABEL = 36
-/** Things drawn over the desk that a live page must not cover. */
-const OVERLAYS = '.desk-nav, .selection-bar, .add-menu, .desk-error, .that-tray, .that-saved'
+/** Things drawn over the desk that a live page must not cover (search covers the whole window). */
+const OVERLAYS = '.desk-nav, .selection-bar, .add-menu, .desk-error, .that-tray, .that-saved, .search-scrim'
 
 /**
  * Web pages on the desk. Main draws the live page as a native view over its
@@ -89,7 +89,7 @@ export function useWebSheets(props: {
       active,
       moving,
       desk: { x: origin.left, y: origin.top, w: origin.width, h: origin.height },
-      overlays: [...element.querySelectorAll(OVERLAYS)].map((overlay) => {
+      overlays: [...document.querySelectorAll(OVERLAYS)].map((overlay) => {
         const r = overlay.getBoundingClientRect()
         return { x: r.left, y: r.top, w: r.width, h: r.height }
       }),
