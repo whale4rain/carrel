@@ -181,6 +181,8 @@ export function DeskPlane({
   // The view as last loaded or saved, so loading one doesn't save it back.
   const savedView = useRef<View>(view)
   const space = useRef(false)
+  // The hand: dragging anywhere on the desk moves it (H toggles; holding Space borrows it).
+  const [hand, setHand] = useState(false)
   const latest = useRef(sheets)
   latest.current = sheets
   const history = useRef<History<Sheet>>(emptyHistory())
@@ -641,7 +643,8 @@ export function DeskPlane({
       const mod = event.metaKey || event.ctrlKey
       const key = event.key.toLowerCase()
       if (event.key === ' ') space.current = true
-      if (event.key === 'Escape') {
+      if (!mod && !event.altKey && key === 'h') setHand((on) => !on)
+      else if (event.key === 'Escape') {
         setSelected(new Set())
         setActive(undefined)
         setRegion(undefined)
@@ -697,6 +700,15 @@ export function DeskPlane({
       style={{
         backgroundSize: `${GRID * view.zoom}px ${GRID * view.zoom}px`,
         backgroundPosition: `${view.x}px ${view.y}px`,
+      }}
+      data-hand={hand || undefined}
+      onPointerDownCapture={(event) => {
+        // With the hand on, a drag anywhere on the desk moves it, over sheets too.
+        if (!hand || event.button !== 0) return
+        if ((event.target as HTMLElement).closest('.desk-nav, .selection-bar, .that-tray, .desk-error')) return
+        event.preventDefault()
+        event.stopPropagation()
+        setGesture({ kind: 'pan', from: onScreen(event), start: view })
       }}
       onPointerDown={(event) => {
         if (event.button === 1 || (event.button === 0 && space.current)) {
@@ -941,6 +953,8 @@ export function DeskPlane({
         screen={screen}
         sheets={sheets.map(footprint)}
         onView={setView}
+        hand={hand}
+        onHand={() => setHand((on) => !on)}
         onZoom={zoomBy}
         onActualSize={actualSize}
         onFit={fit}

@@ -508,7 +508,13 @@ kbd {
   touch-action: none;
 }
 
-.desk-mat[data-panning] {
+.desk-mat[data-hand],
+.desk-mat[data-hand] .sheet * {
+  cursor: grab;
+}
+
+.desk-mat[data-panning],
+.desk-mat[data-panning] * {
   cursor: grabbing;
 }
 
@@ -651,6 +657,11 @@ kbd {
   position: absolute;
   border: 1.5px solid var(--ink);
   border-radius: 2px;
+}
+
+.desk-tools button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
 }
 
 .desk-tools {

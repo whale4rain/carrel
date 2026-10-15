@@ -50,3 +50,19 @@ export const NoteIcon = () => (
     <path d="M9 12h7M9 16h5" />
   </svg>
 )
+
+export const HandIcon = () => (
+  <svg {...line}>
+    <path d="M18 11V6a2 2 0 0 0-4 0v5" />
+    <path d="M14 10V4a2 2 0 0 0-4 0v6" />
+    <path d="M10 10.5V6a2 2 0 0 0-4 0v8" />
+    <path d="M18 8a2 2 0 1 1 4 0v6a8 8 0 0 1-8 8h-2c-2.8 0-4.5-.86-5.99-2.34l-3.6-3.6a2 2 0 0 1 2.83-2.82L7 15" />
+  </svg>
+)
+
+export const MapIcon = () => (
+  <svg {...line}>
+    <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2z" />
+    <path d="M9 4v14M15 6v14" />
+  </svg>
+)

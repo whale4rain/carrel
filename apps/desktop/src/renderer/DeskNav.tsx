@@ -1,18 +1,34 @@
 import { bounds, toDesk, type Rect, type View } from '@carrel/desk'
-import { useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { HandIcon, MapIcon } from './icons.js'
 
 /** The minimap's size on screen. */
 const MAP = { w: 168, h: 112 }
+/** Whether the map is shown is remembered on this computer, not per desk. */
+const MAP_SHOWN = 'carrel.map-shown'
+
+function mapShown(): boolean {
+  try {
+    return localStorage.getItem(MAP_SHOWN) === 'true'
+  } catch {
+    return false
+  }
+}
 
 /**
- * Bottom right of the desk: a small map of the whole desk with the visible
- * part outlined (click or drag on it to look elsewhere), and the zoom pill.
+ * Bottom right of the desk: the zoom pill, with the hand (drag the desk to
+ * move around) and a small map of the whole desk with the visible part
+ * outlined (click or drag on it to look elsewhere). The map is hidden until
+ * asked for.
  */
 export function DeskNav(props: {
   view: View
   screen: { w: number; h: number }
   sheets: readonly Rect[]
   onView: (view: View) => void
+  /** The hand is on: dragging anywhere on the desk moves it. */
+  hand: boolean
+  onHand: () => void
   onZoom: (direction: 1 | -1) => void
   onActualSize: () => void
   onFit: () => void
@@ -23,6 +39,9 @@ export function DeskNav(props: {
 }) {
   const [adding, setAdding] = useState<'menu' | 'link'>()
   const [link, setLink] = useState('')
+  const [showMap, setShowMap] = useState(mapShown)
+  // Only a drag that starts on the map moves the view; a resize passing over it does not.
+  const dragging = useRef(false)
   const { view, screen, sheets } = props
   const visible = { ...toDesk(view, { x: 0, y: 0 }), w: screen.w / view.zoom, h: screen.h / view.zoom }
   const world = bounds([visible, ...sheets])!
@@ -44,19 +63,23 @@ export function DeskNav(props: {
 
   return (
     <div className="desk-nav">
-      {sheets.length > 0 && (
+      {showMap && sheets.length > 0 && (
         <div
           className="minimap"
           role="img"
           aria-label="Map of the desk"
           style={{ width: MAP.w, height: MAP.h }}
           onPointerDown={(event) => {
+            if (event.button !== 0) return
             event.currentTarget.setPointerCapture(event.pointerId)
+            dragging.current = true
             lookAt(event)
           }}
           onPointerMove={(event) => {
-            if (event.buttons === 1) lookAt(event)
+            if (dragging.current) lookAt(event)
           }}
+          onPointerUp={() => (dragging.current = false)}
+          onPointerCancel={() => (dragging.current = false)}
         >
           {sheets.map((sheet, i) => (
             <span key={i} className="minimap-sheet" style={onMap(sheet)} />
@@ -65,6 +88,26 @@ export function DeskNav(props: {
         </div>
       )}
       <div className="desk-tools">
+        <button type="button" className="desk-hand" aria-label="Hand" aria-pressed={props.hand} title="Hand: drag the desk to move around (H, or hold Space)" onClick={props.onHand}>
+          <HandIcon />
+        </button>
+        <button
+          type="button"
+          className="desk-map"
+          aria-label="Map"
+          aria-pressed={showMap}
+          title="Map of the desk"
+          onClick={() => {
+            setShowMap(!showMap)
+            try {
+              localStorage.setItem(MAP_SHOWN, String(!showMap))
+            } catch {
+              // Not remembered; it still shows.
+            }
+          }}
+        >
+          <MapIcon />
+        </button>
         <button type="button" aria-label="Zoom out" onClick={() => props.onZoom(-1)}>
           −
         </button>
