@@ -66,3 +66,10 @@ export const MapIcon = () => (
     <path d="M9 4v14M15 6v14" />
   </svg>
 )
+
+export const SidebarIcon = () => (
+  <svg {...line} width={14} height={14}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M9 4v16" />
+  </svg>
+)

@@ -1,4 +1,5 @@
 import { shortcut, type Frame } from '../shared/frame.js'
+import { SidebarIcon } from './icons.js'
 
 interface Props {
   frame: Frame
@@ -7,12 +8,25 @@ interface Props {
   /** Whether the agent's thread is open beside the desk. */
   agentOpen: boolean
   onAgent: () => void
+  /** Whether the sidebar is shown. */
+  sidebarOpen: boolean
+  onSidebar: () => void
 }
 
 /** Where you are, and the agent one shortcut away. */
-export function TopBar({ frame, project, desk, agentOpen, onAgent }: Props) {
+export function TopBar({ frame, project, desk, agentOpen, onAgent, sidebarOpen, onSidebar }: Props) {
   return (
     <header className="topbar">
+      <button
+        type="button"
+        className="sidebar-button"
+        aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+        aria-pressed={sidebarOpen}
+        title={`${sidebarOpen ? 'Hide' : 'Show'} sidebar (${shortcut(frame, '\\')})`}
+        onClick={onSidebar}
+      >
+        <SidebarIcon />
+      </button>
       {project && desk ? (
         <>
           <span className="crumb">{project} /</span>

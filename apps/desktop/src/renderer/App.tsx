@@ -26,6 +26,21 @@ export function App() {
   const [sides, setSides] = useState<SideThread[]>([])
   const [searching, setSearching] = useState(false)
   const [talking, setTalking] = useState(false)
+  // The sidebar folds away (⌘\ / Ctrl+\); remembered on this computer.
+  const [sidebar, setSidebar] = useState(() => {
+    try {
+      return localStorage.getItem('carrel.sidebar') !== 'hidden'
+    } catch {
+      return true
+    }
+  })
+  useEffect(() => {
+    try {
+      localStorage.setItem('carrel.sidebar', sidebar ? 'shown' : 'hidden')
+    } catch {
+      // Not remembered; it still works.
+    }
+  }, [sidebar])
   // The library's open shelf, if it is open.
   const [library, setLibrary] = useState<Shelf>()
   // The that.s you made since you last asked, which the agent's composer points at; and the desk in view.
@@ -39,6 +54,7 @@ export function App() {
       const key = event.key.toLowerCase()
       if (key === 'k') setSearching((now) => !now)
       else if (key === 'j') setTalking((now) => !now)
+      else if (event.key === '\\') setSidebar((now) => !now)
       else return
       event.preventDefault()
     }
@@ -119,7 +135,7 @@ export function App() {
   const desk = open?.desks.find((entry) => entry.id === open.desk)
 
   return (
-    <div className="shell" data-carrel-shell={state ? '' : undefined} data-frame={frame} data-agent={talking && open ? '' : undefined}>
+    <div className="shell" data-carrel-shell={state ? '' : undefined} data-frame={frame} data-agent={talking && open ? '' : undefined} data-sidebar={sidebar ? undefined : 'hidden'}>
       {frame === 'windows' && (
         <div className="titlestrip">
           <span className="titlestrip-mark">Carrel</span>
@@ -132,8 +148,8 @@ export function App() {
       )}
       {state && (
         <>
-          <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} sides={sides} thread={talking ? threadId : undefined} />
-          <TopBar frame={frame} project={open?.project} desk={desk?.name} agentOpen={talking} onAgent={() => setTalking((now) => !now)} />
+          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} sides={sides} thread={talking ? threadId : undefined} />}
+          <TopBar frame={frame} project={open?.project} desk={desk?.name} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
           {open && desk ? <DeskPlane
               key={desk.id}
               deskId={desk.id}

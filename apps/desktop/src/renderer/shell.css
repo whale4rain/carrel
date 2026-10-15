@@ -2488,3 +2488,39 @@ kbd {
   color: var(--ink-muted);
   font: var(--text-body);
 }
+
+/* The sidebar folds away; the desk takes its column. On Mac the traffic lights
+   then sit over the top bar, so it leaves room for them. */
+.shell[data-sidebar='hidden'] {
+  grid-template-columns: 0 1fr;
+}
+
+.shell[data-sidebar='hidden'][data-agent] {
+  grid-template-columns: 0 1fr 380px;
+}
+
+.shell[data-sidebar='hidden'][data-frame='mac'] .topbar {
+  padding-left: 84px;
+}
+
+.sidebar-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: calc(-1 * var(--space-3));
+  border-radius: var(--radius-control);
+  color: var(--ink-muted);
+}
+
+.sidebar-button:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+/* Search and the library sit above everything on the desk, Focus's bar and shelf included. */
+.search-scrim,
+.library-scrim {
+  z-index: 200000;
+}
