@@ -51,13 +51,13 @@ export function textOffsets(root: Node, range: Range): { source: string; start: 
   return start < 0 || end <= start ? undefined : { source, start, end }
 }
 
-/** Selected text in a PDF on the desk: its sheet, page and offsets in the page's text. */
+/** Selected text in a PDF or a document on the desk: its sheet, page (or section) and offsets in that page's text. */
 export function pdfSelection(selection: Selection | null): { sheet: string; request: Omit<ThatRequest, 'itemId'> } | undefined {
   if (!selection || selection.isCollapsed || selection.rangeCount === 0) return undefined
   const range = selection.getRangeAt(0)
   const start = range.startContainer instanceof Element ? range.startContainer : range.startContainer.parentElement
-  const page = start?.closest<HTMLElement>('.pdf-page')
-  const layer = page?.querySelector('.textLayer')
+  const page = start?.closest<HTMLElement>('.pdf-page, .doc-section')
+  const layer = page?.querySelector('.textLayer, .doc-text')
   const sheet = page?.closest<HTMLElement>('.sheet')?.dataset.sheet
   if (!page || !layer || !sheet) return undefined
   // A selection running past its page keeps only this page's part.

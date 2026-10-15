@@ -1,4 +1,5 @@
 import { dialog, ipcMain } from 'electron'
+import { STORED_EXTENSIONS } from '@carrel/core'
 import { delimiter } from 'node:path'
 import { workspaceChannels, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 import type { ShellController } from './shell-state.js'
@@ -44,7 +45,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
       const chosen = await dialog.showOpenDialog({
         title: 'Add books and papers',
         properties: ['openFile', 'multiSelections'],
-        filters: [{ name: 'PDF', extensions: ['pdf'] }],
+        filters: [{ name: 'Books and papers', extensions: STORED_EXTENSIONS.map((extension) => extension.slice(1)) }],
       })
       return chosen.canceled ? [] : chosen.filePaths
     },
@@ -52,6 +53,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     addLink: (url) => controller.addLink(text(url)),
     itemBytes: (id) => controller.itemBytes(text(id)),
     snapshot: (id) => controller.snapshot(text(id)),
+    document: (id) => controller.document(text(id)),
     readAt: (id) => controller.readAt(text(id)),
     saveReadAt: (id, at) => controller.saveReadAt(text(id), at),
     setBookmark: (id, page, label) => controller.setBookmark(text(id), page, label),

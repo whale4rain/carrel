@@ -5,9 +5,7 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 're
 import type { ThatView } from '../shared/workspace-api.js'
 import { bandKey, setActiveBand, setBands } from './bands.js'
 import { rangeAt, textOf } from './that.js'
-import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
-import { BookmarkIcon } from './icons.js'
-import { frame } from './platform.js'
+import { ReaderTools, type Bookmarks, type Chapter } from './ReaderTools.js'
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -20,13 +18,6 @@ const GAP = 12
 
 /** How long scrolling must pause before the reading position is saved. */
 const SAVE_AFTER = 600
-
-/** One entry of a PDF's contents, with the page it starts on. */
-interface Chapter {
-  title: string
-  page: number | undefined
-  items: Chapter[]
-}
 
 /** A *that.* to open: scroll to it and brighten it. `nonce` lets the same one be opened again. */
 export interface Focus {
@@ -72,7 +63,7 @@ export function PdfView({
   /** Whether the focused *that.* was found where it pointed. */
   onFound: (that: string, found: boolean) => void
   /** Pages kept to come back to. */
-  bookmarks: ReadonlyArray<{ page: number; label: string }>
+  bookmarks: Bookmarks
   /** Whether the reader's own keys work now: its sheet is focused, or the only one selected. */
   keys: boolean
   /** Keep a page as a bookmark, with a few words to know it by, or let it go (null). */
@@ -175,13 +166,10 @@ export function PdfView({
   }, [step])
 
   const [contents, setContents] = useState<Chapter[] | 'none'>()
-  const [showContents, setShowContents] = useState(false)
-  const openContents = (): void => {
-    setShowContents((open) => !open)
+  const readContents = (): void => {
     if (contents || !pdf) return
     void chaptersOf(pdf.doc).then((found) => setContents(found.length > 0 ? found : 'none'), () => setContents('none'))
   }
-  const [typing, setTyping] = useState<string>()
   useEffect(() => {
     if (pdf) onPage?.(`p. ${page} / ${pdf.doc.numPages}`)
   }, [pdf, page, onPage])
@@ -207,125 +195,31 @@ export function PdfView({
   }, [goTo?.nonce, pdf])
 
   // A bookmark keeps the page you're reading, known by its first words.
-  const marked = bookmarks.some((bookmark) => bookmark.page === page)
   const toggleBookmark = (): void => {
     if (!pdf) return
     const at = page
-    if (marked) onBookmark(at, null)
+    if (bookmarks.some((bookmark) => bookmark.page === at)) onBookmark(at, null)
     else void firstWords(pdf.doc, at).then((words) => onBookmark(at, words))
   }
-  const toggleRef = useRef(toggleBookmark)
-  toggleRef.current = toggleBookmark
-  useEffect(() => {
-    if (!keys) return
-    const onKey = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey || event.key.toLowerCase() !== 'd') return
-      if ((event.target as HTMLElement | null)?.closest('input, textarea, [contenteditable="true"]')) return
-      event.preventDefault()
-      toggleRef.current()
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [keys])
 
   if (error) return <p className="viewer-note">This PDF couldn't be opened: {error}</p>
   if (!pdf) return <p className="viewer-note">Opening…</p>
-  const pages = pdf.doc.numPages
-  const jump = (): void => {
-    const wanted = Number(typing)
-    setTyping(undefined)
-    if (Number.isFinite(wanted) && wanted >= 1) scrollTo({ page: Math.min(pages, Math.round(wanted)), offset: 0 })
-  }
   return (
     <div className="pdf-reader">
-      <div className="pdf-tools" role="toolbar" aria-label="Reading" onPointerDown={(event) => event.stopPropagation()}>
-        <button type="button" aria-expanded={showContents} onClick={openContents}>
-          Contents
-        </button>
-        <label className="pdf-jump">
-          <span>p.</span>
-          <input
-            aria-label="Go to page"
-            inputMode="numeric"
-            value={typing ?? String(page)}
-            onFocus={(event) => {
-              setTyping(String(page))
-              event.target.select()
-            }}
-            onChange={(event) => setTyping(event.target.value.replace(/\D/g, ''))}
-            onBlur={() => setTyping(undefined)}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter') {
-                jump()
-                event.currentTarget.blur()
-              } else if (event.key === 'Escape') event.currentTarget.blur()
-            }}
-          />
-          <span>/ {pages}</span>
-        </label>
-        <button
-          type="button"
-          className="pdf-bookmark"
-          aria-label={marked ? `Remove the bookmark on page ${page}` : `Bookmark page ${page}`}
-          aria-pressed={marked}
-          title={withShortcut(frame, marked ? 'Remove this page’s bookmark' : 'Bookmark this page', 'bookmark')}
-          onClick={toggleBookmark}
-        >
-          <BookmarkIcon filled={marked} />
-        </button>
-        <span className="grow" />
-        <button type="button" aria-label="Zoom pages out" title="Zoom out" onClick={() => onZoom(-1)}>
-          −
-        </button>
-        <button type="button" className="position" aria-label="Pages zoom" title="Fit the width" onClick={() => onZoom('fit')}>
-          {Math.round(zoom * 100)}%
-        </button>
-        <button type="button" aria-label="Zoom pages in" title="Zoom in" onClick={() => onZoom(1)}>
-          +
-        </button>
-        {showContents && (
-          <nav className="pdf-contents" aria-label="Contents">
-            <h4>Bookmarks</h4>
-            {bookmarks.length === 0 ? (
-              <p>No bookmarks yet. The ribbon, or {shortcutLabel(frame, 'bookmark')}, keeps the page you’re reading.</p>
-            ) : (
-              <ul aria-label="Bookmarks">
-                {bookmarks.map((bookmark) => (
-                  <li key={bookmark.page} className="pdf-bookmark-row">
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setShowContents(false)
-                        scrollTo({ page: bookmark.page, offset: 0 })
-                      }}
-                    >
-                      <span className="grow">{bookmark.label}</span>
-                      <span className="position">{bookmark.page}</span>
-                    </button>
-                    <button type="button" className="pdf-unmark" aria-label={`Remove the bookmark on page ${bookmark.page}`} onClick={() => onBookmark(bookmark.page, null)}>
-                      ×
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <h4>Chapters</h4>
-            {contents === undefined ? (
-              <p>Reading the contents…</p>
-            ) : contents === 'none' ? (
-              <p>This PDF has no contents list. Type a page number to jump.</p>
-            ) : (
-              <ChapterList
-                chapters={contents}
-                onOpen={(chapter) => {
-                  setShowContents(false)
-                  scrollTo({ page: chapter, offset: 0 })
-                }}
-              />
-            )}
-          </nav>
-        )}
-      </div>
+      <ReaderTools
+        unit="p."
+        page={page}
+        pages={pdf.doc.numPages}
+        onGo={(to) => scrollTo({ page: to, offset: 0 })}
+        chapters={contents}
+        onContents={readContents}
+        bookmarks={bookmarks}
+        onBookmark={toggleBookmark}
+        onUnmark={(at) => onBookmark(at, null)}
+        keys={keys}
+        zoom={zoom}
+        onZoom={onZoom}
+      />
       <div className="pdf-view" ref={scroller} data-scrolls="">
       {Array.from({ length: pdf.doc.numPages }, (_, i) => (
         <PdfPage
@@ -345,22 +239,6 @@ export function PdfView({
       ))}
       </div>
     </div>
-  )
-}
-
-function ChapterList({ chapters, onOpen }: { chapters: Chapter[]; onOpen: (page: number) => void }) {
-  return (
-    <ul>
-      {chapters.map((chapter, i) => (
-        <li key={i}>
-          <button type="button" disabled={chapter.page === undefined} onClick={() => chapter.page !== undefined && onOpen(chapter.page)}>
-            <span className="grow">{chapter.title}</span>
-            {chapter.page !== undefined && <span className="position">{chapter.page}</span>}
-          </button>
-          {chapter.items.length > 0 && <ChapterList chapters={chapter.items} onOpen={onOpen} />}
-        </li>
-      ))}
-    </ul>
   )
 }
 

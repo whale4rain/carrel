@@ -30,6 +30,8 @@ export interface NewAnchor {
   itemId: string
   selectors: Selector[]
   text?: string
+  /** Where it points, when the selectors alone don't say it well: "§3" in a document read as text. */
+  label?: string
   /** A PNG of what it pointed at. */
   image?: Uint8Array
 }
@@ -52,7 +54,7 @@ export class Anchors {
       id,
       itemId: anchor.itemId,
       selectors: anchor.selectors,
-      label: positionLabel(anchor.selectors),
+      label: anchor.label ?? positionLabel(anchor.selectors),
       snapshot: { ...(text ? { text } : {}), ...(anchor.image ? { image: `${id}.png` } : {}) },
       createdBy: actor,
       createdAt: this.now().toISOString(),

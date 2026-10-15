@@ -1,3 +1,4 @@
+import { isDocumentFile } from '@carrel/core/document-files'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ItemView, SearchHitView } from '../shared/workspace-api.js'
 import { BookIcon, LinkIcon, NoteIcon, SearchIcon } from './icons.js'
@@ -92,7 +93,11 @@ export function SearchPalette({
                   <span className="search-hit-text">
                     <span className="search-hit-title">
                       {hit.title}
-                      {hit.page !== undefined && <span className="search-hit-page">p. {hit.page}</span>}
+                      {hit.page !== undefined && (
+                        <span className="search-hit-page">
+                          {isDocumentFile(items.get(hit.id)?.file?.name ?? '') ? '§' : 'p.'} {hit.page}
+                        </span>
+                      )}
                     </span>
                     {hit.snippet && <span className="search-hit-snippet">{marked(hit.snippet)}</span>}
                   </span>

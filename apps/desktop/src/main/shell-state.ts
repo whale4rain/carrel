@@ -3,7 +3,10 @@ import { dirname } from 'node:path'
 import {
   Anchors,
   fromMarkdown,
+  isDocumentFile,
   isNoteDoc,
+  readDocument,
+  sectionTexts,
   Library,
   Notes,
   plainText,
@@ -29,6 +32,7 @@ import {
   type OpenProject,
   type Proposal,
   type ReadingPosition,
+  type ReadingDocument,
   type ProposalChange,
   type Selector,
   type Sheet,
@@ -199,10 +203,12 @@ export class ShellController {
     const known = this.reading.get(key)
     if (known) return known
     const run = (async () => {
-      const read = this.readPages
-      if (!read) return
       const item = await this.library.read(folder, id)
       if (item.source.storage !== 'stored') return
+      // A file read as text has a section where a PDF has a page.
+      const document = isDocumentFile(item.source.file)
+      const read = document ? async (): Promise<string[]> => sectionTexts(await this.document(id, folder)) : this.readPages
+      if (!read) return
       const path = await this.library.filePath(folder, id)
       const info = await stat(path)
       const stamp = `${info.size}:${Math.round(info.mtimeMs)}`
@@ -222,13 +228,14 @@ export class ShellController {
     const item = await this.library.read(folder, id)
     if (item.source.storage !== 'stored') return { title: item.title, kind: item.kind, text: "This source is linked, not stored; its text can't be read yet." }
     await this.readForSearch(folder, id)
+    const document = isDocumentFile(item.source.file)
     const all = this.index.pages(folder, id)
     const last = all.at(-1)?.page ?? 0
     const from = pages?.from ?? 1
     const to = pages?.to ?? Math.min(last, from + 9)
     const text = all
       .filter(({ page }) => page >= from && page <= to)
-      .map(({ page, text: words }) => `[p.${page}]\n${words}`)
+      .map(({ page, text: words }) => `[${document ? '§' : 'p.'}${page}]\n${words}`)
       .join('\n\n')
     return { title: item.title, kind: item.kind, text: text || `No text on pages ${from}–${to}.`, pages: last }
   }
@@ -249,7 +256,8 @@ export class ShellController {
     const found = words.length > 0 ? new RegExp(words.join('\\s*')).exec(text) : null
     if (!found) throw new Error(`Those words are not on page ${page}. Copy them exactly from read_item.`)
     const selectors = [pageSelector(page), ...textSelectors(text, found.index, found.index + found[0].length)]
-    return thatView(await this.anchors.make(folder, { itemId, selectors, text: found[0] }, 'agent'))
+    const item = await this.library.read(folder, itemId)
+    return thatView(await this.anchors.make(folder, { itemId, selectors, text: found[0], ...sectionLabel(item, page) }, 'agent'))
   }
 
   /** The agent proposes a change; it waits in pencil. */
@@ -309,6 +317,14 @@ export class ShellController {
     return new Uint8Array(await readFile(await this.library.filePath(await this.openFolder(), id)))
   }
 
+  /** A stored file read as text (Markdown and the like), in sections. */
+  async document(id: string, folder?: string): Promise<ReadingDocument> {
+    const where = folder ?? (await this.openFolder())
+    const item = await this.library.read(where, id)
+    if (item.source.storage !== 'stored' || !isDocumentFile(item.source.file)) throw new Error('That source is not read as text.')
+    return readDocument(new Uint8Array(await readFile(await this.library.filePath(where, id))), item.source.file, item.title)
+  }
+
   async readAt(id: string): Promise<ReadingPosition | null> {
     return (await this.library.read(await this.openFolder(), id)).readAt ?? null
   }
@@ -357,7 +373,7 @@ export class ShellController {
     const { itemId, page, text, seconds, region, image } = request as Record<string, unknown>
     if (typeof itemId !== 'string') throw new Error('That is not a place in a source.')
     const folder = await this.openFolder()
-    await this.library.read(folder, itemId)
+    const item = await this.library.read(folder, itemId)
     const selectors: Selector[] = []
     if (page !== undefined) selectors.push(pageSelector(Number(page)))
     let quoted: string | undefined
@@ -373,7 +389,7 @@ export class ShellController {
       selectors.push(regionSelector({ x: Number(x), y: Number(y), w: Number(w), h: Number(h) }))
     }
     const png = image instanceof Uint8Array ? image : undefined
-    return thatView(await this.anchors.make(folder, { itemId, selectors, ...(quoted ? { text: quoted } : {}), ...(png ? { image: png } : {}) }))
+    return thatView(await this.anchors.make(folder, { itemId, selectors, ...(quoted ? { text: quoted } : {}), ...(png ? { image: png } : {}), ...(page !== undefined ? sectionLabel(item, Number(page)) : {}) }))
   }
 
   /**
@@ -451,6 +467,11 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
     desks: opened.desks.map(({ id, name }) => ({ id, name })),
     desk: desk ?? '',
   }
+}
+
+/** A *that.* in a document read as text names its section ("§3"), not a page. */
+function sectionLabel(item: ItemFile, section: number): { label?: string } {
+  return item.source.storage === 'stored' && isDocumentFile(item.source.file) ? { label: `§${section}` } : {}
 }
 
 function itemView(item: ItemFile): ItemView {

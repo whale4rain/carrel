@@ -131,7 +131,7 @@ export interface WorkspaceApi {
   saveNote(id: string, doc: NoteDoc): Promise<ItemView>
   /** Searches the open project's notes, sources, *that.*s and PDF pages. */
   search(query: string): Promise<SearchHitView[]>
-  /** Asks for PDFs with the system's file dialog; returns their paths, or none if cancelled. */
+  /** Asks for PDFs and documents with the system's file dialog; returns their paths, or none if cancelled. */
   chooseFiles(): Promise<string[]>
   /** Copies files (PDFs) into the project as items. */
   addFiles(paths: string[]): Promise<ItemView[]>
@@ -141,6 +141,8 @@ export interface WorkspaceApi {
   itemBytes(id: string): Promise<Uint8Array>
   /** A web page's last snapshot (PNG), if it has one. */
   snapshot(id: string): Promise<Uint8Array | null>
+  /** A stored file read as text (Markdown and the like), in sections. */
+  document(id: string): Promise<import('@carrel/core/documents').ReadingDocument>
   /** Where a book or paper was last read, if it has been. */
   readAt(id: string): Promise<ReadingPosition | null>
   /** Remembers where a book or paper is being read. */
@@ -209,6 +211,7 @@ export const workspaceChannels = {
   addLink: 'workspace:add-link',
   itemBytes: 'workspace:item-bytes',
   snapshot: 'workspace:snapshot',
+  document: 'workspace:document',
   readAt: 'workspace:read-at',
   saveReadAt: 'workspace:save-read-at',
   setBookmark: 'workspace:set-bookmark',

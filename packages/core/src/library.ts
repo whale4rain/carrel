@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto'
 import { copyFile, mkdir, readdir, stat } from 'node:fs/promises'
 import { basename, extname, join } from 'node:path'
+import { DOCUMENT_EXTENSIONS } from './document-files.js'
 import { readJson, writeJson, isMissing } from './files.js'
 import { FORMAT, type Actor, type Workspace } from './workspace.js'
 
@@ -49,8 +50,8 @@ export interface ReadingPosition {
   offset: number
 }
 
-/** Files Carrel can store as sources, by extension. */
-export const STORED_EXTENSIONS = ['.pdf']
+/** Files Carrel can store as sources, by extension: PDFs, and files read as text (see documents.ts). */
+export const STORED_EXTENSIONS = ['.pdf', ...DOCUMENT_EXTENSIONS]
 
 export class Library {
   constructor(
@@ -140,7 +141,7 @@ export class Library {
   /** Copies a PDF into the project as a new item. */
   async addFile(folder: string, path: string, actor: Actor = 'user'): Promise<ItemFile> {
     const extension = extname(path).toLowerCase()
-    if (!STORED_EXTENSIONS.includes(extension)) throw new Error(`Carrel can't open ${extension || 'that kind of'} files yet. Try a PDF.`)
+    if (!STORED_EXTENSIONS.includes(extension)) throw new Error(`Carrel can't open ${extension || 'that kind of'} files yet. Try a PDF or a Markdown file.`)
     const info = await stat(path)
     if (!info.isFile()) throw new Error('That is not a file.')
     const id = randomUUID()
@@ -229,7 +230,7 @@ function safeFileName(name: string): string {
     .map((char) => ((char.codePointAt(0) ?? 0) < 32 || '<>:"/\\|?*'.includes(char) ? '_' : char))
     .join('')
     .replace(/[. ]+$/, '')
-  return cleaned.length > 0 && cleaned !== 'item.json' ? cleaned : 'source.pdf'
+  return cleaned.length > 0 && cleaned !== 'item.json' ? cleaned : `source${extname(name).toLowerCase() || '.pdf'}`
 }
 
 function isItemFile(value: unknown): value is ItemFile {
