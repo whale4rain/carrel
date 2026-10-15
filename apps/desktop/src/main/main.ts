@@ -337,10 +337,19 @@ async function deskInteractions(
   await page("[...document.querySelectorAll('[aria-label=\"Notes\"] button')].find((b) => b.textContent === '+ New note')?.click()")
   if (!(await waitFor("document.activeElement?.closest('.sheet[data-kind=\"note\"] .ProseMirror') != null"))) return 'a new note did not take the keyboard'
   window.webContents.insertText(NOTE_TITLE)
-  await key('Enter')
+  // The line under the title is already there; put the caret in it (a sent Enter is unreliable on a Mac runner).
+  await page(`(() => {
+    const line = document.querySelector('.sheet[data-kind="note"] .ProseMirror p')
+    const range = document.createRange()
+    range.setStart(line, 0)
+    getSelection().removeAllRanges()
+    getSelection().addRange(range)
+  })()`)
+  await new Promise((resolve) => setTimeout(resolve, 100))
   window.webContents.insertText(NOTE_TEXT)
   if (!(await waitFor(`window.carrel.workspace.items().then((items) => items.some((item) => item.kind === 'note' && item.title === '${NOTE_TITLE}'))`))) {
-    return `the note was not saved: ${String(await page("document.querySelector('.note-error')?.textContent ?? 'no message'"))}`
+    const titles = await page("window.carrel.workspace.items().then((items) => items.filter((item) => item.kind === 'note').map((item) => item.title).join(' | '))")
+    return `the note was not saved: ${String(await page("document.querySelector('.note-error')?.textContent ?? 'no message'"))}; notes: ${String(titles)}`
   }
   if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
     return 'the sidebar did not list the note'
