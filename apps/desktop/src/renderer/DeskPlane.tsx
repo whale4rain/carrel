@@ -44,7 +44,7 @@ import type { ItemView, Sheet, ThatRequest, ThatView } from '../shared/workspace
 import { DeskNav } from './DeskNav.js'
 import { PdfView, type Focus } from './PdfView.js'
 import { NoteView } from './NoteView.js'
-import { KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
+import { citesLine, KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 import { pdfSelection } from './that.js'
 import { SavedThat, ThatTray } from './ThatTray.js'
 import { asWebPage, embedded } from './video.js'
@@ -544,15 +544,22 @@ export function DeskPlane({
     const item = items.get(show.itemId)
     if (!item) return
     handled.current = show.nonce
-    const sheet = latest.current.find((candidate) => candidate.itemId === show.itemId)
+    showItem(item, show.write === true)
+  })
+  function showItem(item: ItemView, write: boolean): void {
+    const sheet = latest.current.find((candidate) => candidate.itemId === item.id)
     if (sheet) bringForward(sheet)
     else {
       const size = SHEET_FOR[item.kind]
       const middle = toDesk(view, { x: screen.w / 2, y: screen.h / 2 })
       addSheets([item], { x: Math.round(middle.x - (size.w * size.scale) / 2), y: Math.round(middle.y - (size.h * size.scale) / 2) })
     }
-    if (show.write) setWriting(show.itemId)
-  })
+    if (write) setWriting(item.id)
+  }
+  // The notes that cite each source, and the source whose list is open.
+  const citedBy = new Map<string, ItemView[]>()
+  for (const note of items.values()) for (const source of note.cites ?? []) citedBy.set(source, [...(citedBy.get(source) ?? []), note])
+  const [backlinks, setBacklinks] = useState<string>()
 
   const openThat = (that: ThatView): void => {
     setSavedCopy(undefined)
@@ -709,6 +716,38 @@ export function DeskPlane({
                 <div className="sheet-label" onPointerDown={(event) => startMove(event, sheet.id)}>
                   {item && <span className="sheet-kind">{KIND_LABEL[item.kind]}</span>}
                   <span className="sheet-title">{title}</span>
+                  {item && citedBy.has(item.id) && (
+                    <span className="cited-by" onPointerDown={(event) => event.stopPropagation()}>
+                      <button
+                        type="button"
+                        aria-expanded={backlinks === sheet.id}
+                        onClick={() => {
+                          const notes = citedBy.get(item.id)!
+                          if (notes.length === 1) showItem(notes[0]!, false)
+                          else setBacklinks(backlinks === sheet.id ? undefined : sheet.id)
+                        }}
+                      >
+                        {citedBy.get(item.id)!.length === 1 ? '1 note' : `${citedBy.get(item.id)!.length} notes`}
+                      </button>
+                      {backlinks === sheet.id && (
+                        <span className="cited-by-menu" role="menu">
+                          {citedBy.get(item.id)!.map((note) => (
+                            <button
+                              type="button"
+                              role="menuitem"
+                              key={note.id}
+                              onClick={() => {
+                                setBacklinks(undefined)
+                                showItem(note, false)
+                              }}
+                            >
+                              {note.title}
+                            </button>
+                          ))}
+                        </span>
+                      )}
+                    </span>
+                  )}
                   {positions.has(sheet.id) && <span className="position">{positions.get(sheet.id)}</span>}
                   <span className="position">{Math.round(sheet.scale * 100)}%</span>
                 </div>
@@ -717,6 +756,7 @@ export function DeskPlane({
                     item={item}
                     write={writing === item.id}
                     onSaved={(saved) => onItemsAdded([saved])}
+                    cites={citesLine(item.cites, items)}
                     onOpenThat={(id) => {
                       const that = thats.find((known) => known.id === id)
                       if (that) openThat(that)

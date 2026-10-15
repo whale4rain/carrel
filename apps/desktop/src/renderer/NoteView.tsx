@@ -1,4 +1,6 @@
-import { mergeAttributes, Node, type JSONContent } from '@tiptap/core'
+import { Extension, mergeAttributes, Node, type JSONContent } from '@tiptap/core'
+import { Plugin } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { Placeholder } from '@tiptap/extensions'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
@@ -35,6 +37,33 @@ export const ThatChip = Node.create({
   },
 })
 
+/** The same #tag pattern the notes use (`tagsOf` in @carrel/core). */
+const TAG = /(^|[\s(])#([\p{L}\p{N}][\p{L}\p{N}_-]*)/gu
+
+/** #tags in the text show as tags; they stay plain text in the file. */
+const Tags = Extension.create({
+  name: 'tags',
+  addProseMirrorPlugins() {
+    return [
+      new Plugin({
+        props: {
+          decorations: (state) => {
+            const marks: Decoration[] = []
+            state.doc.descendants((node, pos) => {
+              if (!node.isText || !node.text) return
+              for (const match of node.text.matchAll(TAG)) {
+                const from = pos + match.index + match[1]!.length
+                marks.push(Decoration.inline(from, from + match[2]!.length + 1, { class: 'note-tag' }))
+              }
+            })
+            return DecorationSet.create(state.doc, marks)
+          },
+        },
+      }),
+    ]
+  },
+})
+
 /** Only what a note's Markdown keeps. */
 const extensions = [
   StarterKit.configure({
@@ -49,6 +78,7 @@ const extensions = [
     placeholder: ({ node, pos }) => (pos === 0 && node.type.name === 'heading' ? 'Title' : 'Write here…'),
   }),
   ThatChip,
+  Tags,
 ]
 
 /** A new note starts with a title line. */
@@ -63,9 +93,12 @@ export function NoteView({
   write,
   onSaved,
   onOpenThat,
+  cites,
 }: {
   item: ItemView
   write: boolean
+  /** What the note cites, in words: "Cites a paper and a video." */
+  cites: string | undefined
   onSaved: (item: ItemView) => void
   /** A chip in the note was clicked: open the spot it points at. */
   onOpenThat: (id: string) => void
@@ -154,6 +187,7 @@ export function NoteView({
   return (
     <div className="note-view" data-scrolls>
       <EditorContent editor={editor} />
+      {cites && <p className="note-cites">{cites}</p>}
       {error && (
         <p className="note-error" role="alert">
           Not saved: {error}

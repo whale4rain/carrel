@@ -42,3 +42,24 @@ export function linkIn(text: string): string | undefined {
     return undefined
   }
 }
+
+const NOUN: Record<ViewKind, string> = {
+  book: 'book',
+  paper: 'paper',
+  web_page: 'web page',
+  video: 'video',
+  note: 'note',
+}
+
+/** What a note cites, in words: "Cites a paper and two videos." */
+export function citesLine(cites: readonly string[] | undefined, items: ReadonlyMap<string, ItemView>): string | undefined {
+  const counts = new Map<ViewKind, number>()
+  for (const id of cites ?? []) {
+    const kind = items.get(id)?.kind
+    if (kind) counts.set(kind, (counts.get(kind) ?? 0) + 1)
+  }
+  if (counts.size === 0) return undefined
+  const parts = [...counts].map(([kind, n]) => (n === 1 ? `a ${NOUN[kind]}` : `${n} ${NOUN[kind]}s`))
+  const list = parts.length === 1 ? parts[0] : `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}`
+  return `Cites ${list}.`
+}

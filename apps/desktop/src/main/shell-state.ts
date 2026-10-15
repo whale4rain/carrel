@@ -101,11 +101,12 @@ export class ShellController {
   async items(): Promise<ItemView[]> {
     const { open } = await this.state()
     if (!open) return []
-    return [...(await this.library.list(open.project)).map(itemView), ...(await this.notes.list(open.project)).map(noteItem)]
+    const sources = await this.citedItems(open.project)
+    return [...(await this.library.list(open.project)).map(itemView), ...(await this.notes.list(open.project)).map((note) => noteItem(note, sources))]
   }
 
   async createNote(): Promise<ItemView> {
-    return noteItem(await this.notes.create(await this.openFolder()))
+    return noteItem(await this.notes.create(await this.openFolder()), new Map())
   }
 
   async note(id: string): Promise<NoteView> {
@@ -115,7 +116,13 @@ export class ShellController {
   /** A note's new text from the editor, checked before it is written. */
   async saveNote(id: string, doc: unknown): Promise<ItemView> {
     if (typeof id !== 'string' || !isNoteDoc(doc)) throw new Error('That is not a note.')
-    return noteItem(await this.notes.save(await this.openFolder(), id, doc))
+    const folder = await this.openFolder()
+    return noteItem(await this.notes.save(folder, id, doc), await this.citedItems(folder))
+  }
+
+  /** Which item each *that.* points into, so a note knows the sources it cites. */
+  private async citedItems(folder: string): Promise<Map<string, string>> {
+    return new Map((await this.anchors.list(folder)).map((anchor) => [anchor.id, anchor.itemId]))
   }
 
   async addFiles(paths: unknown): Promise<ItemView[]> {
@@ -221,8 +228,9 @@ function itemView(item: ItemFile): ItemView {
   return item.source.storage === 'linked' ? { ...base, url: item.source.url } : { ...base, file: { name: item.source.file, size: item.source.size } }
 }
 
-function noteItem(note: NoteSummary): ItemView {
-  return { id: note.id, kind: 'note', title: note.title, updatedAt: note.updatedAt }
+function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {
+  const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) ? [sources.get(that)!] : [])))]
+  return { id: note.id, kind: 'note', title: note.title, updatedAt: note.updatedAt, tags: note.tags, cites }
 }
 
 function noteView(note: NoteFile): NoteView {

@@ -1282,3 +1282,96 @@ kbd {
 .row .grow.indent {
   padding-left: 22px;
 }
+
+/* #tags: an outline pill, in the note and in the sidebar. */
+.note-tag {
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  color: var(--ink-muted);
+}
+
+.note-cites {
+  margin: 0;
+  padding: 0 var(--space-6) var(--space-6);
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 4px 10px 4px 32px;
+}
+
+.tag {
+  padding: 1px 7px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: var(--text-caption);
+  cursor: pointer;
+}
+
+.tag:hover {
+  color: var(--ink);
+}
+
+.tag[aria-pressed='true'] {
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* Backlinks: the notes that cite a source, from its label row. */
+.cited-by {
+  position: relative;
+  flex: none;
+}
+
+.cited-by > button {
+  padding: 0 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-mark);
+  background: transparent;
+  color: var(--ink-muted);
+  font: var(--text-caption);
+  cursor: pointer;
+}
+
+.cited-by > button:hover,
+.cited-by > button[aria-expanded='true'] {
+  color: var(--ink);
+  border-color: var(--ink-muted);
+}
+
+.cited-by-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  min-width: 180px;
+  padding: 4px;
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+}
+
+.cited-by-menu button {
+  padding: 6px 8px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: var(--text-body);
+  text-align: left;
+  cursor: pointer;
+}
+
+.cited-by-menu button:hover {
+  background: var(--paper-2);
+}

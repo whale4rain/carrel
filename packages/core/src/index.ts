@@ -44,6 +44,8 @@ export {
   isNoteDoc,
   parseInline,
   plainText,
+  TAG,
+  tagsOf,
   THAT_SCHEME,
   toMarkdown,
   type NoteBlock,

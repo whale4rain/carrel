@@ -329,6 +329,19 @@ export function citedThats(doc: NoteDoc): string[] {
   return ids
 }
 
+/** A #tag: a hash after a space or the start of a line, then a letter or digit. */
+export const TAG = /(^|[\s(])#([\p{L}\p{N}][\p{L}\p{N}_-]*)/gu
+
+/** The note's #tags, lower-cased, in order, each once. */
+export function tagsOf(doc: NoteDoc): string[] {
+  const tags: string[] = []
+  for (const match of plainText(doc).matchAll(TAG)) {
+    const tag = match[2]!.toLowerCase()
+    if (!tags.includes(tag)) tags.push(tag)
+  }
+  return tags
+}
+
 /** Checks a document from the renderer before it is written. */
 export function isNoteDoc(value: unknown): value is NoteDoc {
   if (typeof value !== 'object' || value === null) return false

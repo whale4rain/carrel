@@ -367,6 +367,10 @@ async function deskInteractions(
   const cited = `window.carrel.workspace.items().then((items) => window.carrel.workspace.note(items.find((item) => item.kind === 'note').id))
     .then((note) => JSON.stringify(note.doc).includes('"type":"that"'))`
   if (!(await waitFor(cited))) return 'the note did not keep its chip'
+  // A #tag typed in the note shows in the sidebar; the PDF's label says a note cites it.
+  window.webContents.insertText(' #micro')
+  if (!(await waitFor("[...document.querySelectorAll('.sidebar .tag')].some((tag) => tag.textContent === '#micro')"))) return 'the note\'s #tag did not show in the sidebar'
+  if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"] .cited-by button')?.textContent === '1 note'"))) return 'the PDF did not say a note cites it'
   return undefined
 }
 
@@ -451,6 +455,9 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       const hit = await page<string>(`(() => { const e = document.elementFromPoint(${at.x}, ${at.y}); return (e?.className ?? 'none') + ' in ' + (e?.closest('.sheet')?.getAttribute('data-kind') ?? 'no sheet') })()`)
       return fail(`the note's chip did not open its PDF (at ${at.x},${at.y} is ${hit})`)
     }
+    // The PDF's backlink brings its note forward.
+    await page("document.querySelector('.sheet[data-kind=\"paper\"] .cited-by button').click()")
+    if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"][data-selected]') !== null"))) return fail('the PDF\'s backlink did not bring its note forward')
     // A that. whose words are gone opens its saved copy.
     await page(`window.carrel.workspace.items().then((items) => window.carrel.workspace.makeThat({
       itemId: items.find((item) => item.kind === 'paper').id, page: 1, text: { source: 'Words this PDF never had', start: 0, end: 24 },

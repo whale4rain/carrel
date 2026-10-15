@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { isMissing } from './files.js'
-import { fromMarkdown, plainText, toMarkdown, type NoteDoc } from './note-markdown.js'
+import { citedThats, fromMarkdown, plainText, tagsOf, toMarkdown, type NoteDoc } from './note-markdown.js'
 import type { Actor, Workspace } from './workspace.js'
 
 /**
@@ -19,6 +19,10 @@ export interface NoteSummary {
   createdBy: Actor
   createdAt: string
   updatedAt: string
+  /** Its #tags, lower-cased. */
+  tags: string[]
+  /** The *that.*s it cites, by anchor id. */
+  cites: string[]
 }
 
 export interface NoteFile extends NoteSummary {
@@ -66,6 +70,8 @@ export class Notes {
     return {
       id,
       title: titleOf(doc),
+      tags: tagsOf(doc),
+      cites: citedThats(doc),
       createdBy: header.createdBy === 'agent' ? 'agent' : 'user',
       createdAt: header.created ?? stamp,
       updatedAt: header.updated ?? header.created ?? stamp,
@@ -75,7 +81,7 @@ export class Notes {
 
   async create(folder: string, doc: NoteDoc = { type: 'doc', content: [] }, actor: Actor = 'user'): Promise<NoteFile> {
     const stamp = this.now().toISOString()
-    const note: NoteFile = { id: randomUUID(), title: titleOf(doc), createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
+    const note: NoteFile = { id: randomUUID(), title: titleOf(doc), tags: tagsOf(doc), cites: citedThats(doc), createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
     await this.write(folder, note)
     await this.workspace.event(folder, actor, 'note.added', { id: note.id })
     return note
@@ -85,7 +91,7 @@ export class Notes {
   async save(folder: string, id: string, doc: NoteDoc, actor: Actor = 'user'): Promise<NoteFile> {
     const before = await this.read(folder, id)
     if (toMarkdown(before.doc) === toMarkdown(doc)) return before
-    const note: NoteFile = { ...before, doc, title: titleOf(doc), updatedAt: this.now().toISOString() }
+    const note: NoteFile = { ...before, doc, title: titleOf(doc), tags: tagsOf(doc), cites: citedThats(doc), updatedAt: this.now().toISOString() }
     await this.write(folder, note)
     await this.workspace.event(folder, actor, 'note.edited', { id })
     return note
@@ -120,7 +126,7 @@ export class Notes {
 }
 
 export function summaryOf(note: NoteFile): NoteSummary {
-  return { id: note.id, title: note.title, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt }
+  return { id: note.id, title: note.title, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt, tags: note.tags, cites: note.cites }
 }
 
 /** The first line of a note, or "Untitled note". */
