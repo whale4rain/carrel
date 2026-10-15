@@ -30,6 +30,13 @@ export interface ItemFile {
   createdBy: Actor
   createdAt: string
   source: ItemSource
+  /** Where a book or paper was last read: a page, and how far down it (0 to 1). */
+  readAt?: ReadingPosition
+}
+
+export interface ReadingPosition {
+  page: number
+  offset: number
 }
 
 /** Files Carrel can store as sources, by extension. */
@@ -86,6 +93,19 @@ export class Library {
     await writeJson(this.itemFile(folder, id), next)
     await this.workspace.event(folder, actor, 'item.renamed', { id, title: trimmed })
     return next
+  }
+
+  /**
+   * Remembers where a book or paper was last read. Like a desk's view, it is
+   * kept without an event: it changes with every scroll.
+   */
+  async setReadAt(folder: string, id: string, at: ReadingPosition): Promise<void> {
+    const item = await this.read(folder, id)
+    if (item.source.storage !== 'stored') throw new Error('Only books and papers keep a reading position.')
+    const page = Math.max(1, Math.round(at.page))
+    const offset = Math.min(1, Math.max(0, at.offset))
+    if (item.readAt?.page === page && item.readAt.offset === offset) return
+    await writeJson(this.itemFile(folder, id), { ...item, readAt: { page, offset } })
   }
 
   /** Copies a PDF into the project as a new item. */

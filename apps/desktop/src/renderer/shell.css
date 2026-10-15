@@ -2524,3 +2524,118 @@ kbd {
 .library-scrim {
   z-index: 200000;
 }
+
+/* A book or paper: a reading strip (contents, page, zoom) over its pages. */
+.pdf-reader {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: calc(100% - 36px);
+}
+
+.pdf-reader .pdf-view {
+  flex: 1;
+  height: auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+.pdf-tools {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 2px;
+  height: 30px;
+  padding: 0 var(--space-3);
+  border-top: 1px solid var(--rule);
+  color: var(--ink-muted);
+  font: var(--text-caption);
+}
+
+.pdf-tools > button {
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: var(--radius-mark);
+  color: var(--ink-muted);
+  font: var(--text-caption);
+}
+
+.pdf-tools > button:hover,
+.pdf-tools > button[aria-expanded='true'] {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.pdf-tools button.position {
+  font-family: var(--font-mono);
+}
+
+.pdf-jump {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: var(--space-2);
+  font-family: var(--font-mono);
+}
+
+.pdf-jump input {
+  width: 4ch;
+  height: 20px;
+  padding: 0 4px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-mark);
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+  text-align: right;
+}
+
+.pdf-contents {
+  position: absolute;
+  top: 30px;
+  left: var(--space-2);
+  z-index: 10;
+  width: min(320px, calc(100% - 16px));
+  max-height: 60%;
+  overflow-y: auto;
+  padding: var(--space-1);
+  border-radius: var(--radius-sheet);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+}
+
+.pdf-contents p {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  color: var(--ink-muted);
+}
+
+.pdf-contents ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pdf-contents ul ul {
+  padding-left: var(--space-3);
+}
+
+.pdf-contents button {
+  display: flex;
+  gap: var(--space-2);
+  width: 100%;
+  padding: 4px var(--space-2);
+  border-radius: 4px;
+  color: var(--ink);
+  font: var(--text-caption);
+  text-align: left;
+}
+
+.pdf-contents button:hover:not(:disabled) {
+  background: var(--paper-2);
+}
+
+.pdf-contents .position {
+  color: var(--ink-muted);
+}

@@ -1,8 +1,8 @@
 // What the renderer sees of projects and desks, and how it asks for changes.
 // Main owns the files; the renderer only gets summaries back.
-import type { ItemKind, NoteDoc, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
+import type { ItemKind, NoteDoc, ReadingPosition, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
 
-export type { ItemKind, NoteDoc, Selector, Sheet, SheetChange, Viewport }
+export type { ItemKind, NoteDoc, ReadingPosition, Selector, Sheet, SheetChange, Viewport }
 
 /** What can sit on a sheet: a source, or a note. */
 export type ViewKind = ItemKind | 'note'
@@ -139,6 +139,10 @@ export interface WorkspaceApi {
   itemBytes(id: string): Promise<Uint8Array>
   /** A web page's last snapshot (PNG), if it has one. */
   snapshot(id: string): Promise<Uint8Array | null>
+  /** Where a book or paper was last read, if it has been. */
+  readAt(id: string): Promise<ReadingPosition | null>
+  /** Remembers where a book or paper is being read. */
+  saveReadAt(id: string, at: ReadingPosition): Promise<void>
   /** A linked source told us its title (a video player does); the item, if renamed. */
   sourceTitle(id: string, title: string): Promise<ItemView | null>
   /** Keeps a *that.* in the project. */
@@ -199,6 +203,8 @@ export const workspaceChannels = {
   addLink: 'workspace:add-link',
   itemBytes: 'workspace:item-bytes',
   snapshot: 'workspace:snapshot',
+  readAt: 'workspace:read-at',
+  saveReadAt: 'workspace:save-read-at',
   sourceTitle: 'workspace:source-title',
   makeThat: 'workspace:make-that',
   thats: 'workspace:thats',

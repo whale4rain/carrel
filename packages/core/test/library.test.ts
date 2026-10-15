@@ -34,6 +34,18 @@ describe('Library', () => {
     expect(events.at(-1)).toMatchObject({ actor: 'user', type: 'item.added', payload: { id: item.id, kind: 'paper' } })
   })
 
+  it('remembers where a book was last read, without an event', async () => {
+    const pdf = join(home, 'Supply.pdf')
+    await writeFile(pdf, '%PDF-1.4 test')
+    const item = await library.addFile('Learn economics', pdf)
+    const events = (await workspace.readEvents('Learn economics')).length
+    await library.setReadAt('Learn economics', item.id, { page: 12.4, offset: 1.5 })
+    expect((await library.read('Learn economics', item.id)).readAt).toEqual({ page: 12, offset: 1 })
+    expect(await workspace.readEvents('Learn economics')).toHaveLength(events)
+    const page = await library.addLink('Learn economics', 'https://example.com/rent')
+    await expect(library.setReadAt('Learn economics', page.id, { page: 1, offset: 0 })).rejects.toThrow(/books and papers/)
+  })
+
   it('refuses files it cannot open', async () => {
     const text = join(home, 'notes.txt')
     await writeFile(text, 'hi')
