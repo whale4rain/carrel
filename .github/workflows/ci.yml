@@ -40,6 +40,15 @@ jobs:
       - run: pnpm build
       - name: Start the desktop app
         run: pnpm --filter @carrel/desktop smoke
+      - name: End-to-end test of the core loop
+        run: pnpm --filter @carrel/desktop e2e
+      - name: Keep the end-to-end test's screenshots when it fails
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: e2e-${{ matrix.os }}
+          path: apps/desktop/test-results/
+          if-no-files-found: ignore
       - name: Spike check, live web on the desk
         run: pnpm --filter @carrel/spike-web check
       - name: Spike check, video on the desk
