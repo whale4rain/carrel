@@ -1,6 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { agentChannels, type AgentApi, type AgentLive, type ProposalView } from '../shared/agent-api.js'
-import { workspaceChannels, type ItemView, type ThatView, type WebApi, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
+import { workspaceChannels, type ItemView, type ThatView, type WebApi, type WebLoading, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
   const reply = (await ipcRenderer.invoke(channel, ...args)) as WorkspaceReply
@@ -50,6 +50,9 @@ const web: WebApi = {
   showThat: (sheet, that) => ipcRenderer.send('web:show-that', { sheet, that }),
   onFound: (listener) => listen<{ that: string; found: boolean }>('web:found', ({ that, found }) => listener(that, found)),
   onShortcut: (listener) => listen<string>('web:shortcut', listener),
+  onLoading: (listener) => listen<{ sheet: string; state: WebLoading }>('web:loading', ({ sheet, state }) => listener(sheet, state)),
+  fitWidth: (sheet) => ipcRenderer.invoke('web:fit-width', sheet) as Promise<number>,
+  reload: (sheet) => ipcRenderer.send('web:reload', sheet),
 }
 
 const agent: AgentApi = {

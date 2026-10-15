@@ -55,6 +55,8 @@ interface Page {
   loaded: boolean
   /** A *that.* to open once it has. */
   focus?: string
+  /** The last load failed. */
+  failed?: boolean
 }
 
 /**
@@ -120,7 +122,7 @@ export class WebViews {
     if (sheet?.url && sheet.itemId) {
       const page = this.open(sheet.id, sheet.itemId, sheet.url)
       page.view.setBounds(bounds(sheet.page))
-      page.zoom = Math.max(0.25, Math.min(2, sheet.zoom))
+      page.zoom = Math.max(0.25, Math.min(3, sheet.zoom))
       page.view.webContents.setZoomFactor(page.zoom)
       page.usedAt = Date.now()
       if (this.live !== sheet.id) {
@@ -150,7 +152,12 @@ export class WebViews {
     // Keys go to the live page, not the desk, so ⌘. is caught here.
     view.webContents.on('before-input-event', (event, input) => {
       const mod = process.platform === 'darwin' ? input.meta : input.control
-      // The app's own shortcuts (search, the agent) still work while a page has the keyboard.
+      // The app's own shortcuts (search, the agent, the page's zoom) still work while a page has the keyboard.
+      if (input.type === 'keyDown' && mod && !input.alt && (input.key === '=' || input.key === '+' || input.key === '-' || input.key === '0')) {
+        event.preventDefault()
+        this.window.webContents.send('web:shortcut', input.key === '+' ? '=' : input.key)
+        return
+      }
       if (input.type === 'keyDown' && mod && !input.shift && !input.alt && (input.key === 'k' || input.key === 'j')) {
         event.preventDefault()
         this.window.webContents.send('web:shortcut', input.key)
@@ -162,7 +169,20 @@ export class WebViews {
         if (isPageSelection(text)) return this.hooks.that(itemId, text).then(() => this.mark(page))
       }).catch(() => undefined)
     })
-    view.webContents.on('did-start-loading', () => (page.loaded = false))
+    view.webContents.on('did-start-loading', () => {
+      page.loaded = false
+      this.send('web:loading', { sheet: id, state: { loading: true } })
+    })
+    view.webContents.on('did-stop-loading', () => {
+      if (!page.failed) this.send('web:loading', { sheet: id, state: { loading: false } })
+      delete page.failed
+    })
+    view.webContents.on('did-fail-load', (_event, code, description, _url, mainFrame) => {
+      // -3 is a load replaced by another one, not a failure.
+      if (!mainFrame || code === -3) return
+      page.failed = true
+      this.send('web:loading', { sheet: id, state: { loading: false, error: description || `error ${code}` } })
+    })
     view.webContents.on('did-finish-load', () => {
       // Loading a page resets its zoom, so the sheet's is put back.
       view.webContents.setZoomFactor(page.zoom)
@@ -175,6 +195,24 @@ export class WebViews {
     this.pages.set(id, page)
     void view.webContents.loadURL(url).catch(() => undefined)
     return page
+  }
+
+  /** Loads the sheet's page again, if it is open. */
+  reload(sheet: string): void {
+    this.pages.get(sheet)?.view.webContents.reload()
+  }
+
+  /** How much the page must shrink so its width fits the sheet: 1 when it already fits or can't be measured. */
+  async fitWidth(sheet: string): Promise<number> {
+    const page = this.pages.get(sheet)
+    if (!page?.loaded) return 1
+    const sizes = (await page.view.webContents
+      .executeJavaScript('[document.documentElement.scrollWidth, document.documentElement.clientWidth]')
+      .catch(() => undefined)) as unknown
+    if (!Array.isArray(sizes)) return 1
+    const [content, shown] = sizes as unknown[]
+    if (typeof content !== 'number' || typeof shown !== 'number' || content <= 0 || shown <= 0) return 1
+    return Math.min(1, shown / content)
   }
 
   /** Opens a *that.* in its sheet's page, now or once the page has loaded. */

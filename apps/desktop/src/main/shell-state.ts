@@ -484,7 +484,8 @@ function isSheet(value: unknown): value is Sheet {
     sheet.scale <= 1 &&
     finite(sheet.z) &&
     (sheet.pile === undefined || typeof sheet.pile === 'string') &&
-    (sheet.folded === undefined || sheet.folded === true)
+    (sheet.folded === undefined || sheet.folded === true) &&
+    (sheet.pageZoom === undefined || (finite(sheet.pageZoom) && sheet.pageZoom >= 0.25 && sheet.pageZoom <= 3))
   )
 }
 

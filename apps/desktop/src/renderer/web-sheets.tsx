@@ -8,6 +8,15 @@ const web = window.carrel.web
 
 /** The sheet's label row, in desk units at 100%. */
 const LABEL = 36
+/** The steps of a web page's own zoom inside its sheet. */
+export const PAGE_ZOOMS = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3] as const
+
+/** The next page zoom step in or out from `current`. */
+export function pageZoomStep(current: number, direction: 1 | -1): number {
+  if (direction > 0) return PAGE_ZOOMS.find((step) => step > current + 0.001) ?? PAGE_ZOOMS.at(-1)!
+  return [...PAGE_ZOOMS].reverse().find((step) => step < current - 0.001) ?? PAGE_ZOOMS[0]
+}
+
 /** Things drawn over the desk that a live page must not cover (search covers the whole window). */
 const OVERLAYS = '.desk-nav, .focus-bar, .focus-shelf, .selection-bar, .add-menu, .desk-error, .that-tray, .that-saved, .search-scrim'
 
@@ -82,7 +91,7 @@ export function useWebSheets(props: {
           box,
           page: { x: box.x, y: box.y + label, w: box.w, h: box.h - label },
           z: sheet.z,
-          zoom: sheet.scale * view.zoom,
+          zoom: sheet.scale * view.zoom * (sheet.pageZoom ?? 1),
           ...(asWebPage(item) ? { itemId: item.id, url: item.url } : {}),
         }
       }),

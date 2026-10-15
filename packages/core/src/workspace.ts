@@ -49,6 +49,8 @@ export interface Sheet {
   pile?: string
   /** Folded down to its label row. */
   folded?: boolean
+  /** A web page's own zoom inside its sheet (1 when absent). */
+  pageZoom?: number
 }
 
 export interface DeskFile {

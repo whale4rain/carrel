@@ -42,7 +42,7 @@ import {
   type View,
 } from '@carrel/desk'
 import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
-import type { ItemView, Sheet, ThatRequest, ThatView } from '../shared/workspace-api.js'
+import type { ItemView, Sheet, ThatRequest, ThatView, WebLoading } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView, type Focus } from './PdfView.js'
 import { NoteView } from './NoteView.js'
@@ -51,7 +51,7 @@ import { pdfSelection } from './that.js'
 import { SavedThat, ThatTray } from './ThatTray.js'
 import { asWebPage, embedded } from './video.js'
 import { seekVideo, VideoView, videoMoment } from './VideoView.js'
-import { useWebSheets, WebPage } from './web-sheets.js'
+import { pageZoomStep, useWebSheets, WebPage } from './web-sheets.js'
 
 const api = window.carrel.workspace
 
@@ -177,6 +177,15 @@ export function DeskPlane({
   const [view, setView] = useState<View>({ x: 0, y: 0, zoom: 1 })
   // The web sheet clicked into; it goes live when nothing covers it.
   const [active, setActive] = useState<string>()
+  // Web pages loading, or that failed to load, by sheet.
+  const [loading, setLoading] = useState<ReadonlyMap<string, WebLoading>>(new Map())
+  useEffect(
+    () =>
+      window.carrel.web.onLoading((sheet, state) =>
+        setLoading((known) => (state.loading || state.error ? new Map(known).set(sheet, state) : new Map([...known].filter(([id]) => id !== sheet)))),
+      ),
+    [],
+  )
   // Where each source sheet is reading (a page, a time), for its label.
   const [positions, setPositions] = useState<ReadonlyMap<string, string>>(new Map())
   const reportPosition = useCallback((sheet: string, at: string): void => {
@@ -530,6 +539,31 @@ export function DeskPlane({
     setActive(undefined)
   }
 
+  // A web page's own zoom inside its sheet: a step in or out, 100%, or as wide as the sheet.
+  const zoomPage = useCallback(
+    async (id: string, how: 1 | -1 | 'actual' | 'fit'): Promise<void> => {
+      const sheet = latest.current.find((candidate) => candidate.id === id)
+      if (!sheet) return
+      const now = sheet.pageZoom ?? 1
+      let next: number
+      if (how === 'actual') next = 1
+      else if (how === 'fit') {
+        const shrink = await window.carrel.web.fitWidth(id)
+        next = shrink < 0.99 ? Math.max(0.25, Math.round(now * shrink * 100) / 100) : 1
+      } else next = pageZoomStep(now, how)
+      const current = latest.current
+      const updated = current.map((other) => {
+        if (other.id !== id) return other
+        const zoomed: Sheet = { ...other, pageZoom: next }
+        if (next === 1) delete zoomed.pageZoom
+        return zoomed
+      })
+      const ids = changed(current, updated).map((other) => other.id)
+      if (ids.length > 0) save(updated, 'zoomed', ids, current)
+    },
+    [save],
+  )
+
   const removeSelected = useCallback((): void => {
     const current = latest.current
     const next = remove(current, selected)
@@ -707,8 +741,12 @@ export function DeskPlane({
       if (event.key === ' ') space.current = true
       if (focused) {
         // Focus keeps the desk as it is: only Esc, that. and swapping sheets.
+        const page = webSheet(focused)
         if (event.key === 'Escape') leaveFocus()
         else if (mod && event.key === '.') void pointAt()
+        else if (page && mod && (event.key === '=' || event.key === '+')) void zoomPage(focused, 1)
+        else if (page && mod && event.key === '-') void zoomPage(focused, -1)
+        else if (page && mod && event.key === '0') void zoomPage(focused, 'actual')
         else return
         event.preventDefault()
         return
@@ -746,6 +784,25 @@ export function DeskPlane({
   // Scale choices close when the selection changes.
   useEffect(() => setScaling(false), [selected])
 
+  // ⌘+, ⌘− and ⌘0 pressed inside a live page zoom that page.
+  const liveRef = useRef<string | undefined>(undefined)
+  useEffect(
+    () =>
+      window.carrel.web.onShortcut((key) => {
+        const id = liveRef.current
+        if (!id) return
+        if (key === '=') void zoomPage(id, 1)
+        else if (key === '-') void zoomPage(id, -1)
+        else if (key === '0') void zoomPage(id, 'actual')
+      }),
+    [zoomPage],
+  )
+  /** The sheet, if it shows a web page. */
+  function webSheet(id: string): boolean {
+    const itemId = latest.current.find((sheet) => sheet.id === id)?.itemId
+    return itemId != null && asWebPage(items.get(itemId)) !== undefined
+  }
+
   const chosen = sheets.filter((sheet) => selected.has(sheet.id))
   const stacks = piles(sheets)
   // The selection is exactly one pile, or holds part of one.
@@ -760,6 +817,7 @@ export function DeskPlane({
   const nearby = screen.w === 0 ? sheets : sheets.filter((sheet) => selected.has(sheet.id) || intersects(footprint(sheet), reach))
   const mounted: Sheet[] = inFocus ? [focusLayout(inFocus, screen)] : nearby
   const { live, snapshots } = useWebSheets({ mat, sheets: mounted, items, view: shownView, active, moving: gesture !== undefined && gesture.kind !== 'marquee' })
+  liveRef.current = live
   const single = !inFocus && selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
   const shelf = inFocus ? sheets.filter((sheet) => sheet.id !== inFocus.id).sort((a, b) => a.y - b.y || a.x - b.x) : []
 
@@ -896,7 +954,34 @@ export function DeskPlane({
                     </span>
                   )}
                   {positions.has(sheet.id) && <span className="position">{positions.get(sheet.id)}</span>}
-                  <span className="position">{Math.round(sheet.scale * 100)}%</span>
+                  {asWebPage(item) && !sheet.folded ? (
+                    <span className="web-tools" onPointerDown={(event) => event.stopPropagation()}>
+                      {loading.get(sheet.id)?.error && (
+                        <>
+                          <span className="web-error" title={loading.get(sheet.id)?.error}>
+                            Couldn't load
+                          </span>
+                          <button type="button" onClick={() => window.carrel.web.reload(sheet.id)}>
+                            Reload
+                          </button>
+                        </>
+                      )}
+                      <button type="button" aria-label="Zoom page out" title="Zoom page out (⌘−)" onClick={() => void zoomPage(sheet.id, -1)}>
+                        −
+                      </button>
+                      <button type="button" className="position" aria-label="Page zoom" title="Actual size (⌘0)" onClick={() => void zoomPage(sheet.id, 'actual')}>
+                        {Math.round((sheet.pageZoom ?? 1) * 100)}%
+                      </button>
+                      <button type="button" aria-label="Zoom page in" title="Zoom page in (⌘+)" onClick={() => void zoomPage(sheet.id, 1)}>
+                        +
+                      </button>
+                      <button type="button" title="Fit the page's width to the sheet" disabled={live !== sheet.id} onClick={() => void zoomPage(sheet.id, 'fit')}>
+                        Fit
+                      </button>
+                    </span>
+                  ) : (
+                    <span className="position">{Math.round(sheet.scale * 100)}%</span>
+                  )}
                   {!inFocus && (
                     <button
                       type="button"
@@ -909,6 +994,7 @@ export function DeskPlane({
                       {sheet.folded ? '+' : '–'}
                     </button>
                   )}
+                  {loading.get(sheet.id)?.loading && <span className="web-loading" role="progressbar" aria-label="Loading page" />}
                 </div>
                 {sheet.folded ? null : item?.kind === 'note' ? (
                   <NoteView
