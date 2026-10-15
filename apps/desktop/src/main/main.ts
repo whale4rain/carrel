@@ -420,6 +420,14 @@ async function deskInteractions(
   if (!(await waitFor(`document.querySelector('.agent-panel .proposal[data-state="accepted"]') !== null && ${notes} === ${before + 1} && document.querySelector('.agent-panel .proposal-open')?.textContent === 'Open note'`))) {
     return `Tab did not accept the proposal: ${String(await page("document.querySelector('.agent-body')?.innerText ?? 'no panel'"))}`
   }
+  // that. on an answer marks it and gives a chip; Add to note (the PDF is selected, not a note) starts a note citing the turn.
+  await page("[...document.querySelectorAll('.agent-answer:not([data-live]) .turn-that')].at(-1).click()")
+  if (!(await waitFor("document.querySelector('.agent-answer[data-that] .turn-chip')?.textContent === 'turn'"))) return 'that. did not point at the turn'
+  await page("document.querySelector('.agent-answer[data-that] .turn-note').click()")
+  if (!(await waitFor(`${notes} === ${before + 2} && document.querySelector('.agent-answer[data-that] .turn-note')?.textContent.startsWith('Added to') === true`))) {
+    return `Add to note did not make a note: ${String(await page("document.querySelector('.agent-answer[data-that] .turn-note')?.textContent ?? 'no button'"))}`
+  }
+  if (!(await waitFor("[...document.querySelectorAll('.sheet[data-kind=\"note\"] .note-chip')].some((chip) => chip.textContent === 'turn')"))) return 'the new note does not cite the turn'
   return undefined
 }
 

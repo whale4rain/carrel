@@ -254,6 +254,17 @@ inks it and writes it; "Open note" lays it on the desk. Proposals are kept in
 `~/Carrel/<project>/proposals/`, and the events log says who proposed and who
 accepted.
 
+### Keeping a turn
+
+![An answer pointed at with that. (a highlighter stroke in its margin and a turn chip), added to a new note that cites the turn; day and night](screenshot-turns.png)
+
+Under each answer, hover for **that.** and **Add to note**. *that.* points at
+the turn itself: it keeps a highlighter stroke in its margin and a `turn`
+chip you can drag into a note. Clicking a `turn` chip anywhere opens the
+thread at that turn, and it brightens. **Add to note** copies the answer and
+a chip back to it into the note selected on the desk, or into a new note
+titled with your question. That is your own edit, so it is written at once.
+
 **The model.** DeepSeek (`deepseek-flash`) by default. The first time, the
 panel asks for a key and keeps it in `~/.carrel/model.json`, encrypted by the
 system keychain. `CARREL_LLM_API_KEY` overrides it; `CARREL_LLM_BASE_URL` and

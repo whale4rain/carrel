@@ -1,4 +1,4 @@
-import { carrelRoots, Workspace } from '@carrel/core'
+import { carrelRoots, Threads, Workspace } from '@carrel/core'
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -233,6 +233,33 @@ describe("the agent's proposals through the shell", () => {
     const again = await shell.propose('Learn economics', { kind: 'source', url: 'https://example.com/elasticity' }, {})
     expect((await shell.decideProposal(again.id, true)).item).toMatchObject({ url: 'https://example.com/elasticity' })
     await expect(shell.propose('Learn economics', { kind: 'note', note: 'nope', text: 'x' }, {})).rejects.toThrow('not in this project')
+    shell.close()
+  })
+})
+
+describe('turns of the project thread through the shell', () => {
+  it('points at a turn once, and adds it to a note with a chip back to it', async () => {
+    const workspace = new Workspace(carrelRoots(home))
+    const shell = new ShellController(workspace)
+    await shell.createProject('Learn economics')
+    const threads = new Threads(workspace)
+    await threads.add('Learn economics', { by: 'user', text: 'Why is coffee inelastic?' })
+    const answer = await threads.add('Learn economics', { by: 'agent', text: 'It is a **habit**.' })
+
+    const that = await shell.thatTurn(answer.id)
+    expect(that).toMatchObject({ itemId: 'thread:project', label: 'turn', text: 'It is a **habit**.' })
+    expect(await shell.thatTurn(answer.id)).toEqual(that)
+    await expect(shell.thatTurn('nope')).rejects.toThrow('not in the project thread')
+    expect(await shell.thatText('Learn economics', that.id)).toMatchObject({ source: 'Project thread', label: 'turn' })
+
+    const fresh = await shell.addTurnToNote(answer.id, undefined)
+    expect(fresh).toMatchObject({ kind: 'note', title: 'Why is coffee inelastic?', cites: [] })
+    const text = (await shell.readItem('Learn economics', fresh.id)).text
+    expect(text).toBe(`# Why is coffee inelastic?\n\nIt is a **habit**.\n\n[turn](that:${that.id})\n`)
+
+    const note = await shell.createNote()
+    await shell.addTurnToNote(answer.id, note.id)
+    expect((await shell.readItem('Learn economics', note.id)).text).toContain(`[turn](that:${that.id})`)
     shell.close()
   })
 })

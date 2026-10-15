@@ -18,6 +18,7 @@ export function App() {
   const [items, setItems] = useState<ReadonlyMap<string, ItemView>>(new Map())
   // What the sidebar or search asked the desk to show.
   const [show, setShow] = useState<ShowRequest>()
+  const [focusTurn, setFocusTurn] = useState<{ id: string; nonce: number }>()
   const [searching, setSearching] = useState(false)
   const [talking, setTalking] = useState(false)
   // The that.s you made since you last asked, which the agent's composer points at; and the desk in view.
@@ -44,11 +45,18 @@ export function App() {
   // A chip in an answer opens its spot, laying its source on the desk if it isn't there.
   const openThat = async (id: string): Promise<void> => {
     const that = (await api.thats()).find((known) => known.id === id)
-    if (that) setShow({ itemId: that.itemId, nonce: Date.now(), that: that.id })
+    if (!that) return
+    // A that. on a turn opens the thread there.
+    const turn = that.itemId.startsWith('thread:') ? that.selectors.find((selector) => selector.type === 'FragmentSelector' && selector.value.startsWith('turn=')) : undefined
+    if (turn?.type === 'FragmentSelector') {
+      setTalking(true)
+      setFocusTurn({ id: turn.value.slice('turn='.length), nonce: Date.now() })
+    } else setShow({ itemId: that.itemId, nonce: Date.now(), that: that.id })
   }
   const openHit = (hit: SearchHitView): void => {
     const nonce = Date.now()
-    if (hit.kind === 'that' && hit.itemId) setShow({ itemId: hit.itemId, nonce, that: hit.id })
+    if (hit.kind === 'that' && hit.itemId?.startsWith('thread:')) void openThat(hit.id)
+    else if (hit.kind === 'that' && hit.itemId) setShow({ itemId: hit.itemId, nonce, that: hit.id })
     else if (hit.kind === 'page' && hit.itemId && hit.page !== undefined) setShow({ itemId: hit.itemId, nonce, page: hit.page })
     else setShow({ itemId: hit.id, nonce })
   }
@@ -133,6 +141,16 @@ export function App() {
                 addItems([item])
                 // The desk stays as you left it; an open note shows what was added.
                 if (item.kind === 'note') window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: item.id }))
+              }}
+              focusTurn={focusTurn}
+              onAddToNote={async (turnId) => {
+                // The note selected on the desk, or a new one laid on the desk.
+                const selected = deskContext.current?.selected.find((id) => items.get(id)?.kind === 'note')
+                const note = await window.carrel.agent.addToNote(turnId, selected)
+                addItems([note])
+                window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: note.id }))
+                if (!selected) setShow({ itemId: note.id, nonce: Date.now() })
+                return note
               }}
               onClose={() => setTalking(false)}
             />

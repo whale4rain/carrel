@@ -52,7 +52,7 @@ export class SearchIndex {
       for (const note of searchable.notes) insert.run('note', note.id, null, null, note.title, note.text)
       for (const item of searchable.items) insert.run('source', item.id, item.id, null, item.title, '')
       for (const that of searchable.thats) {
-        if (that.text.length > 0) insert.run('that', that.id, that.itemId, null, `${titles.get(that.itemId) ?? 'A source'} ${that.label}`.trim(), that.text)
+        if (that.text.length > 0) insert.run('that', that.id, that.itemId, null, `${titles.get(that.itemId) ?? (that.itemId.startsWith('thread:') ? 'Project thread' : 'A source')} ${that.label}`.trim(), that.text)
       }
       db.exec('COMMIT')
     } catch (error) {

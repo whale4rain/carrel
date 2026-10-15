@@ -61,6 +61,8 @@ const agent: AgentApi = {
   onThat: (listener) => listen<ThatView>(agentChannels.that, listener),
   proposals: () => call(agentChannels.proposals),
   decide: (id, accept) => call(agentChannels.decide, id, accept),
+  thatTurn: (turnId) => call(agentChannels.thatTurn, turnId),
+  addToNote: (turnId, noteId) => call(agentChannels.addToNote, turnId, noteId),
   onProposal: (listener) => listen<ProposalView>(agentChannels.proposal, listener),
 }
 
