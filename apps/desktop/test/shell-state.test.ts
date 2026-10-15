@@ -126,3 +126,23 @@ describe('that. through the shell', () => {
     await expect(controller().makeThat({ itemId: page.id })).rejects.toThrow(/not a place/)
   })
 })
+
+describe('notes through the shell', () => {
+  it('starts a note, saves it, and lists it with the sources', async () => {
+    const shell = controller()
+    await shell.createProject('Learn economics')
+    const note = await shell.createNote()
+    expect(note).toMatchObject({ kind: 'note', title: 'Untitled note' })
+    const doc = { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Elasticity' }] }] }
+    expect(await shell.saveNote(note.id, doc)).toMatchObject({ id: note.id, title: 'Elasticity' })
+    expect((await controller().items()).map((item) => [item.kind, item.title])).toEqual([['note', 'Elasticity']])
+    expect((await shell.note(note.id)).doc).toEqual(doc)
+  })
+
+  it('refuses a document the editor could not have made', async () => {
+    const shell = controller()
+    await shell.createProject('Learn economics')
+    const note = await shell.createNote()
+    await expect(shell.saveNote(note.id, { type: 'doc', content: [{ type: 'script' }] })).rejects.toThrow('That is not a note.')
+  })
+})

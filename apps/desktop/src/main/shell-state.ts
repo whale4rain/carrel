@@ -2,7 +2,9 @@ import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import {
   Anchors,
+  isNoteDoc,
   Library,
+  Notes,
   momentSelector,
   pageSelector,
   regionSelector,
@@ -11,6 +13,8 @@ import {
   type AnchorFile,
   type DeskFile,
   type ItemFile,
+  type NoteFile,
+  type NoteSummary,
   type OpenProject,
   type Selector,
   type Sheet,
@@ -18,7 +22,7 @@ import {
   type Viewport,
   type Workspace,
 } from '@carrel/core'
-import type { DeskView, ItemView, ShellState, ThatView } from '../shared/workspace-api.js'
+import type { DeskView, ItemView, NoteView, ShellState, ThatView } from '../shared/workspace-api.js'
 
 /**
  * Turns the workspace on disk into what the shell shows, and remembers what
@@ -28,11 +32,13 @@ export class ShellController {
   private readonly workspace: Workspace
   private readonly library: Library
   private readonly anchors: Anchors
+  private readonly notes: Notes
 
-  constructor(workspace: Workspace, library = new Library(workspace), anchors = new Anchors(workspace)) {
+  constructor(workspace: Workspace, library = new Library(workspace), anchors = new Anchors(workspace), notes = new Notes(workspace)) {
     this.workspace = workspace
     this.library = library
     this.anchors = anchors
+    this.notes = notes
   }
 
   async state(): Promise<ShellState> {
@@ -91,9 +97,25 @@ export class ShellController {
     return view(await this.workspace.saveViewport(await this.openFolder(), id, { x, y, zoom }))
   }
 
+  /** The project's sources, then its notes (most recently changed first). */
   async items(): Promise<ItemView[]> {
     const { open } = await this.state()
-    return open ? (await this.library.list(open.project)).map(itemView) : []
+    if (!open) return []
+    return [...(await this.library.list(open.project)).map(itemView), ...(await this.notes.list(open.project)).map(noteItem)]
+  }
+
+  async createNote(): Promise<ItemView> {
+    return noteItem(await this.notes.create(await this.openFolder()))
+  }
+
+  async note(id: string): Promise<NoteView> {
+    return noteView(await this.notes.read(await this.openFolder(), id))
+  }
+
+  /** A note's new text from the editor, checked before it is written. */
+  async saveNote(id: string, doc: unknown): Promise<ItemView> {
+    if (typeof id !== 'string' || !isNoteDoc(doc)) throw new Error('That is not a note.')
+    return noteItem(await this.notes.save(await this.openFolder(), id, doc))
   }
 
   async addFiles(paths: unknown): Promise<ItemView[]> {
@@ -197,6 +219,14 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
 function itemView(item: ItemFile): ItemView {
   const base = { id: item.id, kind: item.kind, title: item.title }
   return item.source.storage === 'linked' ? { ...base, url: item.source.url } : { ...base, file: { name: item.source.file, size: item.source.size } }
+}
+
+function noteItem(note: NoteSummary): ItemView {
+  return { id: note.id, kind: 'note', title: note.title, updatedAt: note.updatedAt }
+}
+
+function noteView(note: NoteFile): NoteView {
+  return { id: note.id, title: note.title, doc: note.doc, updatedAt: note.updatedAt }
 }
 
 function thatView(anchor: AnchorFile): ThatView {

@@ -154,6 +154,31 @@ and shows what it said when it was made. Every *that.* on a PDF page or a web
 page keeps a soft yellow band under its words. The tray shows the *that.*s of
 the sources on this desk, so chips come back after a restart.
 
+## Notes
+
+![A note beside a PDF, with a that. chip; day and night](screenshot-notes.png)
+
+**+ New note** in the sidebar lays an empty note on the desk, ready to type:
+its first line is its title. Click a note in the sidebar to bring it forward,
+or to lay it on this desk. A note saves itself a moment after you stop
+typing. Headings, lists, quotes, **bold**, *italic* and `code` are kept.
+
+Notes are plain Markdown, so they read fine outside Carrel. A *that.* chip is
+a link to its anchor:
+
+```
+~/Carrel/<project>/notes/<id>.md
+  ---
+  id: …
+  title: "Elasticity"
+  created: …
+  updated: …
+  ---
+  # Elasticity
+
+  How strongly buyers react when a price moves. [p.42](that:<anchor id>)
+```
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,

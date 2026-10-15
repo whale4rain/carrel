@@ -37,3 +37,18 @@ export {
   type TextPositionSelector,
   type TextQuoteSelector,
 } from './selectors.js'
+export { Notes, splitHeader, summaryOf, titleOf, UNTITLED, type NoteFile, type NoteSummary } from './notes.js'
+export {
+  citedThats,
+  fromMarkdown,
+  isNoteDoc,
+  parseInline,
+  plainText,
+  THAT_SCHEME,
+  toMarkdown,
+  type NoteBlock,
+  type NoteDoc,
+  type NoteInline,
+  type NoteListItem,
+  type NoteMark,
+} from './note-markdown.js'

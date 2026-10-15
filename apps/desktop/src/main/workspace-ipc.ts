@@ -33,6 +33,9 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     saveSheets: (id, sheets, change) => controller.saveSheets(text(id), sheets, change),
     saveViewport: (id, viewport) => controller.saveViewport(text(id), viewport),
     items: () => controller.items(),
+    createNote: () => controller.createNote(),
+    note: (id) => controller.note(text(id)),
+    saveNote: (id, doc) => controller.saveNote(text(id), doc),
     chooseFiles: async () => {
       // The smoke check stands in for the person at the file dialog.
       const stand = process.env.CARREL_CHOOSE_FILES
