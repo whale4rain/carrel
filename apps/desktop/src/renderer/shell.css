@@ -2167,3 +2167,121 @@ kbd {
   color: var(--ink-muted);
   text-align: center;
 }
+
+/* Focus: one sheet fills the desk under a dark bar; the rest wait on the shelf. */
+.focus-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 44px;
+  padding: 0 var(--space-4);
+  background: var(--ink);
+  color: var(--paper);
+  font-family: var(--font-ui);
+  font-size: 13px;
+}
+
+.focus-bar span {
+  flex: 1;
+  opacity: 0.7;
+}
+
+.focus-bar button {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 28px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-ui);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.focus-bar kbd {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+}
+
+.focus-shelf {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 100001;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  height: 96px;
+  padding: 0 var(--space-4);
+  border-top: 1px solid var(--rule);
+  background: var(--paper-2);
+  font-family: var(--font-ui);
+  font-size: 12px;
+}
+
+.focus-shelf-label {
+  flex: none;
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.focus-shelf ul {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+}
+
+.focus-shelf button {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  width: 168px;
+  height: 64px;
+  padding: 8px 10px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-sheet);
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: var(--shadow-sheet);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.focus-shelf button:hover {
+  border-color: var(--ink-muted);
+}
+
+.focus-card-title {
+  overflow: hidden;
+  max-width: 100%;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.focus-shelf-empty {
+  color: var(--ink-muted);
+}
+
+/* The that. tray sits above the shelf in Focus. */
+.desk-mat[data-focus] .that-tray {
+  bottom: 108px;
+}
