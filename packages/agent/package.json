@@ -1,0 +1,17 @@
+{
+  "name": "@carrel/agent",
+  "version": "0.0.0",
+  "private": true,
+  "description": "The agent in Carrel: each project's thread on tnega, with Carrel's tools.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@carrel/core": "workspace:*",
+    "tnega": "0.5.0"
+  }
+}

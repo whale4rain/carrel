@@ -210,6 +210,30 @@ The index is SQLite full-text search in `~/.carrel/index/<project>.sqlite`,
 rebuilt from the project's files as needed. A PDF's pages are read once when
 it is added, and again only if its file changes.
 
+## The agent
+
+![The project thread beside the desk: a question, the folded steps line opened, and the answer; day and night](screenshot-agent.png)
+
+Press ⌘J (Ctrl+J), or click Agent at the top or Project thread in the
+sidebar. The project's ongoing thread docks on the right and the desk makes
+room. Ask in the box at the foot (Enter sends, Shift+Enter adds a line). The
+agent searches the project (notes, sources, *that.*s, PDF pages) before it
+answers about what you have read or noted.
+
+Each answer opens with one folded line: what the agent did and what it sent
+("▸ Searched for “coffee” · 2 steps · sent 3 KB"). Open it for every step and
+the tokens the model reported. The header keeps the thread's running total.
+
+The thread is kept in the project as `threads/project.jsonl`, one line per
+turn with its steps and cost, so it outlives any model. tnega's own state
+lives in `~/.carrel/agent/`.
+
+**The model.** DeepSeek (`deepseek-flash`) by default. The first time, the
+panel asks for a key and keeps it in `~/.carrel/model.json`, encrypted by the
+system keychain. `CARREL_LLM_API_KEY` overrides it; `CARREL_LLM_BASE_URL` and
+`CARREL_LLM_MODEL` pick another OpenAI-compatible route. `CARREL_LLM=scripted`
+answers with a stand-in model that needs no network (the smoke check uses it).
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,

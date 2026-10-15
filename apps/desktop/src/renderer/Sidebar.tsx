@@ -15,6 +15,8 @@ export interface WorkspaceActions {
   openNote(id: string): void
   /** Opens Search everything. */
   search(): void
+  /** Opens the project thread beside the desk. */
+  openThread(): void
 }
 
 interface Props {
@@ -159,7 +161,7 @@ export function Sidebar({ frame, state, actions, items }: Props) {
 
           <section className="group" aria-label="Conversations">
             <h2>Conversations</h2>
-            <button type="button" className="row">
+            <button type="button" className="row" onClick={actions.openThread}>
               <span className="agent-seat" aria-hidden>
                 a
               </span>

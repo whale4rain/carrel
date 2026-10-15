@@ -32,6 +32,9 @@ importers:
 
   apps/desktop:
     dependencies:
+      '@carrel/agent':
+        specifier: workspace:*
+        version: link:../../packages/agent
       '@carrel/core':
         specifier: workspace:*
         version: link:../../packages/core
@@ -65,6 +68,9 @@ importers:
       react-dom:
         specifier: ^19.2.0
         version: 19.3.0(react@19.3.0)
+      tnega:
+        specifier: 0.5.0
+        version: 0.5.0
     devDependencies:
       '@types/react':
         specifier: ^19.2.0
@@ -84,6 +90,15 @@ importers:
       vite:
         specifier: ^8.0.0
         version: 8.3.4(@types/node@24.19.2)(esbuild@0.28.2)
+
+  packages/agent:
+    dependencies:
+      '@carrel/core':
+        specifier: workspace:*
+        version: link:../core
+      tnega:
+        specifier: 0.5.0
+        version: 0.5.0
 
   packages/core:
     dependencies:

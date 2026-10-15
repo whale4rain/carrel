@@ -45,7 +45,7 @@ function tinyPdf(text) {
 function run(mode, home) {
   return new Promise((resolve) => {
     const child = spawn(electron, args, {
-      env: { ...process.env, CARREL_SMOKE: mode, CARREL_HOME: home, CARREL_CHOOSE_FILES: join(home, 'Elasticity.pdf'), CARREL_SMOKE_PAGE: page },
+      env: { ...process.env, CARREL_SMOKE: mode, CARREL_HOME: home, CARREL_CHOOSE_FILES: join(home, 'Elasticity.pdf'), CARREL_SMOKE_PAGE: page, CARREL_LLM: 'scripted' },
       stdio: ['ignore', 'pipe', 'inherit'],
     })
     let output = ''

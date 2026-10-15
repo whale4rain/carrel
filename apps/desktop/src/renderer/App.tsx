@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { frameFor } from '../shared/frame.js'
 import type { ItemView, SearchHitView, ShellState } from '../shared/workspace-api.js'
 import { Welcome } from './Desk.js'
+import { AgentPanel } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
 import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
@@ -17,17 +18,24 @@ export function App() {
   // What the sidebar or search asked the desk to show.
   const [show, setShow] = useState<ShowRequest>()
   const [searching, setSearching] = useState(false)
+  const [talking, setTalking] = useState(false)
 
-  // ⌘K / Ctrl+K searches from anywhere, even while writing.
+  // ⌘K / Ctrl+K searches and ⌘J / Ctrl+J opens the agent, from anywhere, even while writing.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'k') {
-        event.preventDefault()
-        setSearching((now) => !now)
-      }
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return
+      const key = event.key.toLowerCase()
+      if (key === 'k') setSearching((now) => !now)
+      else if (key === 'j') setTalking((now) => !now)
+      else return
+      event.preventDefault()
     }
     window.addEventListener('keydown', onKey, true)
-    return () => window.removeEventListener('keydown', onKey, true)
+    const offPage = window.carrel.web.onShortcut((key) => (key === 'k' ? setSearching : setTalking)((now) => !now))
+    return () => {
+      window.removeEventListener('keydown', onKey, true)
+      offPage()
+    }
   }, [])
   const openHit = (hit: SearchHitView): void => {
     const nonce = Date.now()
@@ -70,13 +78,14 @@ export function App() {
     },
     openNote: (id) => setShow({ itemId: id, nonce: Date.now(), write: true }),
     search: () => setSearching(true),
+    openThread: () => setTalking(true),
   }
 
   const open = state?.open
   const desk = open?.desks.find((entry) => entry.id === open.desk)
 
   return (
-    <div className="shell" data-carrel-shell={state ? '' : undefined} data-frame={frame}>
+    <div className="shell" data-carrel-shell={state ? '' : undefined} data-frame={frame} data-agent={talking && open ? '' : undefined}>
       {frame === 'windows' && (
         <div className="titlestrip">
           <span className="titlestrip-mark">Carrel</span>
@@ -90,8 +99,9 @@ export function App() {
       {state && (
         <>
           <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} />
-          <TopBar frame={frame} project={open?.project} desk={desk?.name} />
+          <TopBar frame={frame} project={open?.project} desk={desk?.name} agentOpen={talking} onAgent={() => setTalking((now) => !now)} />
           {open && desk ? <DeskPlane key={desk.id} deskId={desk.id} name={desk.name} items={items} onItemsAdded={addItems} show={show} /> : <Welcome onCreate={actions.createProject} />}
+          {talking && open && <AgentPanel key={open.project} project={open.project} onClose={() => setTalking(false)} />}
           {searching && open && <SearchPalette items={items} onOpen={openHit} onClose={() => setSearching(false)} />}
         </>
       )}
