@@ -2285,3 +2285,135 @@ kbd {
 .desk-mat[data-focus] .that-tray {
   bottom: 108px;
 }
+
+/* ---- The library: the project's sources and notes, by shelf ------------- */
+
+.library-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8vh;
+  background: rgba(18, 26, 23, 0.18);
+}
+
+.library {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 48px));
+  max-height: 80vh;
+  border-radius: var(--radius-sheet);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.library-head h2 {
+  margin: 0;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  font-family: var(--font-read);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.library-shelves {
+  display: flex;
+  gap: 2px;
+  padding: 0 var(--space-3) var(--space-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.library-shelves button {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 6px;
+  color: var(--ink-muted);
+  font: var(--text-label);
+}
+
+.library-shelves button[aria-selected='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.library-shelves .count {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.7;
+}
+
+.library-list {
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.library-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 6px;
+  text-align: left;
+  color: var(--ink);
+}
+
+.library-row:hover,
+.library-row:focus-visible {
+  background: var(--paper-2);
+}
+
+.library-icon,
+.library-agent {
+  display: flex;
+  flex: none;
+  color: var(--ink-muted);
+}
+
+.library-agent {
+  color: var(--pencil);
+}
+
+.library-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.library-title {
+  overflow: hidden;
+  font: var(--text-label);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-meta {
+  color: var(--ink-muted);
+  font-size: 11px;
+}
+
+.library-where {
+  flex: none;
+  color: var(--ink-muted);
+  font: var(--text-caption);
+}
+
+.library-row:hover .library-where {
+  color: var(--ink);
+}
+
+.library-empty {
+  padding: var(--space-4);
+  color: var(--ink-muted);
+  font: var(--text-body);
+}

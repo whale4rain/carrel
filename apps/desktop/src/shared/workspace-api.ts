@@ -22,6 +22,9 @@ export interface ItemView {
   url?: string
   /** Stored items: the file's name and size in bytes. */
   file?: { name: string; size: number }
+  /** Who added it, and when. */
+  createdBy?: 'user' | 'agent'
+  createdAt?: string
 }
 
 /** A note, with its text as the editor's document. */

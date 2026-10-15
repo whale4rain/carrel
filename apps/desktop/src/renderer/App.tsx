@@ -6,6 +6,7 @@ import { Welcome } from './Desk.js'
 import { AgentPanel, NEW_SIDE } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
 import { NOTE_CHANGED } from './NoteView.js'
+import { Library, type Shelf } from './Library.js'
 import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
@@ -25,6 +26,8 @@ export function App() {
   const [sides, setSides] = useState<SideThread[]>([])
   const [searching, setSearching] = useState(false)
   const [talking, setTalking] = useState(false)
+  // The library's open shelf, if it is open.
+  const [library, setLibrary] = useState<Shelf>()
   // The that.s you made since you last asked, which the agent's composer points at; and the desk in view.
   const [pointing, setPointing] = useState<ThatView[]>([])
   const deskContext = useRef<{ name: string; items: string[]; selected: string[] }>(undefined)
@@ -102,6 +105,7 @@ export function App() {
     },
     openNote: (id) => setShow({ itemId: id, nonce: Date.now(), write: true }),
     search: () => setSearching(true),
+    openLibrary: (shelf) => setLibrary(shelf),
     openThread: (id = PROJECT_THREAD) => {
       setThreadId(id)
       setTalking(true)
@@ -169,6 +173,18 @@ export function App() {
                 return note
               }}
               onClose={() => setTalking(false)}
+            />
+          )}
+          {library && open && (
+            <Library
+              items={items}
+              shelf={library}
+              onDesk={new Set(deskContext.current?.items ?? [])}
+              onOpen={(item) => {
+                setLibrary(undefined)
+                setShow({ itemId: item.id, nonce: Date.now() })
+              }}
+              onClose={() => setLibrary(undefined)}
             />
           )}
           {searching && open && <SearchPalette items={items} onOpen={openHit} onClose={() => setSearching(false)} />}

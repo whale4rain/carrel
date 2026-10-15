@@ -5,6 +5,7 @@ import type { ItemView, ShellState } from '../shared/workspace-api.js'
 import type { SideThread } from '../shared/agent-api.js'
 import { BookIcon, ChevronIcon, LinkIcon, NoteIcon, SearchIcon, SparkIcon } from './icons.js'
 import { initials } from './initials.js'
+import type { Shelf } from './Library.js'
 import { NameField } from './NameField.js'
 
 export interface WorkspaceActions {
@@ -16,6 +17,8 @@ export interface WorkspaceActions {
   openNote(id: string): void
   /** Opens Search everything. */
   search(): void
+  /** Opens the library at a shelf. */
+  openLibrary(shelf: Shelf): void
   /** Opens the project thread (or a side thread, by id) beside the desk. */
   openThread(id?: string): void
 }
@@ -146,7 +149,7 @@ export function Sidebar({ frame, state, actions, items, sides, thread }: Props) 
                 <span className="grow">{note.title}</span>
               </button>
             ))}
-            <button type="button" className="row">
+            <button type="button" className="row" onClick={() => actions.openLibrary('notes')}>
               <span className="grow indent">All notes</span>
               <span className="count">{notes.length}</span>
             </button>
@@ -184,25 +187,25 @@ export function Sidebar({ frame, state, actions, items, sides, thread }: Props) 
 
           <section className="group" aria-label="Library">
             <h2>Library</h2>
-            <button type="button" className="row">
+            <button type="button" className="row" onClick={() => actions.openLibrary('books')}>
               <BookIcon />
               <span className="grow">Books &amp; papers</span>
               <span className="count">{count('book', 'paper')}</span>
             </button>
-            <button type="button" className="row">
+            <button type="button" className="row" onClick={() => actions.openLibrary('videos')}>
               <LinkIcon />
               <span className="grow">Videos</span>
               <span className="count">{count('video')}</span>
             </button>
-            <button type="button" className="row">
+            <button type="button" className="row" onClick={() => actions.openLibrary('web')}>
               <LinkIcon />
               <span className="grow">Web pages</span>
               <span className="count">{count('web_page')}</span>
             </button>
-            <button type="button" className="row">
+            <button type="button" className="row" onClick={() => actions.openLibrary('agent')}>
               <SparkIcon />
               <span className="grow">Made by the agent</span>
-              <span className="count">0</span>
+              <span className="count">{items.filter((item) => item.createdBy === 'agent').length}</span>
             </button>
           </section>
         </>

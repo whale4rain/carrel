@@ -437,14 +437,14 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
 }
 
 function itemView(item: ItemFile): ItemView {
-  const base = { id: item.id, kind: item.kind, title: item.title }
+  const base = { id: item.id, kind: item.kind, title: item.title, createdBy: item.createdBy, createdAt: item.createdAt }
   return item.source.storage === 'linked' ? { ...base, url: item.source.url } : { ...base, file: { name: item.source.file, size: item.source.size } }
 }
 
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {
   // Turns of a thread are not sources.
   const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) && !threadOf(sources.get(that)!) ? [sources.get(that)!] : [])))]
-  return { id: note.id, kind: 'note', title: note.title, updatedAt: note.updatedAt, tags: note.tags, cites }
+  return { id: note.id, kind: 'note', title: note.title, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
 }
 
 function noteView(note: NoteFile): NoteView {
