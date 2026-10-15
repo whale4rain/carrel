@@ -1,4 +1,5 @@
 import { tokens } from '@carrel/margin'
+import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { WINDOWS_TITLE_HEIGHT, windowOptions } from '../src/main/window-options.js'
 
@@ -25,6 +26,12 @@ describe('windowOptions', () => {
 
   it('opens on the mat color, so there is no white flash', () => {
     expect(windowOptions('darwin', '/p', 'night').backgroundColor).toBe(tokens.colors.mat.night)
+  })
+
+  it('gives Windows its .ico and Linux a PNG; Mac takes the bundle icon', () => {
+    expect(windowOptions('win32', '/p', 'day', '/icons').icon).toBe(join('/icons', 'icon.ico'))
+    expect(windowOptions('linux', '/p', 'day', '/icons').icon).toBe(join('/icons', 'icon.png'))
+    expect(windowOptions('darwin', '/p', 'day', '/icons').icon).toBeUndefined()
   })
 
   it('keeps the renderer sandboxed', () => {
