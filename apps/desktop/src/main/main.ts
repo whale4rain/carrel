@@ -18,6 +18,8 @@ import { setAppMenu } from './app-menu.js'
 import { isMenuEntries } from '../shared/menu.js'
 
 const outDir = fileURLToPath(new URL('.', import.meta.url))
+// The app icon files (made by `pnpm icons`), beside out/.
+const iconDir = fileURLToPath(new URL('../build/', import.meta.url))
 
 // `CARREL_SMOKE` opens the window, checks it, and quits. CI uses it to prove
 // the app starts on Mac and Windows: `create` makes a project and a desk,
@@ -78,7 +80,7 @@ function isWebLayout(value: unknown): value is WebLayout {
 }
 
 async function createWindow(): Promise<void> {
-  const window = new BrowserWindow(windowOptions(process.platform, `${outDir}preload.cjs`, currentTheme()))
+  const window = new BrowserWindow(windowOptions(process.platform, `${outDir}preload.cjs`, currentTheme(), iconDir))
   window.once('ready-to-show', () => window.show())
   const id = window.webContents.id
   webViews.set(
@@ -589,6 +591,8 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
 }
 
 app.whenReady().then(async () => {
+  // A packaged Mac app shows the bundle's .icns; in development the dock would show Electron's.
+  if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(join(iconDir, 'icon-mac.png'))
   serveDesk(fileURLToPath(new URL('renderer', import.meta.url)))
   setAppMenu(process.platform)
   const settled = serveWorkspace(controller)
