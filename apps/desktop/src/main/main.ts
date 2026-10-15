@@ -384,15 +384,27 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelector('.search-palette') === null && document.querySelector('.sheet[data-kind=\"paper\"]')?.hasAttribute('data-selected') === true"))) {
     return 'choosing a search result did not show its PDF'
   }
-  // The agent (⌘J), with the scripted model: it searches the project and answers from the note.
+  // The agent (⌘J), with the scripted model: the that.s made above go with the question; it searches the
+  // project, answers from the note, and cites the chip it was given, which opens the PDF.
   await key('J', [mod])
   if (!(await waitFor("document.activeElement?.closest('.agent-panel') != null"))) return '⌘J did not open the agent'
+  if (!(await waitFor("document.querySelectorAll('.agent-pointing .agent-point').length >= 2"))) {
+    return `the composer did not point at the that.s: ${String(await page("document.querySelector('.agent-foot')?.innerText ?? 'no composer'"))}`
+  }
   window.webContents.insertText('What did I note about coffee?')
   await key('Enter')
   const answer = "document.querySelector('.agent-panel .agent-answer:not([data-live]) .agent-text')?.textContent ?? ''"
   if (!(await waitFor(`(${answer}).includes('${NOTE_TITLE}') && document.querySelector('.agent-panel .agent-steps button')?.textContent.includes('Searched for')`))) {
-    return `the agent did not answer from the note: ${String(await page("document.querySelector('.agent-panel')?.innerText ?? 'no panel'"))}`
+    return `the agent did not answer from the note: ${String(await page("document.querySelector('.agent-body')?.innerText ?? 'no panel'"))}`
   }
+  if (!(await waitFor("document.querySelectorAll('.agent-me .that-chip').length >= 2 && document.querySelector('.agent-pointing') === null"))) {
+    return 'the question did not keep the chips it pointed at'
+  }
+  // Select the note from the sidebar, then the answer's chip selects the PDF again.
+  await page(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].find((row) => row.textContent === '${NOTE_TITLE}').click()`)
+  if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"][data-selected]') !== null"))) return 'the sidebar did not bring the note forward'
+  await page("document.querySelector('.agent-text .that-chip').click()")
+  if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null"))) return 'the chip in the answer did not open the PDF'
   return undefined
 }
 

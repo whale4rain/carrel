@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { frameFor } from '../shared/frame.js'
-import type { ItemView, SearchHitView, ShellState } from '../shared/workspace-api.js'
+import type { ItemView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 import { Welcome } from './Desk.js'
 import { AgentPanel } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
@@ -19,6 +19,9 @@ export function App() {
   const [show, setShow] = useState<ShowRequest>()
   const [searching, setSearching] = useState(false)
   const [talking, setTalking] = useState(false)
+  // The that.s you made since you last asked, which the agent's composer points at; and the desk in view.
+  const [pointing, setPointing] = useState<ThatView[]>([])
+  const deskContext = useRef<{ name: string; items: string[]; selected: string[] }>(undefined)
 
   // ⌘K / Ctrl+K searches and ⌘J / Ctrl+J opens the agent, from anywhere, even while writing.
   useEffect(() => {
@@ -37,6 +40,11 @@ export function App() {
       offPage()
     }
   }, [])
+  // A chip in an answer opens its spot, laying its source on the desk if it isn't there.
+  const openThat = async (id: string): Promise<void> => {
+    const that = (await api.thats()).find((known) => known.id === id)
+    if (that) setShow({ itemId: that.itemId, nonce: Date.now(), that: that.id })
+  }
   const openHit = (hit: SearchHitView): void => {
     const nonce = Date.now()
     if (hit.kind === 'that' && hit.itemId) setShow({ itemId: hit.itemId, nonce, that: hit.id })
@@ -100,8 +108,28 @@ export function App() {
         <>
           <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} />
           <TopBar frame={frame} project={open?.project} desk={desk?.name} agentOpen={talking} onAgent={() => setTalking((now) => !now)} />
-          {open && desk ? <DeskPlane key={desk.id} deskId={desk.id} name={desk.name} items={items} onItemsAdded={addItems} show={show} /> : <Welcome onCreate={actions.createProject} />}
-          {talking && open && <AgentPanel key={open.project} project={open.project} onClose={() => setTalking(false)} />}
+          {open && desk ? <DeskPlane
+              key={desk.id}
+              deskId={desk.id}
+              name={desk.name}
+              items={items}
+              onItemsAdded={addItems}
+              show={show}
+              onPointed={(that) => setPointing((now) => [...now.filter((other) => other.id !== that.id), that])}
+              onContext={(context) => (deskContext.current = context)}
+            /> : <Welcome onCreate={actions.createProject} />}
+          {talking && open && (
+            <AgentPanel
+              key={open.project}
+              project={open.project}
+              pointing={pointing}
+              context={() => ({ points: pointing.map((that) => that.id), ...(deskContext.current ? { desk: deskContext.current } : {}) })}
+              onUnpoint={(id) => setPointing((now) => now.filter((that) => that.id !== id))}
+              onAsked={() => setPointing([])}
+              onOpenThat={(id) => void openThat(id)}
+              onClose={() => setTalking(false)}
+            />
+          )}
           {searching && open && <SearchPalette items={items} onOpen={openHit} onClose={() => setSearching(false)} />}
         </>
       )}

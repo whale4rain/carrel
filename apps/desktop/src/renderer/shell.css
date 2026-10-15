@@ -1780,3 +1780,45 @@ kbd {
 .agent-button[aria-pressed='true'] {
   background: var(--pencil-wash);
 }
+
+.agent-pointing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+}
+
+.agent-lead {
+  font: var(--text-marginalia);
+  font-size: 11px;
+  color: var(--ink-muted);
+}
+
+.agent-point {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 20px;
+  cursor: default;
+}
+
+.agent-point button {
+  color: inherit;
+  font-size: 12px;
+  line-height: 1;
+}
+
+/* Chips inside the thread's text sit on the line. */
+.agent-me .that-chip,
+.agent-text .that-chip {
+  height: 18px;
+  padding: 0 5px;
+  font-size: 10px;
+  line-height: 16px;
+  vertical-align: 1px;
+}
+
+.agent-me .that-chip + .that-chip {
+  margin-left: 4px;
+}

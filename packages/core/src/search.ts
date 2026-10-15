@@ -84,6 +84,12 @@ export class SearchIndex {
     }
   }
 
+  /** A PDF's page texts as indexed, by page number (blank pages are left out). */
+  pages(folder: string, itemId: string): Array<{ page: number; text: string }> {
+    const rows = this.db(folder).prepare("SELECT page, body FROM entries WHERE kind = 'page' AND item = ? ORDER BY CAST(page AS INTEGER)").all(itemId) as Array<{ page: number; body: string }>
+    return rows.map((row) => ({ page: Number(row.page), text: row.body }))
+  }
+
   /** Forgets the pages of sources no longer in the project. */
   keepPages(folder: string, itemIds: readonly string[]): void {
     const db = this.db(folder)

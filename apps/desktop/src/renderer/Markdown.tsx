@@ -6,11 +6,15 @@ import type { ReactNode } from 'react'
  * quotes, bold, italic, code) and drawn as plain elements. The agent's
  * answers arrive this way.
  */
-export function Markdown({ text, className }: { text: string; className?: string }) {
-  return <div className={className}>{fromMarkdown(text).content.map((block, at) => blockOf(block, at))}</div>
+export function Markdown({ text, className, onThat }: { text: string; className?: string; onThat?: (id: string) => void }) {
+  const blockOf = (block: NoteBlock, key: number): ReactNode => drawBlock(block, key, onThat)
+  return <div className={className}>{fromMarkdown(text).content.map(blockOf)}</div>
 }
 
-function blockOf(block: NoteBlock, key: number): ReactNode {
+/** *that.* chips open their spot when `onThat` is given. */
+function drawBlock(block: NoteBlock, key: number, onThat: ((id: string) => void) | undefined): ReactNode {
+  const blockOf = (inner: NoteBlock, at: number): ReactNode => drawBlock(inner, at, onThat)
+  const inlines = (content: readonly NoteInline[]): ReactNode[] => drawInlines(content, onThat)
   switch (block.type) {
     case 'paragraph':
       return <p key={key}>{inlines(block.content ?? [])}</p>
@@ -26,10 +30,21 @@ function blockOf(block: NoteBlock, key: number): ReactNode {
   }
 }
 
-function inlines(content: readonly NoteInline[]): ReactNode[] {
+function drawInlines(content: readonly NoteInline[], onThat: ((id: string) => void) | undefined): ReactNode[] {
   return content.map((node, at) => {
     if (node.type === 'hardBreak') return <br key={at} />
-    if (node.type === 'that') return <span key={at} className="that-chip">{node.attrs.label || 'that.'}</span>
+    if (node.type === 'that') {
+      const label = node.attrs.label || 'that.'
+      return onThat ? (
+        <button key={at} type="button" className="that-chip" data-that={node.attrs.id} onClick={() => onThat(node.attrs.id)}>
+          {label}
+        </button>
+      ) : (
+        <span key={at} className="that-chip">
+          {label}
+        </span>
+      )
+    }
     let text: ReactNode = node.text
     for (const mark of node.marks ?? []) {
       text = mark.type === 'bold' ? <strong>{text}</strong> : mark.type === 'italic' ? <em>{text}</em> : <code>{text}</code>

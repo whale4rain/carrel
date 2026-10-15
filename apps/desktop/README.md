@@ -228,6 +228,18 @@ The thread is kept in the project as `threads/project.jsonl`, one line per
 turn with its steps and cost, so it outlives any model. tnega's own state
 lives in `~/.carrel/agent/`.
 
+### Pointing and citing
+
+![Asking about a that.: the question carries the chip, the answer cites the page, and its chip opens the PDF there; right, the composer pointing at a new that.; day and night](screenshot-agent-context.png)
+
+The *that.*s you make go with your next question: they show above the box
+as "pointing at" chips (× to drop one). The agent also hears what is on the
+desk and what is selected. It reads with `read_item` (a note, or PDF pages),
+`resolve_that` and `search_project`, and cites with `make_that`, which
+points at exact words on a PDF page. Its chips in the answer open the spot,
+laying the source on the desk if it isn't there; *that.*s it made are marked
+as the agent's.
+
 **The model.** DeepSeek (`deepseek-flash`) by default. The first time, the
 panel asks for a key and keeps it in `~/.carrel/model.json`, encrypted by the
 system keychain. `CARREL_LLM_API_KEY` overrides it; `CARREL_LLM_BASE_URL` and

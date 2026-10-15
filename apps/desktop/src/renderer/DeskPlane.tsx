@@ -96,6 +96,8 @@ export function DeskPlane({
   items,
   onItemsAdded,
   show,
+  onPointed,
+  onContext,
 }: {
   deskId: string
   name: string
@@ -104,6 +106,10 @@ export function DeskPlane({
   onItemsAdded: (items: ItemView[]) => void
   /** An item asked for from outside the desk (the sidebar, search): brought into view, or put on the desk. */
   show?: ShowRequest | undefined
+  /** You made a *that.*: the agent's composer points at it. */
+  onPointed?: (that: ThatView) => void
+  /** What is on this desk and selected, for the agent. */
+  onContext?: (context: { name: string; items: string[]; selected: string[] }) => void
 }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -127,8 +133,19 @@ export function DeskPlane({
       current = false
     }
   }, [])
-  const addToTray = useCallback((that: ThatView): void => setThats((known) => [...known.filter((other) => other.id !== that.id), that]), [])
+  const keepThat = useCallback((that: ThatView): void => setThats((known) => [...known.filter((other) => other.id !== that.id), that]), [])
+  const pointed = useRef(onPointed)
+  pointed.current = onPointed
+  const addToTray = useCallback(
+    (that: ThatView): void => {
+      keepThat(that)
+      pointed.current?.(that)
+    },
+    [keepThat],
+  )
   useEffect(() => window.carrel.web.onThat(addToTray), [addToTray])
+  // The agent's *that.*s open like yours, but you weren't the one pointing.
+  useEffect(() => window.carrel.agent.onThat(keepThat), [keepThat])
   // Chips taken off the tray this session (the that.s themselves are kept).
   const [offTray, setOffTray] = useState<ReadonlySet<string>>(new Set())
   // The that. being opened, and those whose words are gone from their source.
@@ -545,6 +562,15 @@ export function DeskPlane({
       )
     }
   }
+
+  // Tell the agent what is on the desk and what is selected.
+  const deskItems = sheets.flatMap((sheet) => (sheet.itemId === null ? [] : [sheet.itemId]))
+  const selectedItems = sheets.flatMap((sheet) => (selected.has(sheet.id) && sheet.itemId !== null ? [sheet.itemId] : []))
+  const contextKey = `${name}|${deskItems.join()}|${selectedItems.join()}`
+  useEffect(() => {
+    onContext?.({ name, items: deskItems, selected: selectedItems })
+    // The key holds everything the context is made of.
+  }, [contextKey])
 
   // The sidebar or search asks for an item: bring its sheet forward, or lay it on the desk in the
   // middle of the view. A *that.* or a page in it is opened once its sheet is there.

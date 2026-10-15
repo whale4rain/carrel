@@ -72,6 +72,10 @@ describe('SearchIndex', () => {
     index.sync('Learn economics', project)
     const page = index.search('Learn economics', 'supply').find((hit) => hit.kind === 'page')
     expect(page).toMatchObject({ id: 'i1', itemId: 'i1', page: 3, title: 'Principles of Economics' })
+    expect(index.pages('Learn economics', 'i1')).toEqual([
+      { page: 1, text: 'Chapter 1' },
+      { page: 3, text: 'Elasticity of supply' },
+    ])
     index.keepPages('Learn economics', ['i2'])
     expect(index.search('Learn economics', 'supply').some((hit) => hit.kind === 'page')).toBe(false)
     expect(index.hasPages('Learn economics', 'i1', 'a')).toBe(false)

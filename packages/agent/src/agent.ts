@@ -52,11 +52,20 @@ export class ProjectAgent {
 
   /**
    * Asks in the project's thread. The question is kept at once; the answer
-   * (or why there is none) when the agent is done.
+   * (or why there is none) when the agent is done. `context` goes to the
+   * model before the question (what you point at, what is on the desk) but
+   * the thread keeps only the question and the *that.*s it pointed at.
    */
-  ask(folder: string, text: string, onEvent: (event: AgentEvent) => void = () => undefined): Promise<{ question: Turn; answer: Turn }> {
+  ask(
+    folder: string,
+    text: string,
+    onEvent: (event: AgentEvent) => void = () => undefined,
+    options: { context?: string; points?: string[] } = {},
+  ): Promise<{ question: Turn; answer: Turn }> {
     const run = this.queue.then(async () => {
-      const question = await this.threads.add(folder, { by: 'user', text })
+      const points = options.points?.length ? { points: options.points } : {}
+      const question = await this.threads.add(folder, { by: 'user', text, ...points })
+      const sent = options.context ? `${options.context}\n\n${text}` : text
       const steps: TurnStep[] = []
       let streamed = ''
       this.meter.take()
@@ -64,7 +73,7 @@ export class ProjectAgent {
       let error: string | undefined
       try {
         const project = await this.project(folder)
-        reply = await project.ask(text, (event) => {
+        reply = await project.ask(sent, (event) => {
           if (event.type === 'chunk') {
             streamed += event.text
             onEvent({ type: 'text', text: streamed })

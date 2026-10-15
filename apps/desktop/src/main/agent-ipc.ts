@@ -1,12 +1,12 @@
-import { ProjectAgent, searchProjectTool } from '@carrel/agent'
+import { carrelTools, chip, ProjectAgent } from '@carrel/agent'
 import type { Workspace } from '@carrel/core'
 import { totalCost } from '@carrel/core'
-import { ipcMain, safeStorage } from 'electron'
+import { BrowserWindow, ipcMain, safeStorage } from 'electron'
 import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { LLMAdapter } from 'tnega/agent'
 import { createLlmAdapter } from 'tnega/llm'
-import { agentChannels, type AgentStatus } from '../shared/agent-api.js'
+import { agentChannels, type AgentStatus, type AskContext } from '../shared/agent-api.js'
 import type { WorkspaceReply } from '../shared/workspace-api.js'
 import { scriptedModel } from './scripted-model.js'
 import type { ShellController } from './shell-state.js'
@@ -54,7 +54,17 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
   const agent = new ProjectAgent({
     workspace,
     model: current,
-    tools: (folder) => [searchProjectTool((query) => controller.searchIn(folder, query))],
+    tools: (folder) =>
+      carrelTools({
+        search: (query) => controller.searchIn(folder, query),
+        read: (id, pages) => controller.readItem(folder, id, pages),
+        that: (id) => controller.thatText(folder, id),
+        makeThat: async (id, page, quote) => {
+          const that = await controller.agentThat(folder, id, page, quote)
+          for (const window of BrowserWindow.getAllWindows()) window.webContents.send(agentChannels.that, that)
+          return that
+        },
+      }),
   })
   const openFolder = async (): Promise<string> => {
     const { open } = await controller.state()
@@ -84,13 +94,51 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
     const turns = await agent.turns(await openFolder())
     return { turns, total: totalCost(turns) }
   })
-  handle(agentChannels.ask, async (event, text) => {
+  handle(agentChannels.ask, async (event, text, context) => {
     if (typeof text !== 'string' || text.trim().length === 0) throw new Error('Ask something first.')
     const folder = await openFolder()
-    const { answer } = await agent.ask(folder, text.trim().slice(0, 20_000), (live) => {
-      if (!event.sender.isDestroyed()) event.sender.send(agentChannels.live, live)
-    })
+    const asked = isAskContext(context) ? context : { points: [] }
+    const { answer } = await agent.ask(
+      folder,
+      text.trim().slice(0, 20_000),
+      (live) => {
+        if (!event.sender.isDestroyed()) event.sender.send(agentChannels.live, live)
+      },
+      { context: await contextLine(controller, folder, asked), points: asked.points },
+    )
     return answer
   })
   return () => agent.dispose()
+}
+
+/**
+ * What the model reads before the question: the *that.*s pointed at, with
+ * their words, and the desk in view. Ids are given so the tools can take them.
+ */
+export async function contextLine(controller: ShellController, folder: string, context: AskContext): Promise<string> {
+  const lines: string[] = []
+  const thats = await Promise.all(context.points.slice(0, 12).map((id) => controller.thatText(folder, id).catch(() => undefined)))
+  const pointed = thats.filter((that) => that !== undefined)
+  if (pointed.length > 0) {
+    lines.push('Pointing at:')
+    for (const that of pointed) lines.push(`- ${chip(that)} in “${that.source}” (item ${that.item})${that.quote ? `: “${that.quote.slice(0, 600)}”` : ''}`)
+  }
+  if (context.desk) {
+    const items = new Map((await controller.items()).map((item) => [item.id, item]))
+    const selected = new Set(context.desk.selected)
+    const shown = context.desk.items.slice(0, 30).flatMap((id) => {
+      const item = items.get(id)
+      return item ? [`${item.kind} “${item.title}” (item ${id}${selected.has(id) ? ', selected' : ''})`] : []
+    })
+    if (shown.length > 0) lines.push(`On the desk “${context.desk.name}”: ${shown.join('; ')}.`)
+  }
+  return lines.length > 0 ? ['[Context]', ...lines].join('\n') : ''
+}
+
+function isAskContext(value: unknown): value is AskContext {
+  if (typeof value !== 'object' || value === null) return false
+  const context = value as Record<string, unknown>
+  const ids = (list: unknown): boolean => Array.isArray(list) && list.every((id) => typeof id === 'string')
+  const desk = context.desk as Record<string, unknown> | undefined
+  return ids(context.points) && (desk === undefined || (typeof desk.name === 'string' && ids(desk.items) && ids(desk.selected)))
 }
