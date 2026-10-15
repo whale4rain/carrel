@@ -43,6 +43,11 @@ ipcMain.on('web:show-that', (event, request: { sheet?: unknown; that?: unknown }
   if (typeof request?.sheet === 'string' && typeof request.that === 'string') webViews.get(event.sender.id)?.showThat(request.sheet, request.that)
 })
 
+ipcMain.on('web:reload', (event, sheet: unknown) => {
+  if (typeof sheet === 'string') webViews.get(event.sender.id)?.reload(sheet)
+})
+ipcMain.handle('web:fit-width', (event, sheet: unknown) => (typeof sheet === 'string' ? (webViews.get(event.sender.id)?.fitWidth(sheet) ?? 1) : 1))
+
 // A rectangle of the window as a PNG: a video's frame for its *that.*
 ipcMain.handle('web:frame', async (event, rect: unknown) => {
   const window = BrowserWindow.fromWebContents(event.sender)
