@@ -14,6 +14,7 @@ import { serveAgent } from './agent-ipc.js'
 import { serveWorkspace } from './workspace-ipc.js'
 import { WebViews, type WebLayout } from './web-views.js'
 import { popupMenu } from './menus.js'
+import { setAppMenu } from './app-menu.js'
 import { isMenuEntries } from '../shared/menu.js'
 
 const outDir = fileURLToPath(new URL('.', import.meta.url))
@@ -585,6 +586,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
 
 app.whenReady().then(async () => {
   serveDesk(fileURLToPath(new URL('renderer', import.meta.url)))
+  setAppMenu(process.platform)
   const settled = serveWorkspace(controller)
   const stopAgent = serveAgent(workspace, controller)
   // Let the last save land before quitting; an answer still coming gets a moment to be kept.

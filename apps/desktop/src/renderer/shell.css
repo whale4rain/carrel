@@ -2669,3 +2669,109 @@ kbd {
 .focus-shelf button.focus-pin:hover {
   color: var(--ink);
 }
+
+/* Keyboard shortcuts: one card listing them all, the way this system writes keys. */
+.shortcuts-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 200000;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 8vh;
+  background: rgba(18, 26, 23, 0.18);
+}
+
+.shortcuts {
+  display: flex;
+  flex-direction: column;
+  width: min(760px, calc(100vw - 48px));
+  max-height: 80vh;
+  border-radius: var(--radius-sheet);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.shortcuts-head {
+  display: flex;
+  align-items: center;
+  padding: var(--space-4) var(--space-4) var(--space-2);
+  border-bottom: 1px solid var(--rule);
+}
+
+.shortcuts-head h2 {
+  flex: 1;
+  margin: 0;
+  font-family: var(--font-read);
+  font-size: 20px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.shortcuts-close {
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  padding: 2px 8px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: 11px var(--font-mono);
+  cursor: pointer;
+}
+
+.shortcuts-groups {
+  columns: 2 300px;
+  column-gap: var(--space-5, 32px);
+  padding: var(--space-3) var(--space-4) var(--space-4);
+  overflow-y: auto;
+}
+
+.shortcuts-groups > section {
+  break-inside: avoid;
+  margin-bottom: var(--space-3);
+}
+
+.shortcuts-groups h3 {
+  margin: 0 0 6px;
+  font: 600 11px var(--font-ui);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+}
+
+.shortcuts-groups dl {
+  margin: 0;
+}
+
+.shortcut {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+  padding: 4px 0;
+  border-bottom: 1px solid var(--rule);
+  font: 13px/1.35 var(--font-ui);
+  color: var(--ink);
+}
+
+.shortcut dt {
+  flex: 1;
+}
+
+.shortcut dd {
+  margin: 0;
+  white-space: nowrap;
+}
+
+.shortcut kbd {
+  padding: 1px 6px;
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+/* The sidebar's way to the shortcuts, with its own shortcut beside it. */
+.sidebar-foot .row kbd {
+  margin-left: auto;
+  color: var(--ink-muted);
+}

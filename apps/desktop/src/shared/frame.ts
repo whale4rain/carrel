@@ -13,8 +13,3 @@ export function frameFor(platform: string, override?: string): Frame {
   if (platform === 'win32') return 'windows'
   return 'plain'
 }
-
-/** How a shortcut reads on this frame: ⌘J on Mac, Ctrl+J elsewhere. */
-export function shortcut(frame: Frame, key: string): string {
-  return frame === 'mac' ? `⌘${key}` : `Ctrl+${key}`
-}

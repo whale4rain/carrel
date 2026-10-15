@@ -1,4 +1,5 @@
-import { shortcut, type Frame } from '../shared/frame.js'
+import type { Frame } from '../shared/frame.js'
+import { shortcutLabel } from '../shared/shortcuts.js'
 import { SidebarIcon } from './icons.js'
 
 interface Props {
@@ -22,7 +23,7 @@ export function TopBar({ frame, project, desk, agentOpen, onAgent, sidebarOpen, 
         className="sidebar-button"
         aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
         aria-pressed={sidebarOpen}
-        title={`${sidebarOpen ? 'Hide' : 'Show'} sidebar (${shortcut(frame, '\\')})`}
+        title={`${sidebarOpen ? 'Hide' : 'Show'} sidebar (${shortcutLabel(frame, 'sidebar')})`}
         onClick={onSidebar}
       >
         <SidebarIcon />
@@ -38,7 +39,7 @@ export function TopBar({ frame, project, desk, agentOpen, onAgent, sidebarOpen, 
       )}
       <span className="grow" />
       <button type="button" className="agent-button" aria-pressed={agentOpen} disabled={!project} onClick={onAgent}>
-        Agent <kbd>{shortcut(frame, 'J')}</kbd>
+        Agent <kbd>{shortcutLabel(frame, 'agent')}</kbd>
       </button>
     </header>
   )

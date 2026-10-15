@@ -83,6 +83,8 @@ contextBridge.exposeInMainWorld('carrel', {
   agent,
   /** Shows a native right-click menu; resolves with the id of the command picked. */
   menu: (entries: MenuEntry[]) => ipcRenderer.invoke('menu:popup', entries) as Promise<string | undefined>,
+  /** A command picked in the menu bar, by its shortcut id. */
+  onCommand: (listener: (id: string) => void) => listen<string>('menu:command', listener),
   /** The path of a file dropped on the window. */
   pathForFile: (file: File) => webUtils.getPathForFile(file),
 })

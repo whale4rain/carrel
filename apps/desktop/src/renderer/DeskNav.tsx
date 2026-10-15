@@ -1,6 +1,8 @@
 import { bounds, toDesk, type Rect, type View } from '@carrel/desk'
 import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
 import { HandIcon, MapIcon } from './icons.js'
+import { frame } from './platform.js'
 
 /** The minimap's size on screen. */
 const MAP = { w: 168, h: 112 }
@@ -88,7 +90,7 @@ export function DeskNav(props: {
         </div>
       )}
       <div className="desk-tools">
-        <button type="button" className="desk-hand" aria-label="Hand" aria-pressed={props.hand} title="Hand: drag the desk to move around (H, or hold Space)" onClick={props.onHand}>
+        <button type="button" className="desk-hand" aria-label="Hand" aria-pressed={props.hand} title={`Hand: drag the desk to move around (${shortcutLabel(frame, 'hand')}, or hold Space)`} onClick={props.onHand}>
           <HandIcon />
         </button>
         <button
@@ -108,16 +110,16 @@ export function DeskNav(props: {
         >
           <MapIcon />
         </button>
-        <button type="button" aria-label="Zoom out" onClick={() => props.onZoom(-1)}>
+        <button type="button" aria-label="Zoom out" title={withShortcut(frame, 'Zoom out', 'zoom-out')} onClick={() => props.onZoom(-1)}>
           −
         </button>
-        <button type="button" className="zoom-level position" title="Actual size" onClick={props.onActualSize}>
+        <button type="button" className="zoom-level position" title={withShortcut(frame, 'Actual size', 'actual-size')} onClick={props.onActualSize}>
           {Math.round(view.zoom * 100)}%
         </button>
-        <button type="button" aria-label="Zoom in" onClick={() => props.onZoom(1)}>
+        <button type="button" aria-label="Zoom in" title={withShortcut(frame, 'Zoom in', 'zoom-in')} onClick={() => props.onZoom(1)}>
           +
         </button>
-        <button type="button" onClick={props.onFit}>
+        <button type="button" title={withShortcut(frame, 'Fit everything in view', 'fit')} onClick={props.onFit}>
           Fit
         </button>
         <button type="button" onClick={props.onTidy} disabled={sheets.length < 2}>

@@ -48,6 +48,8 @@ import { PdfView, type Focus } from './PdfView.js'
 import { NoteView } from './NoteView.js'
 import { citesLine, KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 import { pdfSelection } from './that.js'
+import { DESK_COMMAND, frame } from './platform.js'
+import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
 import { TEXT_COMMANDS, type AgentAsk, type MenuEntry } from '../shared/menu.js'
 import { SavedThat, ThatTray } from './ThatTray.js'
 import { asWebPage, embedded } from './video.js'
@@ -618,7 +620,7 @@ export function DeskPlane({
       }
     }
     if (!request) {
-      setError('Select some text, a playing video, or ⌥-drag a region, then press that. (⌘ .) to point at it.')
+      setError(`Select some text, a playing video, or ${frame === 'mac' ? '⌥' : 'Alt+'}drag a region, then press that. (${shortcutLabel(frame, 'that')}) to point at it.`)
       return undefined
     }
     try {
@@ -810,6 +812,33 @@ export function DeskPlane({
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('keyup', onKeyUp)
     }
+  })
+
+  // The menu bar's desk commands do what their keys do.
+  useEffect(() => {
+    const onCommand = (event: Event): void => {
+      const id = (event as CustomEvent<string>).detail
+      const focused = focusedRef.current
+      if (focused) {
+        const page = zoomable(focused)
+        if (id === 'leave') leaveFocus()
+        else if (id === 'that') void pointAt()
+        else if (page && id === 'zoom-in') void zoomPage(focused, 1)
+        else if (page && id === 'zoom-out') void zoomPage(focused, -1)
+        else if (page && id === 'actual-size') void zoomPage(focused, 'actual')
+        return
+      }
+      if (id === 'hand') setHand((on) => !on)
+      else if (id === 'focus' && selected.size === 1) enterFocus([...selected][0]!)
+      else if (id === 'zoom-in') zoomBy(1)
+      else if (id === 'zoom-out') zoomBy(-1)
+      else if (id === 'actual-size') actualSize()
+      else if (id === 'fit') fit()
+      else if (id === 'that') void pointAt()
+      else if (id === 'select-all') setSelected(new Set(latest.current.map((sheet) => sheet.id)))
+    }
+    window.addEventListener(DESK_COMMAND, onCommand)
+    return () => window.removeEventListener(DESK_COMMAND, onCommand)
   })
 
   // Scale choices close when the selection changes.
@@ -1029,13 +1058,13 @@ export function DeskPlane({
                           </button>
                         </>
                       )}
-                      <button type="button" aria-label="Zoom page out" title="Zoom page out (⌘−)" onClick={() => void zoomPage(sheet.id, -1)}>
+                      <button type="button" aria-label="Zoom page out" title={withShortcut(frame, 'Zoom page out', 'zoom-out')} onClick={() => void zoomPage(sheet.id, -1)}>
                         −
                       </button>
-                      <button type="button" className="position" aria-label="Page zoom" title="Actual size (⌘0)" onClick={() => void zoomPage(sheet.id, 'actual')}>
+                      <button type="button" className="position" aria-label="Page zoom" title={withShortcut(frame, 'Actual size', 'actual-size')} onClick={() => void zoomPage(sheet.id, 'actual')}>
                         {Math.round((sheet.pageZoom ?? 1) * 100)}%
                       </button>
-                      <button type="button" aria-label="Zoom page in" title="Zoom page in (⌘+)" onClick={() => void zoomPage(sheet.id, 1)}>
+                      <button type="button" aria-label="Zoom page in" title={withShortcut(frame, 'Zoom page in', 'zoom-in')} onClick={() => void zoomPage(sheet.id, 1)}>
                         +
                       </button>
                       <button type="button" title="Fit the page's width to the sheet" disabled={live !== sheet.id} onClick={() => void zoomPage(sheet.id, 'fit')}>
@@ -1181,7 +1210,7 @@ export function DeskPlane({
         >
           <span className="selection-count">{chosen.length} selected</span>
           {chosen.length === 1 && (
-            <button type="button" className="main" title="Fill the desk with it (⌘↵)" onClick={() => enterFocus(chosen[0]!.id)}>
+            <button type="button" className="main" title={withShortcut(frame, 'Fill the desk with it', 'focus')} onClick={() => enterFocus(chosen[0]!.id)}>
               Focus
             </button>
           )}
@@ -1211,12 +1240,12 @@ export function DeskPlane({
           <button type="button" onClick={foldSelected}>
             {chosen.every((sheet) => sheet.folded) ? 'Open' : 'Fold'}
           </button>
-          <button type="button" title="Take off this desk; it stays in the library (Delete)" onClick={removeSelected}>
+          <button type="button" title={withShortcut(frame, 'Take off this desk; it stays in the library', 'remove')} onClick={removeSelected}>
             Remove
           </button>
           {chosen.length === 1 && chosen[0]?.itemId != null && items.get(chosen[0].itemId)?.kind !== 'note' && !chosen[0].folded && (
             // Pressing it mustn't clear the text selection it points at.
-            <button type="button" className="that" onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
+            <button type="button" className="that" title={withShortcut(frame, 'Point at the selected words, the moment or the region', 'that')} onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
               that.
             </button>
           )}

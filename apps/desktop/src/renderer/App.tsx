@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react'
-import { frameFor } from '../shared/frame.js'
 import { PROJECT_THREAD, type SideThread } from '../shared/agent-api.js'
 import type { AgentAsk } from '../shared/menu.js'
 import type { ItemView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
@@ -11,9 +10,10 @@ import { Library, type Shelf } from './Library.js'
 import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
+import { ShortcutSheet } from './ShortcutSheet.js'
+import { DESK_COMMAND, frame } from './platform.js'
 import './shell.css'
 
-const frame = frameFor(window.carrel.platform, new URLSearchParams(location.search).get('frame') ?? undefined)
 const api = window.carrel.workspace
 
 export function App() {
@@ -27,6 +27,7 @@ export function App() {
   const [sides, setSides] = useState<SideThread[]>([])
   const [searching, setSearching] = useState(false)
   const [talking, setTalking] = useState(false)
+  const [keys, setKeys] = useState(false)
   // The sidebar folds away (⌘\ / Ctrl+\); remembered on this computer.
   const [sidebar, setSidebar] = useState(() => {
     try {
@@ -59,25 +60,33 @@ export function App() {
   }
   useEffect(() => window.carrel.web.onAsk((ask, that) => askAgent(ask, that)), [])
 
-  // ⌘K / Ctrl+K searches and ⌘J / Ctrl+J opens the agent, from anywhere, even while writing.
+  // ⌘K / Ctrl+K searches, ⌘J / Ctrl+J opens the agent, ⌘\\ folds the sidebar and ⌘/ lists
+  // the shortcuts, from anywhere, even while writing.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
       if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return
       const key = event.key.toLowerCase()
-      if (key === 'k') setSearching((now) => !now)
-      else if (key === 'j') setTalking((now) => !now)
-      else if (event.key === '\\') setSidebar((now) => !now)
-      else return
+      if (!run(key)) return
       event.preventDefault()
     }
+    // The same keys from a live web page, and the menu bar's commands.
+    const run = (key: string): boolean => {
+      if (key === 'k' || key === 'search') setSearching((now) => !now)
+      else if (key === 'j' || key === 'agent') setTalking((now) => !now)
+      else if (key === '\\' || key === 'sidebar') setSidebar((now) => !now)
+      else if (key === '/' || key === 'shortcuts') setKeys((now) => !now)
+      else return false
+      return true
+    }
     window.addEventListener('keydown', onKey, true)
-    const offPage = window.carrel.web.onShortcut((key) => {
-      if (key === 'k') setSearching((now) => !now)
-      else if (key === 'j') setTalking((now) => !now)
+    const offPage = window.carrel.web.onShortcut((key) => void run(key))
+    const offMenu = window.carrel.onCommand((id) => {
+      if (!run(id)) window.dispatchEvent(new CustomEvent(DESK_COMMAND, { detail: id }))
     })
     return () => {
       window.removeEventListener('keydown', onKey, true)
       offPage()
+      offMenu()
     }
   }, [])
   // A chip in an answer opens its spot, laying its source on the desk if it isn't there.
@@ -137,6 +146,7 @@ export function App() {
     openNote: (id) => setShow({ itemId: id, nonce: Date.now(), write: true }),
     search: () => setSearching(true),
     openLibrary: (shelf) => setLibrary(shelf),
+    openShortcuts: () => setKeys(true),
     openThread: (id = PROJECT_THREAD) => {
       setThreadId(id)
       setTalking(true)
@@ -220,6 +230,7 @@ export function App() {
               onClose={() => setLibrary(undefined)}
             />
           )}
+          {keys && <ShortcutSheet onClose={() => setKeys(false)} />}
           {searching && open && <SearchPalette items={items} onOpen={openHit} onClose={() => setSearching(false)} />}
         </>
       )}

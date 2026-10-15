@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { Frame } from '../shared/frame.js'
-import { shortcut } from '../shared/frame.js'
+import { shortcutLabel } from '../shared/shortcuts.js'
 import type { ItemView, ShellState } from '../shared/workspace-api.js'
 import type { SideThread } from '../shared/agent-api.js'
 import { BookIcon, ChevronIcon, LinkIcon, NoteIcon, SearchIcon, SparkIcon } from './icons.js'
@@ -19,6 +19,8 @@ export interface WorkspaceActions {
   search(): void
   /** Opens the library at a shelf. */
   openLibrary(shelf: Shelf): void
+  /** The keyboard shortcuts card. */
+  openShortcuts(): void
   /** Opens the project thread (or a side thread, by id) beside the desk. */
   openThread(id?: string): void
 }
@@ -103,7 +105,7 @@ export function Sidebar({ frame, state, actions, items, sides, thread }: Props) 
       <button type="button" className="search" onClick={actions.search} disabled={!open}>
         <SearchIcon />
         <span>Search everything</span>
-        <kbd>{shortcut(frame, 'K')}</kbd>
+        <kbd>{shortcutLabel(frame, 'search')}</kbd>
       </button>
 
       {open && (
@@ -217,6 +219,10 @@ export function Sidebar({ frame, state, actions, items, sides, thread }: Props) 
         </button>
         <button type="button" className="row">
           Global library
+        </button>
+        <button type="button" className="row" onClick={actions.openShortcuts}>
+          Keyboard shortcuts
+          <kbd>{shortcutLabel(frame, 'shortcuts')}</kbd>
         </button>
       </footer>
     </nav>

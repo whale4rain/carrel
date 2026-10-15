@@ -8,6 +8,7 @@ interface Window {
     web: import('../shared/workspace-api.js').WebApi
     agent: import('../shared/agent-api.js').AgentApi
     menu(entries: import('../shared/menu.js').MenuEntry[]): Promise<string | undefined>
+    onCommand(listener: (id: string) => void): () => void
     pathForFile(file: File): string
   }
 }
