@@ -41,13 +41,14 @@ import {
   type Rect,
   type View,
 } from '@carrel/desk'
-import { useCallback, useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
 import type { ItemView, Sheet, ThatRequest, ThatView, WebLoading } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView, type Focus } from './PdfView.js'
 import { NoteView } from './NoteView.js'
 import { citesLine, KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 import { pdfSelection } from './that.js'
+import { TEXT_COMMANDS, type AgentAsk, type MenuEntry } from '../shared/menu.js'
 import { SavedThat, ThatTray } from './ThatTray.js'
 import { asWebPage, embedded } from './video.js'
 import { seekVideo, VideoView, videoMoment } from './VideoView.js'
@@ -110,6 +111,7 @@ export function DeskPlane({
   show,
   onPointed,
   onContext,
+  onAsk,
 }: {
   deskId: string
   name: string
@@ -122,6 +124,8 @@ export function DeskPlane({
   onPointed?: (that: ThatView) => void
   /** What is on this desk and selected, for the agent. */
   onContext?: (context: { name: string; items: string[]; selected: string[] }) => void
+  /** Something right-clicked to ask the agent about, with the *that.* made of it. */
+  onAsk?: (ask: AgentAsk, that?: ThatView) => void
 }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -595,7 +599,7 @@ export function DeskPlane({
   }, [save, selected])
 
   // ⌘. points at what is selected: text in a PDF, or the moment a selected video is at.
-  const pointAt = useCallback(async (): Promise<void> => {
+  const pointAt = useCallback(async (): Promise<ThatView | undefined> => {
     const itemOf = (id: string): string | undefined => latest.current.find((sheet) => sheet.id === id)?.itemId ?? undefined
     let request: ThatRequest | undefined
     const text = pdfSelection(window.getSelection())
@@ -615,14 +619,17 @@ export function DeskPlane({
     }
     if (!request) {
       setError('Select some text, a playing video, or ⌥-drag a region, then press that. (⌘ .) to point at it.')
-      return
+      return undefined
     }
     try {
-      addToTray(await api.makeThat(request))
+      const that = await api.makeThat(request)
+      addToTray(that)
       setRegion(undefined)
       setError(undefined)
+      return that
     } catch (reason) {
       setError(message(reason))
+      return undefined
     }
   }, [addToTray, items, region, selected])
 
@@ -846,6 +853,33 @@ export function DeskPlane({
   const single = !inFocus && selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
   const shelf = inFocus ? sheets.filter((sheet) => !focusPlaces.current.has(sheet.id)).sort((a, b) => a.y - b.y || a.x - b.x) : []
 
+  // Right-click: point at selected words or ask the agent about them; in a note,
+  // ask the agent to rewrite them; Cut, Copy and Paste wherever you write.
+  const contextMenu = async (event: ReactMouseEvent): Promise<void> => {
+    const target = event.target as HTMLElement
+    const selection = window.getSelection()
+    const words = selection && !selection.isCollapsed ? selection.toString().trim() : ''
+    const editable = target.closest('input, textarea, [contenteditable="true"]')
+    const sheet = latest.current.find((candidate) => candidate.id === target.closest<HTMLElement>('.sheet')?.dataset.sheet)
+    const item = sheet?.itemId ? items.get(sheet.itemId) : undefined
+    const inPdf = words !== '' && pdfSelection(selection) !== undefined
+    const inNote = words !== '' && item?.kind === 'note' && editable !== null && editable.contains(selection?.anchorNode ?? null)
+    const line: MenuEntry = { separator: true }
+    let entries: MenuEntry[]
+    if (inPdf) entries = [...TEXT_COMMANDS, line, { role: 'copy' }]
+    else if (inNote) entries = [{ id: 'ask', label: 'Ask the agent about this…' }, { id: 'rewrite', label: 'Rewrite with the agent…' }, line, { role: 'cut' }, { role: 'copy' }, { role: 'paste' }]
+    else if (editable) entries = [{ role: 'cut' }, { role: 'copy' }, { role: 'paste' }, line, { role: 'selectAll' }]
+    else if (words) entries = [{ role: 'copy' }]
+    else return
+    event.preventDefault()
+    const picked = await window.carrel.menu(entries)
+    if (inPdf && picked === 'that') void pointAt()
+    else if (inPdf && (picked === 'ask' || picked === 'explain')) {
+      const that = await pointAt()
+      if (that) onAsk?.({ kind: picked }, that)
+    } else if (inNote && item && (picked === 'ask' || picked === 'rewrite')) onAsk?.({ kind: picked, quote: words, note: item.title })
+  }
+
   return (
     <main
       className="desk-mat"
@@ -859,6 +893,7 @@ export function DeskPlane({
         backgroundPosition: `${shownView.x}px ${shownView.y}px`,
       }}
       data-hand={hand || undefined}
+      onContextMenu={(event) => void contextMenu(event)}
       onPointerDownCapture={(event) => {
         // With the hand on, a drag anywhere on the desk moves it, over sheets too.
         if (!hand || inFocus || event.button !== 0) return

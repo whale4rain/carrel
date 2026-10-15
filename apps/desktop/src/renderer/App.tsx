@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { frameFor } from '../shared/frame.js'
 import { PROJECT_THREAD, type SideThread } from '../shared/agent-api.js'
+import type { AgentAsk } from '../shared/menu.js'
 import type { ItemView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 import { Welcome } from './Desk.js'
 import { AgentPanel, NEW_SIDE } from './AgentPanel.js'
@@ -46,6 +47,17 @@ export function App() {
   // The that.s you made since you last asked, which the agent's composer points at; and the desk in view.
   const [pointing, setPointing] = useState<ThatView[]>([])
   const deskContext = useRef<{ name: string; items: string[]; selected: string[] }>(undefined)
+  // Words for the agent's composer from a right-click: sent at once, or left for you to finish.
+  const [prompt, setPrompt] = useState<{ text: string; send: boolean; nonce: number }>()
+  const askAgent = (ask: AgentAsk, that?: ThatView): void => {
+    if (that) setPointing((now) => [...now.filter((other) => other.id !== that.id), that])
+    setTalking(true)
+    const nonce = Date.now()
+    if (ask.kind === 'explain') setPrompt({ text: 'Explain this: what it says, in plain words, and how it fits the rest of the source.', send: true, nonce })
+    else if (ask.kind === 'rewrite') setPrompt({ text: `In the note "${ask.note}", rewrite this: "${ask.quote}"\n\n`, send: false, nonce })
+    else setPrompt({ text: ask.quote && ask.note ? `About this in the note "${ask.note}": "${ask.quote}"\n\n` : '', send: false, nonce })
+  }
+  useEffect(() => window.carrel.web.onAsk((ask, that) => askAgent(ask, that)), [])
 
   // ⌘K / Ctrl+K searches and ⌘J / Ctrl+J opens the agent, from anywhere, even while writing.
   useEffect(() => {
@@ -159,6 +171,7 @@ export function App() {
               show={show}
               onPointed={(that) => setPointing((now) => [...now.filter((other) => other.id !== that.id), that])}
               onContext={(context) => (deskContext.current = context)}
+              onAsk={askAgent}
             /> : <Welcome onCreate={actions.createProject} />}
           {talking && open && (
             <AgentPanel
@@ -182,6 +195,7 @@ export function App() {
                 if (item.kind === 'note') window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: item.id }))
               }}
               focusTurn={focusTurn}
+              prompt={prompt}
               onAddToNote={async (turnId, thread) => {
                 // The note selected on the desk, or a new one laid on the desk.
                 const selected = deskContext.current?.selected.find((id) => items.get(id)?.kind === 'note')

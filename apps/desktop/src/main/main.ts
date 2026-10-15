@@ -13,6 +13,8 @@ import { titleBarOverlay, windowOptions } from './window-options.js'
 import { serveAgent } from './agent-ipc.js'
 import { serveWorkspace } from './workspace-ipc.js'
 import { WebViews, type WebLayout } from './web-views.js'
+import { popupMenu } from './menus.js'
+import { isMenuEntries } from '../shared/menu.js'
 
 const outDir = fileURLToPath(new URL('.', import.meta.url))
 
@@ -47,6 +49,12 @@ ipcMain.on('web:reload', (event, sheet: unknown) => {
   if (typeof sheet === 'string') webViews.get(event.sender.id)?.reload(sheet)
 })
 ipcMain.handle('web:fit-width', (event, sheet: unknown) => (typeof sheet === 'string' ? (webViews.get(event.sender.id)?.fitWidth(sheet) ?? 1) : 1))
+
+// A right-click menu in the desk: the id of the command picked, if any.
+ipcMain.handle('menu:popup', (event, entries: unknown) => {
+  const window = BrowserWindow.fromWebContents(event.sender)
+  return window && isMenuEntries(entries) ? popupMenu(window, entries) : undefined
+})
 
 // A rectangle of the window as a PNG: a video's frame for its *that.*
 ipcMain.handle('web:frame', async (event, rect: unknown) => {
@@ -85,9 +93,16 @@ async function createWindow(): Promise<void> {
         controller.makeThat({ itemId, text }).then(
           (that) => {
             if (!window.isDestroyed()) window.webContents.send('web:that', that)
+            return that
           },
-          (error: unknown) => console.error('that.:', error),
+          (error: unknown) => {
+            console.error('that.:', error)
+            return undefined
+          },
         ),
+      ask: (ask, that) => {
+        if (!window.isDestroyed()) window.webContents.send('web:ask', { ask, that })
+      },
       anchors: async (itemId) => (await controller.thats()).filter((that) => that.itemId === itemId),
     }),
   )
