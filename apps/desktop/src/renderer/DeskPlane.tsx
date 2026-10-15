@@ -65,6 +65,10 @@ const FOCUS_SHELF = 96
 const FOCUS_MARGIN = 48
 /** A focused sheet is no wider than this, so lines stay readable. */
 const FOCUS_MAX_W = 1100
+/** Sheets kept beside the focused one, at most. */
+const FOCUS_BESIDE = 2
+/** A shelf card being dragged up beside the focused sheet. */
+const SHELF_DRAG = 'application/x-carrel-sheet'
 
 // `before` is the desk as the gesture found it; `start` is where it began
 // (a move first raises its sheets).
@@ -208,7 +212,13 @@ export function DeskPlane({
   // In Focus the desk is drawn at 100% with only the focused sheet, laid over the
   // middle of the screen; the saved layout and view are untouched.
   const inFocus = focused === undefined ? undefined : sheets.find((sheet) => sheet.id === focused)
+  // Sheets pinned beside the focused one (a note to write in, a second source); they stay pinned for next time.
+  const [beside, setBeside] = useState<string[]>([])
+  const besideShown = inFocus ? beside.flatMap((id) => sheets.filter((sheet) => sheet.id === id && id !== inFocus.id)) : []
   const shownView: View = inFocus ? { x: 0, y: 0, zoom: 1 } : view
+  const focusLaidOut = inFocus ? focusLayout([inFocus, ...besideShown], screen) : []
+  const focusPlaces = useRef(new Map<string, Sheet>())
+  focusPlaces.current = new Map(focusLaidOut.map((sheet) => [sheet.id, sheet]))
   // Pointer math follows what is drawn.
   viewRef.current = shownView
   // A focused sheet taken off the desk (by another window, say) ends Focus.
@@ -224,6 +234,7 @@ export function DeskPlane({
     setLoaded(false)
     setSelected(new Set())
     setFocused(undefined)
+    setBeside([])
     history.current = emptyHistory()
     void api.desk(deskId).then((desk) => {
       if (!current) return
@@ -416,7 +427,7 @@ export function DeskPlane({
       const dy = at.y - gesture.from.y
       if (gesture.kind === 'region') {
         const found = latest.current.find((candidate) => candidate.id === gesture.sheet)
-        const sheet = found && found.id === focusedRef.current ? focusLayout(found, screenRef.current) : found
+        const sheet = (found && focusPlaces.current.get(found.id)) ?? found
         if (sheet) setRegion({ sheet: sheet.id, rect: clip(rectFrom(gesture.from, at), footprint(sheet)) })
       } else if (gesture.kind === 'marquee') {
         if (Math.hypot(dx, dy) < 3) return
@@ -528,13 +539,24 @@ export function DeskPlane({
   const enterFocus = (id: string): void => {
     const sheet = latest.current.find((candidate) => candidate.id === id)
     if (!sheet) return
+    // A sheet beside the focused one swaps places with it.
+    const was = focusedRef.current
+    if (was && was !== id) setBeside((now) => now.map((other) => (other === id ? was : other)))
+    focusedRef.current = id
     setFocused(id)
     setSelected(new Set([id]))
     setScaling(false)
     const item = sheet.itemId === null ? undefined : items.get(sheet.itemId)
     setActive(asWebPage(item) ? id : undefined)
   }
+  // Keep a sheet beside the focused one; the oldest goes back to the shelf when there's no room.
+  const pinBeside = (id: string): void => {
+    if (id === focusedRef.current) return
+    setBeside((now) => [...now.filter((other) => other !== id), id].slice(-FOCUS_BESIDE))
+  }
+  const unpin = (id: string): void => setBeside((now) => now.filter((other) => other !== id))
   const leaveFocus = (): void => {
+    focusedRef.current = undefined
     setFocused(undefined)
     setActive(undefined)
   }
@@ -739,6 +761,8 @@ export function DeskPlane({
       const mod = event.metaKey || event.ctrlKey
       const key = event.key.toLowerCase()
       if (event.key === ' ') space.current = true
+      // Read through the ref: a key pressed right after Esc can beat this handler's renewal.
+      const focused = focusedRef.current
       if (focused) {
         // Focus keeps the desk as it is: only Esc, that. and swapping sheets.
         const page = zoomable(focused)
@@ -816,11 +840,11 @@ export function DeskPlane({
   const near = visibleRect(view, screen.w + MOUNT_MARGIN * 2, screen.h + MOUNT_MARGIN * 2)
   const reach = { ...near, x: near.x - MOUNT_MARGIN / view.zoom, y: near.y - MOUNT_MARGIN / view.zoom }
   const nearby = screen.w === 0 ? sheets : sheets.filter((sheet) => selected.has(sheet.id) || intersects(footprint(sheet), reach))
-  const mounted: Sheet[] = inFocus ? [focusLayout(inFocus, screen)] : nearby
+  const mounted: Sheet[] = inFocus ? focusLaidOut : nearby
   const { live, snapshots } = useWebSheets({ mat, sheets: mounted, items, view: shownView, active, moving: gesture !== undefined && gesture.kind !== 'marquee' })
   liveRef.current = live
   const single = !inFocus && selected.size === 1 ? sheets.find((sheet) => selected.has(sheet.id)) : undefined
-  const shelf = inFocus ? sheets.filter((sheet) => sheet.id !== inFocus.id).sort((a, b) => a.y - b.y || a.x - b.x) : []
+  const shelf = inFocus ? sheets.filter((sheet) => !focusPlaces.current.has(sheet.id)).sort((a, b) => a.y - b.y || a.x - b.x) : []
 
   return (
     <main
@@ -861,10 +885,13 @@ export function DeskPlane({
       }}
       onDragOver={(event) => {
         event.preventDefault()
-        event.dataTransfer.dropEffect = 'copy'
+        event.dataTransfer.dropEffect = event.dataTransfer.types.includes(SHELF_DRAG) ? 'move' : 'copy'
       }}
       onDrop={(event) => {
         event.preventDefault()
+        // A card from Focus's shelf: read it beside the focused sheet.
+        const fromShelf = event.dataTransfer.getData(SHELF_DRAG)
+        if (fromShelf) return pinBeside(fromShelf)
         const at = point(event)
         const paths = [...event.dataTransfer.files].map((file) => window.carrel.pathForFile(file)).filter((path) => path.length > 0)
         if (paths.length > 0) return addSources(api.addFiles(paths), at)
@@ -916,7 +943,7 @@ export function DeskPlane({
                   className="sheet-label"
                   onPointerDown={(event) => startMove(event, sheet.id)}
                   onDoubleClick={(event) => {
-                    if (focused || (event.target as HTMLElement).closest('button')) return
+                    if (sheet.id === focused || (event.target as HTMLElement).closest('button')) return
                     enterFocus(sheet.id)
                   }}
                 >
@@ -993,6 +1020,18 @@ export function DeskPlane({
                       onClick={() => foldOne(sheet.id)}
                     >
                       {sheet.folded ? '+' : '–'}
+                    </button>
+                  )}
+                  {inFocus && sheet.id !== inFocus.id && (
+                    <button
+                      type="button"
+                      className="sheet-fold"
+                      aria-label={`Back to the shelf: ${title}`}
+                      title="Back to the shelf"
+                      onPointerDown={(event) => event.stopPropagation()}
+                      onClick={() => unpin(sheet.id)}
+                    >
+                      ×
                     </button>
                   )}
                   {loading.get(sheet.id)?.loading && <span className="web-loading" role="progressbar" aria-label="Loading page" />}
@@ -1152,7 +1191,7 @@ export function DeskPlane({
         <>
           <div className="focus-bar" role="toolbar" aria-label="Focus">
             <strong>Focus</strong>
-            <span>Everything else waits on the shelf below</span>
+            <span>Everything else waits on the shelf below. Drag a card up to keep it beside.</span>
             <button type="button" onClick={leaveFocus}>
               Back to desk <kbd>Esc</kbd>
             </button>
@@ -1164,9 +1203,26 @@ export function DeskPlane({
                 const item = sheet.itemId === null ? undefined : items.get(sheet.itemId)
                 return (
                   <li key={sheet.id}>
-                    <button type="button" onClick={() => enterFocus(sheet.id)}>
+                    <button
+                      type="button"
+                      draggable
+                      onDragStart={(event) => {
+                        event.dataTransfer.setData(SHELF_DRAG, sheet.id)
+                        event.dataTransfer.effectAllowed = 'move'
+                      }}
+                      onClick={() => enterFocus(sheet.id)}
+                    >
                       <span className="sheet-kind">{item ? KIND_LABEL[item.kind] : 'Sheet'}</span>
                       <span className="focus-card-title">{item?.title ?? (sheet.itemId === null ? 'Blank sheet' : 'Missing source')}</span>
+                    </button>
+                    <button
+                      type="button"
+                      className="focus-pin"
+                      aria-label={`Keep beside: ${item?.title ?? 'Blank sheet'}`}
+                      title="Keep it beside the focused sheet"
+                      onClick={() => pinBeside(sheet.id)}
+                    >
+                      Beside
                     </button>
                   </li>
                 )
@@ -1206,15 +1262,30 @@ export function DeskPlane({
   )
 }
 
-/** Where a focused sheet sits: across the middle of the screen at 100%, between the bar and the shelf. */
-function focusLayout(sheet: Sheet, screen: { w: number; h: number }): Sheet {
-  const w = Math.max(320, Math.min(FOCUS_MAX_W, screen.w - FOCUS_MARGIN * 2))
+/**
+ * Where Focus's sheets sit, at 100% between the bar and the shelf: the focused
+ * one alone across the middle, or side by side with those kept beside it,
+ * sharing the width (the focused one a little wider).
+ */
+function focusLayout(sheets: readonly Sheet[], screen: { w: number; h: number }): Sheet[] {
   const top = FOCUS_BAR + 16
   const h = Math.max(200, screen.h - top - FOCUS_SHELF - FOCUS_MARGIN)
-  const shown: Sheet = { ...sheet, x: Math.round((screen.w - w) / 2), y: top, w, h, scale: 1 }
-  delete shown.folded
-  delete shown.pile
-  return shown
+  const room = Math.max(320, screen.w - FOCUS_MARGIN * 2)
+  const gap = 16
+  // The focused sheet's share counts 1.5 when others are beside it.
+  const shares = sheets.map((_, i) => (i === 0 && sheets.length > 1 ? 1.5 : 1))
+  const total = shares.reduce((sum, share) => sum + share, 0)
+  const free = room - gap * (sheets.length - 1)
+  const widths = sheets.length === 1 ? [Math.min(FOCUS_MAX_W, room)] : shares.map((share) => Math.max(240, Math.floor((free * share) / total)))
+  const used = widths.reduce((sum, w) => sum + w, 0) + gap * (sheets.length - 1)
+  let x = Math.round((screen.w - used) / 2)
+  return sheets.map((sheet, i) => {
+    const shown: Sheet = { ...sheet, x, y: top, w: widths[i]!, h, scale: 1 }
+    delete shown.folded
+    delete shown.pile
+    x += widths[i]! + gap
+    return shown
+  })
 }
 
 /** The part of `rect` inside `bounds`. */

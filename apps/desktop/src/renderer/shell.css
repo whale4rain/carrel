@@ -2639,3 +2639,33 @@ kbd {
 .pdf-contents .position {
   color: var(--ink-muted);
 }
+
+/* A shelf card's "Beside" button, in its corner. */
+.focus-shelf li {
+  position: relative;
+}
+
+.focus-shelf button.focus-pin {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: auto;
+  height: 20px;
+  padding: 0 6px;
+  border: none;
+  border-radius: var(--radius-mark);
+  background: var(--paper-2);
+  box-shadow: none;
+  color: var(--ink-muted);
+  font: var(--text-caption);
+  opacity: 0;
+}
+
+.focus-shelf li:hover .focus-pin,
+.focus-shelf .focus-pin:focus-visible {
+  opacity: 1;
+}
+
+.focus-shelf button.focus-pin:hover {
+  color: var(--ink);
+}
