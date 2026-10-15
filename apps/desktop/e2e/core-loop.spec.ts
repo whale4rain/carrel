@@ -16,10 +16,19 @@ const NOTE_TITLE = 'Elasticity'
 const NOTE_TEXT = 'Coffee is a habit, so it is inelastic.'
 
 let home: string
+let current: Page | undefined
 
 test.beforeAll(async () => {
   home = await mkdtemp(join(tmpdir(), 'carrel-e2e-'))
   await writeFile(join(home, 'Elasticity.pdf'), tinyPdf('Price elasticity of demand'))
+})
+
+// Playwright reads fixtures from the first argument's pattern, so it must be there even when empty.
+// eslint-disable-next-line no-empty-pattern
+test.afterEach(async ({}, testInfo) => {
+  if (testInfo.status !== testInfo.expectedStatus && current && !current.isClosed()) {
+    await current.screenshot({ path: testInfo.outputPath('failed.png') }).catch(() => undefined)
+  }
 })
 
 test.afterAll(async () => {
@@ -33,6 +42,7 @@ async function start(): Promise<{ app: ElectronApplication; page: Page }> {
     env: { ...process.env, CARREL_HOME: home, CARREL_CHOOSE_FILES: join(home, 'Elasticity.pdf'), CARREL_LLM: 'scripted' },
   })
   const page = await app.firstWindow()
+  current = page
   await expect(page.locator('[data-carrel-shell] [aria-label="Desk"]')).toBeVisible()
   return { app, page }
 }

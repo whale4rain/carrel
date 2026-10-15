@@ -8,4 +8,6 @@ export default defineConfig({
   workers: 1,
   reporter: process.env.CI ? [['list'], ['github']] : 'list',
   outputDir: 'test-results',
+  // Actions wait no longer than checks, so a stuck step names itself instead of running out the test.
+  use: { actionTimeout: 15_000 },
 })
