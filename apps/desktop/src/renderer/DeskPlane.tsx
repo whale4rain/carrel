@@ -713,7 +713,15 @@ export function DeskPlane({
                   <span className="position">{Math.round(sheet.scale * 100)}%</span>
                 </div>
                 {item?.kind === 'note' ? (
-                  <NoteView item={item} write={writing === item.id} onSaved={(saved) => onItemsAdded([saved])} />
+                  <NoteView
+                    item={item}
+                    write={writing === item.id}
+                    onSaved={(saved) => onItemsAdded([saved])}
+                    onOpenThat={(id) => {
+                      const that = thats.find((known) => known.id === id)
+                      if (that) openThat(that)
+                    }}
+                  />
                 ) : item?.file ? (
                   <PdfView
                     sheet={sheet.id}

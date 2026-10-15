@@ -7,13 +7,16 @@ export function chipLabel(that: ThatView, item: ItemView | undefined): string {
   return item?.url ? new URL(item.url).hostname.replace(/^www\./, '') : 'that.'
 }
 
+/** The drag type a chip carries into a note: `{ id, label }` as JSON. */
+export const THAT_DRAG = 'application/x-carrel-that'
+
 /** Chips the tray shows: the newest. */
 const TRAY = 8
 
 /**
- * The tray: the *that.*s made on this desk, as chips, ready to be cited once
- * notes and the agent arrive. A chip opens its source; × only takes it off
- * the tray, the *that.* itself is kept in the project.
+ * The tray: the *that.*s made on this desk, as chips. A chip opens its
+ * source, or drags into a note to cite it; × only takes it off the tray, the
+ * *that.* itself is kept in the project.
  */
 export function ThatTray({
   thats,
@@ -38,7 +41,20 @@ export function ThatTray({
           const item = items.get(that.itemId)
           return (
             <li key={that.id}>
-              <button type="button" className="that-chip" data-state={lost.has(that.id) ? 'saved' : undefined} title={tip(that, item)} onClick={() => onOpen(that)}>
+              <button
+                type="button"
+                className="that-chip"
+                data-state={lost.has(that.id) ? 'saved' : undefined}
+                title={tip(that, item)}
+                draggable
+                onDragStart={(event) => {
+                  // Into a note, it becomes a chip citing this that.
+                  event.dataTransfer.setData(THAT_DRAG, JSON.stringify({ id: that.id, label: chipLabel(that, item) }))
+                  event.dataTransfer.setData('text/plain', chipLabel(that, item))
+                  event.dataTransfer.effectAllowed = 'copy'
+                }}
+                onClick={() => onOpen(that)}
+              >
                 {chipLabel(that, item)}
                 {lost.has(that.id) && ' · saved'}
               </button>

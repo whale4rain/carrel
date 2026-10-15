@@ -354,6 +354,19 @@ async function deskInteractions(
   if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
     return 'the sidebar did not list the note'
   }
+  // The PDF's chip dragged from the tray to the end of the note's text cites it there.
+  await page(`(() => {
+    const chip = [...document.querySelectorAll('.that-tray .that-chip')].find((c) => c.textContent === 'p.1')
+    const carried = new DataTransfer()
+    chip.dispatchEvent(new DragEvent('dragstart', { dataTransfer: carried, bubbles: true }))
+    const line = document.querySelector('.sheet[data-kind="note"] .ProseMirror p')
+    const r = line.getBoundingClientRect()
+    line.dispatchEvent(new DragEvent('drop', { dataTransfer: carried, bubbles: true, cancelable: true, clientX: r.right - 1, clientY: r.top + r.height / 2 }))
+  })()`)
+  if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"] .note-chip')?.textContent === 'p.1'"))) return 'dropping a chip into the note did nothing'
+  const cited = `window.carrel.workspace.items().then((items) => window.carrel.workspace.note(items.find((item) => item.kind === 'note').id))
+    .then((note) => JSON.stringify(note.doc).includes('"type":"that"'))`
+  if (!(await waitFor(cited))) return 'the note did not keep its chip'
   return undefined
 }
 
@@ -421,11 +434,17 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitForIn(livePage, "CSS.highlights?.get('carrel-that-active')?.size === 1"))) return fail('the web page did not mark its that.')
     // The note comes back with its words, and the sidebar lists it.
     const note = "document.querySelector('.sheet[data-kind=\"note\"] .ProseMirror')"
-    if (!(await waitFor(`${note}?.querySelector('h1')?.textContent === '${NOTE_TITLE}' && ${note}?.querySelector('p')?.textContent === '${NOTE_TEXT}'`))) {
+    if (!(await waitFor(`${note}?.querySelector('h1')?.textContent === '${NOTE_TITLE}' && ${note}?.querySelector('p')?.textContent.startsWith('${NOTE_TEXT}') === true`))) {
       return fail(`the note came back saying ${String(await page(`${note}?.textContent ?? 'nothing'`))}`)
     }
     if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
       return fail('the sidebar did not list the note after a restart')
+    }
+    // Its chip opens the PDF at the word it cites.
+    const at = await page<{ x: number; y: number }>(`(() => { const r = ${note}.querySelector('.note-chip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
+    for (const type of ['mouseDown', 'mouseUp'] as const) window.webContents.sendInputEvent({ type, x: at.x, y: at.y, button: 'left', clickCount: 1 })
+    if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null && CSS.highlights.get('that-active')?.size === 1"))) {
+      return fail('the note\'s chip did not open its PDF')
     }
     // A that. whose words are gone opens its saved copy.
     await page(`window.carrel.workspace.items().then((items) => window.carrel.workspace.makeThat({

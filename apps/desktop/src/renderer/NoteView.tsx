@@ -4,6 +4,7 @@ import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
 import { useEffect, useRef, useState } from 'react'
 import type { ItemView, NoteDoc } from '../shared/workspace-api.js'
+import { THAT_DRAG } from './ThatTray.js'
 
 const api = window.carrel.workspace
 
@@ -57,7 +58,18 @@ const EMPTY: JSONContent = { type: 'doc', content: [{ type: 'heading', attrs: { 
  * A note on its sheet: the person's own writing, upright and in ink. It saves
  * itself a moment after typing stops, and when it loses focus.
  */
-export function NoteView({ item, write, onSaved }: { item: ItemView; write: boolean; onSaved: (item: ItemView) => void }) {
+export function NoteView({
+  item,
+  write,
+  onSaved,
+  onOpenThat,
+}: {
+  item: ItemView
+  write: boolean
+  onSaved: (item: ItemView) => void
+  /** A chip in the note was clicked: open the spot it points at. */
+  onOpenThat: (id: string) => void
+}) {
   const [error, setError] = useState<string>()
   // Edits count only once the note's own text is in.
   const ready = useRef(false)
@@ -66,6 +78,8 @@ export function NoteView({ item, write, onSaved }: { item: ItemView; write: bool
   const pending = useRef<NoteDoc | undefined>(undefined)
   const savedRef = useRef(onSaved)
   savedRef.current = onSaved
+  const openRef = useRef(onOpenThat)
+  openRef.current = onOpenThat
 
   const flush = (): void => {
     window.clearTimeout(timer.current)
@@ -85,7 +99,27 @@ export function NoteView({ item, write, onSaved }: { item: ItemView; write: bool
 
   const editor = useEditor({
     extensions,
-    editorProps: { attributes: { class: 'note-text', 'aria-label': 'Note' } },
+    editorProps: {
+      attributes: { class: 'note-text', 'aria-label': 'Note' },
+      // A chip dragged from the tray lands where it is dropped.
+      handleDrop: (view, event) => {
+        const carried = event.dataTransfer?.getData(THAT_DRAG)
+        if (!carried) return false
+        const chip = chipFrom(carried)
+        const at = view.posAtCoords({ left: event.clientX, top: event.clientY })
+        if (!chip || !at) return false
+        event.preventDefault()
+        const node = view.state.schema.nodes.that!.create(chip)
+        view.dispatch(view.state.tr.insert(at.pos, [node, view.state.schema.text(' ')]))
+        view.focus()
+        return true
+      },
+      handleClickOn: (_view, _pos, node) => {
+        if (node.type.name !== 'that') return false
+        openRef.current(node.attrs.id as string)
+        return true
+      },
+    },
     onUpdate: ({ editor: changed }) => {
       if (!ready.current) return
       pending.current = changed.getJSON() as NoteDoc
@@ -127,4 +161,14 @@ export function NoteView({ item, write, onSaved }: { item: ItemView; write: bool
       )}
     </div>
   )
+}
+
+/** What a dragged chip carries, if it is one. */
+function chipFrom(carried: string): { id: string; label: string } | undefined {
+  try {
+    const chip = JSON.parse(carried) as { id?: unknown; label?: unknown }
+    return typeof chip.id === 'string' && /^[\w-]+$/.test(chip.id) && typeof chip.label === 'string' ? { id: chip.id, label: chip.label } : undefined
+  } catch {
+    return undefined
+  }
 }
