@@ -5,6 +5,7 @@ import {
   Library,
   momentSelector,
   pageSelector,
+  regionSelector,
   textSelectors,
   titleFromUrl,
   type AnchorFile,
@@ -140,7 +141,7 @@ export class ShellController {
   /** A *that.* from the renderer or a live page: checked, turned into selectors, kept. */
   async makeThat(request: unknown): Promise<ThatView> {
     if (typeof request !== 'object' || request === null) throw new Error('That is not a place in a source.')
-    const { itemId, page, text, seconds, image } = request as Record<string, unknown>
+    const { itemId, page, text, seconds, region, image } = request as Record<string, unknown>
     if (typeof itemId !== 'string') throw new Error('That is not a place in a source.')
     const folder = await this.openFolder()
     await this.library.read(folder, itemId)
@@ -154,6 +155,10 @@ export class ShellController {
       quoted = source.slice(start, end)
     }
     if (seconds !== undefined) selectors.push(momentSelector(Number(seconds)))
+    if (region !== undefined) {
+      const { x, y, w, h } = (region ?? {}) as Record<string, unknown>
+      selectors.push(regionSelector({ x: Number(x), y: Number(y), w: Number(w), h: Number(h) }))
+    }
     const png = image instanceof Uint8Array ? image : undefined
     return thatView(await this.anchors.make(folder, { itemId, selectors, ...(quoted ? { text: quoted } : {}), ...(png ? { image: png } : {}) }))
   }

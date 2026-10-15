@@ -52,6 +52,32 @@ export function momentSelector(seconds: number): FragmentSelector {
   return { type: 'FragmentSelector', conformsTo: MEDIA_FRAGMENT, value: `t=${Math.round(seconds * 10) / 10}` }
 }
 
+/** A box, in percent of the page or picture it sits on (Media Fragments `xywh=percent:`). */
+export interface Region {
+  x: number
+  y: number
+  w: number
+  h: number
+}
+
+export function regionSelector(region: Region): FragmentSelector {
+  const { x, y, w, h } = region
+  const fits = [x, y, w, h].every((n) => Number.isFinite(n) && n >= 0 && n <= 100) && w > 0 && h > 0 && x + w <= 100.001 && y + h <= 100.001
+  if (!fits) throw new Error('That is not a region.')
+  const round = (n: number): number => Math.round(n * 100) / 100
+  return { type: 'FragmentSelector', conformsTo: MEDIA_FRAGMENT, value: `xywh=percent:${round(x)},${round(y)},${round(w)},${round(h)}` }
+}
+
+/** The region a selector list points at, if any. */
+export function regionOf(selectors: readonly Selector[]): Region | undefined {
+  for (const selector of selectors) {
+    if (selector.type !== 'FragmentSelector') continue
+    const parts = /^xywh=percent:([\d.]+),([\d.]+),([\d.]+),([\d.]+)$/.exec(selector.value)
+    if (parts) return { x: Number(parts[1]), y: Number(parts[2]), w: Number(parts[3]), h: Number(parts[4]) }
+  }
+  return undefined
+}
+
 /** The page a selector list points at, if any. */
 export function pageOf(selectors: readonly Selector[]): number | undefined {
   const fragment = selectors.find((selector) => selector.type === 'FragmentSelector' && selector.conformsTo === PDF_FRAGMENT)
@@ -61,7 +87,7 @@ export function pageOf(selectors: readonly Selector[]): number | undefined {
 
 /** The moment a selector list points at, in seconds, if any. */
 export function momentOf(selectors: readonly Selector[]): number | undefined {
-  const fragment = selectors.find((selector) => selector.type === 'FragmentSelector' && selector.conformsTo === MEDIA_FRAGMENT)
+  const fragment = selectors.find((selector) => selector.type === 'FragmentSelector' && selector.conformsTo === MEDIA_FRAGMENT && selector.value.startsWith('t='))
   const at = fragment?.type === 'FragmentSelector' ? /^t=([\d.]+)/.exec(fragment.value)?.[1] : undefined
   return at === undefined ? undefined : Number(at)
 }

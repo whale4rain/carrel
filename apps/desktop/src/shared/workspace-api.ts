@@ -40,6 +40,8 @@ export interface ThatRequest {
   text?: { source: string; start: number; end: number }
   /** A moment in a video, in seconds. */
   seconds?: number
+  /** A box, in percent of the page (for a PDF) or of the sheet's source. */
+  region?: { x: number; y: number; w: number; h: number }
   /** A PNG of what it points at. */
   image?: Uint8Array
 }

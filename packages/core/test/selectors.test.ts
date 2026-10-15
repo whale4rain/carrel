@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { findText, formatMoment, momentOf, momentSelector, pageOf, pageSelector, positionLabel, textSelectors } from '../src/index.js'
+import { findText, formatMoment, momentOf, momentSelector, pageOf, pageSelector, positionLabel, regionOf, regionSelector, textSelectors } from '../src/index.js'
 
 const page = 'Elasticity describes how strongly buyers react when a price moves. When a small price change shifts the quantity bought a lot, demand is elastic.'
 
@@ -22,6 +22,16 @@ describe('selectors', () => {
     expect(positionLabel([])).toBe('')
     expect(formatMoment(3725)).toBe('1:02:05')
     expect(() => pageSelector(0)).toThrow(/not a page/)
+  })
+
+  it('keeps a region in percent of its page', () => {
+    const region = regionSelector({ x: 12.345, y: 30, w: 40, h: 20.5 })
+    expect(region.value).toBe('xywh=percent:12.35,30,40,20.5')
+    expect(regionOf([pageSelector(3), region])).toEqual({ x: 12.35, y: 30, w: 40, h: 20.5 })
+    expect(momentOf([region])).toBeUndefined()
+    expect(positionLabel([pageSelector(3), region])).toBe('p.3')
+    expect(() => regionSelector({ x: 90, y: 0, w: 20, h: 10 })).toThrow(/not a region/)
+    expect(() => regionSelector({ x: 0, y: 0, w: 0, h: 10 })).toThrow(/not a region/)
   })
 })
 
