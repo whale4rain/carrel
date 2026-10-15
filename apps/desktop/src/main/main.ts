@@ -392,7 +392,8 @@ async function deskInteractions(
     return `the composer did not point at the that.s: ${String(await page("document.querySelector('.agent-foot')?.innerText ?? 'no composer'"))}`
   }
   window.webContents.insertText('What did I note about coffee?')
-  await key('Enter')
+  // A sent Enter is unreliable on the Mac runner, so the send button sends.
+  await page("document.querySelector('.agent-send:not(:disabled)')?.click()")
   const answer = "document.querySelector('.agent-panel .agent-answer:not([data-live]) .agent-text')?.textContent ?? ''"
   if (!(await waitFor(`(${answer}).includes('${NOTE_TITLE}') && document.querySelector('.agent-panel .agent-steps button')?.textContent.includes('Searched for')`))) {
     return `the agent did not answer from the note: ${String(await page("document.querySelector('.agent-body')?.innerText ?? 'no panel'"))}`
