@@ -6,6 +6,7 @@ interface Window {
     platform: string
     workspace: import('../shared/workspace-api.js').WorkspaceApi
     web: import('../shared/workspace-api.js').WebApi
+    agent: import('../shared/agent-api.js').AgentApi
     pathForFile(file: File): string
   }
 }

@@ -153,8 +153,12 @@ export class ShellController {
    */
   async search(query: string): Promise<SearchHitView[]> {
     const { open } = await this.state()
-    if (!open || query.trim().length === 0) return []
-    const folder = open.project
+    return open ? this.searchIn(open.project, query) : []
+  }
+
+  /** Search in a given project (the agent's tool asks for its own project). */
+  async searchIn(folder: string, query: string): Promise<SearchHitView[]> {
+    if (query.trim().length === 0) return []
     const items = await this.library.list(folder)
     const notes = await Promise.all((await this.notes.list(folder)).map((note) => this.notes.read(folder, note.id)))
     const thats = await this.anchors.list(folder)

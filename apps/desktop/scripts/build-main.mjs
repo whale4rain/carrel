@@ -6,8 +6,8 @@ const shared = {
   platform: 'node',
   target: 'node22',
   sourcemap: true,
-  // pdf.js stays a package of its own: it loads its worker and fonts beside itself.
-  external: ['electron', 'pdfjs-dist'],
+  // pdf.js loads its worker and fonts beside itself, and tnega is used as published, so both stay packages.
+  external: ['electron', 'pdfjs-dist', 'tnega'],
 }
 
 await Promise.all([

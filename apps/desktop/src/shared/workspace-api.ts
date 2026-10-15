@@ -162,6 +162,8 @@ export interface WebApi {
   showThat(sheet: string, that: string): void
   /** Whether a *that.* was found in its page as it is now. */
   onFound(listener: (that: string, found: boolean) => void): () => void
+  /** An app shortcut pressed while a live page had the keyboard: "k" (search) or "j" (the agent). */
+  onShortcut(listener: (key: string) => void): () => void
 }
 
 export const workspaceChannels = {

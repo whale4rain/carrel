@@ -149,7 +149,14 @@ export class WebViews {
     view.webContents.on('page-title-updated', (_event, title) => this.hooks.title(itemId, title))
     // Keys go to the live page, not the desk, so ⌘. is caught here.
     view.webContents.on('before-input-event', (event, input) => {
-      if (input.type !== 'keyDown' || input.key !== '.' || !(process.platform === 'darwin' ? input.meta : input.control)) return
+      const mod = process.platform === 'darwin' ? input.meta : input.control
+      // The app's own shortcuts (search, the agent) still work while a page has the keyboard.
+      if (input.type === 'keyDown' && mod && !input.shift && !input.alt && (input.key === 'k' || input.key === 'j')) {
+        event.preventDefault()
+        this.window.webContents.send('web:shortcut', input.key)
+        return
+      }
+      if (input.type !== 'keyDown' || input.key !== '.' || !mod) return
       event.preventDefault()
       void view.webContents.executeJavaScript(SELECTION_IN_PAGE).then((text: unknown) => {
         if (isPageSelection(text)) return this.hooks.that(itemId, text).then(() => this.mark(page))

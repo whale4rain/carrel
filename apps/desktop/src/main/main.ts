@@ -9,6 +9,7 @@ import { DESK_ORIGIN, deskUrl, serveDesk } from './desk-origin.js'
 import { pdfPages } from './pdf-text.js'
 import { ShellController } from './shell-state.js'
 import { titleBarOverlay, windowOptions } from './window-options.js'
+import { serveAgent } from './agent-ipc.js'
 import { serveWorkspace } from './workspace-ipc.js'
 import { WebViews, type WebLayout } from './web-views.js'
 
@@ -383,6 +384,15 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelector('.search-palette') === null && document.querySelector('.sheet[data-kind=\"paper\"]')?.hasAttribute('data-selected') === true"))) {
     return 'choosing a search result did not show its PDF'
   }
+  // The agent (⌘J), with the scripted model: it searches the project and answers from the note.
+  await key('J', [mod])
+  if (!(await waitFor("document.activeElement?.closest('.agent-panel') != null"))) return '⌘J did not open the agent'
+  window.webContents.insertText('What did I note about coffee?')
+  await key('Enter')
+  const answer = "document.querySelector('.agent-panel .agent-answer:not([data-live]) .agent-text')?.textContent ?? ''"
+  if (!(await waitFor(`(${answer}).includes('${NOTE_TITLE}') && document.querySelector('.agent-panel .agent-steps button')?.textContent.includes('Searched for')`))) {
+    return `the agent did not answer from the note: ${String(await page("document.querySelector('.agent-panel')?.innerText ?? 'no panel'"))}`
+  }
   return undefined
 }
 
@@ -467,6 +477,12 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       const hit = await page<string>(`(() => { const e = document.elementFromPoint(${at.x}, ${at.y}); return (e?.className ?? 'none') + ' in ' + (e?.closest('.sheet')?.getAttribute('data-kind') ?? 'no sheet') })()`)
       return fail(`the note's chip did not open its PDF (at ${at.x},${at.y} is ${hit})`)
     }
+    // The agent's thread comes back with its turns and what they sent.
+    await page("document.querySelector('.agent-button').click()")
+    if (!(await waitFor("document.querySelectorAll('.agent-panel .agent-me').length === 1 && document.querySelector('.agent-title span')?.textContent.includes('sent') === true"))) {
+      return fail(`the agent's thread did not come back: ${String(await page("document.querySelector('.agent-panel')?.innerText ?? 'no panel'"))}`)
+    }
+    await page("document.querySelector('.agent-close').click()")
     // The PDF's backlink brings its note forward.
     await page("document.querySelector('.sheet[data-kind=\"paper\"] .cited-by button').click()")
     if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"][data-selected]') !== null"))) return fail('the PDF\'s backlink did not bring its note forward')
@@ -490,13 +506,15 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
 app.whenReady().then(async () => {
   serveDesk(fileURLToPath(new URL('renderer', import.meta.url)))
   const settled = serveWorkspace(controller)
-  // Let the last save land before quitting.
+  const stopAgent = serveAgent(workspace, controller)
+  // Let the last save land before quitting; an answer still coming gets a moment to be kept.
   let quitting = false
   app.on('before-quit', (event) => {
     if (quitting) return
     event.preventDefault()
     quitting = true
-    void settled().finally(() => app.quit())
+    const agentStopped = Promise.race([stopAgent(), new Promise((resolve) => setTimeout(resolve, 2000))])
+    void Promise.allSettled([settled(), agentStopped]).finally(() => app.quit())
   })
   await createWindow()
   app.on('activate', () => {

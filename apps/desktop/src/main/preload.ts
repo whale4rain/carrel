@@ -1,4 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
+import { agentChannels, type AgentApi, type AgentLive } from '../shared/agent-api.js'
 import { workspaceChannels, type ItemView, type ThatView, type WebApi, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -48,6 +49,15 @@ const web: WebApi = {
   frame: (rect) => ipcRenderer.invoke('web:frame', rect) as Promise<Uint8Array>,
   showThat: (sheet, that) => ipcRenderer.send('web:show-that', { sheet, that }),
   onFound: (listener) => listen<{ that: string; found: boolean }>('web:found', ({ that, found }) => listener(that, found)),
+  onShortcut: (listener) => listen<string>('web:shortcut', listener),
+}
+
+const agent: AgentApi = {
+  status: () => call(agentChannels.status),
+  saveKey: (key) => call(agentChannels.saveKey, key),
+  thread: () => call(agentChannels.thread),
+  ask: (text) => call(agentChannels.ask, text),
+  onLive: (listener) => listen<AgentLive>(agentChannels.live, listener),
 }
 
 // The typed bridge between renderer and main.
@@ -55,6 +65,7 @@ contextBridge.exposeInMainWorld('carrel', {
   platform: process.platform,
   workspace,
   web,
+  agent,
   /** The path of a file dropped on the window. */
   pathForFile: (file: File) => webUtils.getPathForFile(file),
 })
