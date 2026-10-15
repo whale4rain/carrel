@@ -1,3 +1,4 @@
+import { formatLabel } from '@carrel/core/document-files'
 import type { ItemView, ViewKind } from '../shared/workspace-api.js'
 
 /** How big a new sheet for each kind is at 100%, and the scale it starts at. */
@@ -18,9 +19,9 @@ export const KIND_LABEL: Record<ViewKind, string> = {
   note: 'Note',
 }
 
-/** "PDF · 1.2 MB", or the link's host. */
+/** "PDF · 1.2 MB", "Markdown · 4 KB", or the link's host. */
 export function sourceLine(item: ItemView): string {
-  if (item.file) return `PDF · ${size(item.file.size)}`
+  if (item.file) return `${formatLabel(item.file.name)} · ${size(item.file.size)}`
   if (item.url) return new URL(item.url).hostname.replace(/^www\./, '')
   return ''
 }

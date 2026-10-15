@@ -28,6 +28,7 @@ const workspace: WorkspaceApi = {
   addLink: (url) => call(workspaceChannels.addLink, url),
   itemBytes: (id) => call(workspaceChannels.itemBytes, id),
   snapshot: (id) => call(workspaceChannels.snapshot, id),
+  document: (id) => call(workspaceChannels.document, id),
   readAt: (id) => call(workspaceChannels.readAt, id),
   saveReadAt: (id, at) => call(workspaceChannels.saveReadAt, id, at),
   setBookmark: (id, page, label) => call(workspaceChannels.setBookmark, id, page, label),

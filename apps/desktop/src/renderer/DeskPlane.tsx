@@ -1,4 +1,5 @@
 import { momentOf, regionOf } from '@carrel/core/selectors'
+import { isDocumentFile } from '@carrel/core/document-files'
 import {
   bounds,
   changed,
@@ -45,6 +46,7 @@ import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouse
 import type { ItemView, Sheet, ThatRequest, ThatView, WebLoading } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView, type Focus } from './PdfView.js'
+import { DocView } from './DocView.js'
 import { NoteView } from './NoteView.js'
 import { citesLine, KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
 import { pdfSelection } from './that.js'
@@ -649,7 +651,7 @@ export function DeskPlane({
     const image = await window.carrel.web.frame({ x: box.x, y: box.y, w: box.width, h: box.height }).catch(() => undefined)
     setCapturing(false)
     const middle = { x: box.x + box.width / 2, y: box.y + box.height / 2 }
-    const page = [...element.querySelectorAll<HTMLElement>('.pdf-page')].find((candidate) => {
+    const page = [...element.querySelectorAll<HTMLElement>('.pdf-page, .doc-section')].find((candidate) => {
       const rect = candidate.getBoundingClientRect()
       return middle.x >= rect.left && middle.x <= rect.right && middle.y >= rect.top && middle.y <= rect.bottom
     })
@@ -1110,6 +1112,26 @@ export function DeskPlane({
                       const that = thats.find((known) => known.id === id)
                       if (that) openThat(that)
                     }}
+                  />
+                ) : item?.file && isDocumentFile(item.file.name) ? (
+                  <DocView
+                    sheet={sheet.id}
+                    itemId={item.id}
+                    thats={thatsOf(item.id)}
+                    focus={focus?.sheet === sheet.id ? focus : undefined}
+                    goTo={goTo?.sheet === sheet.id ? goTo : undefined}
+                    zoom={sheet.pageZoom ?? 1}
+                    onZoom={(how) => void zoomPage(sheet.id, how === 'fit' ? 'actual' : how)}
+                    onPage={(page) => reportPosition(sheet.id, page)}
+                    onFound={found}
+                    bookmarks={item.bookmarks ?? []}
+                    keys={focused ? focused === sheet.id : selected.size === 1 && selected.has(sheet.id)}
+                    onBookmark={(page, label) =>
+                      void api.setBookmark(item.id, page, label).then(
+                        (kept) => onItemsAdded([kept]),
+                        (reason: unknown) => setError(message(reason)),
+                      )
+                    }
                   />
                 ) : item?.file ? (
                   <PdfView
