@@ -15,6 +15,8 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "fflate": "0.8.3",
+    "htmlparser2": "12.0.0",
     "marked": "18.1.1",
     "tnega": "0.5.0"
   }

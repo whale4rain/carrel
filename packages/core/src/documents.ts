@@ -1,7 +1,10 @@
 import { Lexer, type Token, type Tokens } from 'marked'
 import { extensionOf } from './document-files.js'
+import { readEpub } from './epub.js'
+import { safeHref } from './safe-href.js'
 
 export { DOCUMENT_EXTENSIONS, extensionOf, formatLabel, isDocumentFile } from './document-files.js'
+export { safeHref } from './safe-href.js'
 
 /**
  * Sources read as text rather than as pages: Markdown first, then EPUB, Word
@@ -45,6 +48,7 @@ export interface ReadingDocument {
 export async function readDocument(bytes: Uint8Array, name: string, title: string): Promise<ReadingDocument> {
   const extension = extensionOf(name)
   if (extension === '.md' || extension === '.markdown') return readMarkdown(new TextDecoder().decode(bytes), title)
+  if (extension === '.epub') return readEpub(bytes, title)
   throw new Error(`Carrel can't read ${extension || 'that kind of'} files as text yet.`)
 }
 
@@ -220,17 +224,6 @@ function merge(inlines: DocInline[]): DocInline[] {
     else out.push({ ...inline })
   }
   return out
-}
-
-/** Only web and mail links are kept; anything else is just its words. */
-export function safeHref(href: string | undefined): string | undefined {
-  if (!href) return undefined
-  try {
-    const url = new URL(href)
-    return url.protocol === 'http:' || url.protocol === 'https:' || url.protocol === 'mailto:' ? url.href : undefined
-  } catch {
-    return undefined
-  }
 }
 
 const ENTITIES: Record<string, string> = { amp: '&', lt: '<', gt: '>', quot: '"', '#39': "'", apos: "'", nbsp: ' ' }

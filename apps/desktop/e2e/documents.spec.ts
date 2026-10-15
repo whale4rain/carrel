@@ -1,10 +1,12 @@
-// A Markdown file read as text: its sections in Contents, a jump by section
-// number, a bookmark, a that. on its words, and search finding them.
+// Files read as text. A Markdown file: its sections in Contents, a jump by
+// section number, a bookmark, a that. on its words, and search finding them.
+// An EPUB: its chapters as sections, named by the book's contents.
 // Run `pnpm build` first.
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
+import { tinyEpub } from '../scripts/tiny-epub.mjs'
 import { mod, quit, start } from './app.js'
 
 let home: string
@@ -101,4 +103,32 @@ test('read a Markdown file by sections', async () => {
   const again = await start(home, ['Field notes.md'])
   await expect(again.page.locator('.sheet[data-kind="paper"]').getByLabel('Go to section')).toHaveValue('4')
   await quit(again.app)
+})
+
+test('read an EPUB by chapters', async () => {
+  // A home of its own, so a new project starts.
+  const own = await mkdtemp(join(tmpdir(), 'carrel-e2e-'))
+  await writeFile(
+    join(own, 'Walden.epub'),
+    tinyEpub('Walden', [
+      { title: 'Economy', paragraphs: ['When I wrote the following pages, I lived alone, in the woods.'] },
+      { title: 'Where I Lived', paragraphs: ['At a certain season of our life we are accustomed to consider every spot as the possible site of a house.'] },
+      { title: 'Reading', paragraphs: ['Books are the treasured wealth of the world.'] },
+    ]),
+  )
+  const { app, page } = await start(own, ['Walden.epub'])
+  await page.getByLabel('Project name').fill('Walden')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+  await page.locator('.add-menu button', { hasText: 'Book or paper' }).click()
+  const sheet = page.locator('.sheet[data-kind="book"]')
+  await expect(sheet.locator('.doc-section')).toHaveCount(3)
+  await sheet.getByRole('button', { name: 'Contents' }).click()
+  const contents = sheet.getByRole('navigation', { name: 'Contents' })
+  await expect(contents.locator('ul').last().locator('li button')).toHaveText(['Economy1', 'Where I Lived2', 'Reading3'])
+  await contents.getByRole('button', { name: /Reading/ }).click()
+  await expect(sheet.getByLabel('Go to section')).toHaveValue('3')
+  await expect(sheet.locator('.doc-section[data-page="3"] p')).toHaveText('Books are the treasured wealth of the world.')
+  await quit(app)
+  await rm(own, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
