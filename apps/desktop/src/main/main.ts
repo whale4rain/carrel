@@ -158,8 +158,11 @@ async function deskInteractions(
   }
   await addBlank()
   if (!(await waitFor("document.querySelectorAll('.sheet').length === 1"))) return 'adding a sheet did nothing'
-  const center = async (selector: string): Promise<{ x: number; y: number }> =>
-    page(`(() => { const r = document.querySelector('${selector}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
+  // Wait for the element first: on a slow runner it can render a frame after the sheet.
+  const center = async (selector: string): Promise<{ x: number; y: number }> => {
+    await waitFor(`document.querySelector('${selector}') !== null`)
+    return page(`(() => { const r = document.querySelector('${selector}').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
+  }
   const drag = async (from: { x: number; y: number }, dx: number, dy: number, keys: Array<'alt'> = []): Promise<void> => {
     const send = (type: 'mouseDown' | 'mouseMove' | 'mouseUp', x: number, y: number, held = false): void =>
       window.webContents.sendInputEvent({ type, x, y, button: 'left', clickCount: 1, modifiers: held ? ['leftbuttondown', ...keys] : keys })
