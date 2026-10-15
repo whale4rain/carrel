@@ -1,4 +1,5 @@
 import { tokens, type Theme } from '@carrel/margin'
+import { join } from 'node:path'
 import type { BrowserWindowConstructorOptions, TitleBarOverlayOptions } from 'electron'
 
 /** Height of the Windows title strip, where the native caption buttons sit. */
@@ -18,7 +19,7 @@ export function titleBarOverlay(theme: Theme): TitleBarOverlayOptions {
  * sidebar; Windows draws its own title strip with the native caption buttons
  * on top; other platforms keep the system frame.
  */
-export function windowOptions(platform: NodeJS.Platform, preload: string, theme: Theme): BrowserWindowConstructorOptions {
+export function windowOptions(platform: NodeJS.Platform, preload: string, theme: Theme, iconDir?: string): BrowserWindowConstructorOptions {
   const frame: BrowserWindowConstructorOptions =
     platform === 'darwin'
       ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 19 } }
@@ -33,6 +34,7 @@ export function windowOptions(platform: NodeJS.Platform, preload: string, theme:
     title: 'Carrel',
     show: false,
     backgroundColor: tokens.colors.mat[theme],
+    ...(iconDir && platform !== 'darwin' ? { icon: windowIcon(platform, iconDir) } : {}),
     ...frame,
     webPreferences: {
       preload,
@@ -41,4 +43,12 @@ export function windowOptions(platform: NodeJS.Platform, preload: string, theme:
       nodeIntegration: false,
     },
   }
+}
+
+/**
+ * The window's icon file in `build/`: the .ico on Windows, a PNG elsewhere.
+ * Mac takes its icon from the app bundle (or the dock, in development) instead.
+ */
+export function windowIcon(platform: NodeJS.Platform, iconDir: string): string {
+  return join(iconDir, platform === 'win32' ? 'icon.ico' : 'icon.png')
 }

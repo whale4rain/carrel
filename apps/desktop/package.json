@@ -11,7 +11,8 @@
     "start": "electron .",
     "typecheck": "tsc -p tsconfig.json",
     "smoke": "node scripts/smoke.mjs",
-    "e2e": "playwright test"
+    "e2e": "playwright test",
+    "icons": "electron scripts/make-icons.mjs"
   },
   "dependencies": {
     "@carrel/agent": "workspace:*",

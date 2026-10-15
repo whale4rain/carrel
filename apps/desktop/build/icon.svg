@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <!-- Carrel app icon, "c.": Margin paper, the that. highlighter, Literata 500 outlined. Regenerate the PNG, .ico and .icns with scripts/make-icons.mjs. -->
+  <g transform="translate(48 48) scale(9.28)">
+    <rect width="100" height="100" rx="22.4" fill="#fcfcf9" stroke="#e2e5df" stroke-width="0.6"/>
+    <rect x="18" y="56" width="64" height="16" rx="2" fill="#ffe14d"/>
+    <g fill="#1b1f24" transform="translate(22.2 71) scale(0.062 -0.062)">
+      <path d="M274 -14Q206 -14 154.5 16.5Q103 47 74.0 105.0Q45 163 45 247Q45 334 76.5 397.0Q108 460 165.0 494.5Q222 529 297 529Q351 529 389.5 511.5Q428 494 449.0 465.5Q470 437 470 405Q470 385 463.5 369.5Q457 354 443.0 345.0Q429 336 406 336Q377 336 361.5 350.0Q346 364 346 387Q346 403 357.0 424.0Q368 445 391 482Q372 497 350.0 504.5Q328 512 300 512Q261 512 230.0 489.0Q199 466 181.5 415.5Q164 365 164 283Q164 174 205.0 119.0Q246 64 317 64Q368 64 403.5 81.0Q439 98 466 122L475 115Q441 51 392.0 18.5Q343 -14 274 -14Z"/>
+      <path transform="translate(507 0)" d="M162 -14Q128 -14 106.0 7.0Q84 28 84 61Q84 94 106.0 115.0Q128 136 162 136Q197 136 218.5 115.5Q240 95 240 62Q240 29 218.5 7.5Q197 -14 162 -14Z"/>
+    </g>
+  </g>
+</svg>

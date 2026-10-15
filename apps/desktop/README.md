@@ -12,6 +12,17 @@ pnpm dev                                   # build and open
 pnpm --filter @carrel/desktop smoke        # start, check the shell renders, quit
 ```
 
+## App icon
+
+<img src="build/icon-mac.png" width="128" alt="Carrel icon: a Literata c. on a yellow highlighter stroke, on paper">
+
+“c.”: Margin `paper`, the *that.* highlighter and Literata 500, outlined so it
+needs no font. The sources are `build/icon.svg` (Windows and Linux) and
+`build/icon-mac.svg` (on Apple's 1024 grid with its shadow). `pnpm --filter
+@carrel/desktop icons` redraws `icon.png`, `icon.ico`, `icon.icns` and
+`icon-mac.png` from them with Electron. The window uses the .ico on Windows;
+on Mac the dock shows `icon-mac.png` in development and the .icns once packaged.
+
 ## Projects and desks
 
 ![First start, a project on Mac, the same project on Windows at night](screenshot-projects.png)
