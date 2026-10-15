@@ -5,6 +5,7 @@ import {
   emptyHistory,
   fitView,
   intersects,
+  FOLDED_H,
   footprint,
   handles,
   inMarquee,
@@ -22,6 +23,7 @@ import {
   resize,
   SCALES,
   scaleTo,
+  foldTo,
   snap,
   spread,
   tidy,
@@ -473,6 +475,20 @@ export function DeskPlane({
     if (ids.length > 0) save(next, 'scaled', ids, current)
   }
 
+  // Fold the selection down to label rows, or open it again if it is all folded.
+  const foldSelected = (): void => {
+    const current = latest.current
+    const folding = !current.filter((sheet) => selected.has(sheet.id)).every((sheet) => sheet.folded)
+    const next = foldTo(current, selected, folding)
+    const ids = changed(current, next).map((sheet) => sheet.id)
+    if (ids.length > 0) save(next, folding ? 'folded' : 'unfolded', ids, current)
+  }
+  const foldOne = (id: string): void => {
+    const current = latest.current
+    const folding = !current.find((sheet) => sheet.id === id)?.folded
+    save(foldTo(current, new Set([id]), folding), folding ? 'folded' : 'unfolded', [id], current)
+  }
+
   const removeSelected = useCallback((): void => {
     const current = latest.current
     const next = remove(current, selected)
@@ -770,9 +786,10 @@ export function DeskPlane({
               data-pile-top={stack?.at(-1) === sheet || undefined}
               aria-label={title}
               data-kind={item?.kind}
+              data-folded={sheet.folded || undefined}
               style={{ left: box.x, top: box.y, width: box.w, height: box.h, zIndex: sheet.z }}
             >
-              <div className="sheet-paper" style={{ width: sheet.w, height: sheet.h, transform: `scale(${sheet.scale})` }}>
+              <div className="sheet-paper" style={{ width: sheet.w, height: sheet.folded ? FOLDED_H : sheet.h, transform: `scale(${sheet.scale})` }}>
                 <div className="sheet-label" onPointerDown={(event) => startMove(event, sheet.id)}>
                   {item && <span className="sheet-kind">{KIND_LABEL[item.kind]}</span>}
                   <span className="sheet-title">{title}</span>
@@ -810,8 +827,18 @@ export function DeskPlane({
                   )}
                   {positions.has(sheet.id) && <span className="position">{positions.get(sheet.id)}</span>}
                   <span className="position">{Math.round(sheet.scale * 100)}%</span>
+                  <button
+                    type="button"
+                    className="sheet-fold"
+                    aria-label={sheet.folded ? `Open ${title}` : `Fold ${title}`}
+                    title={sheet.folded ? 'Open' : 'Fold to its label'}
+                    onPointerDown={(event) => event.stopPropagation()}
+                    onClick={() => foldOne(sheet.id)}
+                  >
+                    {sheet.folded ? '+' : '–'}
+                  </button>
                 </div>
-                {item?.kind === 'note' ? (
+                {sheet.folded ? null : item?.kind === 'note' ? (
                   <NoteView
                     item={item}
                     write={writing === item.id}
@@ -893,6 +920,7 @@ export function DeskPlane({
         ))}
       </div>
       {single &&
+        !single.folded &&
         (() => {
           const box = rectToScreen(view, footprint(single))
           return (
@@ -940,7 +968,13 @@ export function DeskPlane({
               Scale
             </button>
           )}
-          {chosen.length === 1 && chosen[0]?.itemId != null && items.get(chosen[0].itemId)?.kind !== 'note' && (
+          <button type="button" onClick={foldSelected}>
+            {chosen.every((sheet) => sheet.folded) ? 'Open' : 'Fold'}
+          </button>
+          <button type="button" title="Take off this desk; it stays in the library (Delete)" onClick={removeSelected}>
+            Remove
+          </button>
+          {chosen.length === 1 && chosen[0]?.itemId != null && items.get(chosen[0].itemId)?.kind !== 'note' && !chosen[0].folded && (
             // Pressing it mustn't clear the text selection it points at.
             <button type="button" className="that" onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
               that.

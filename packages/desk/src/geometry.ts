@@ -17,6 +17,8 @@ export interface SheetBox extends Rect {
   z: number
   /** The pile it lies in, if any. */
   pile?: string
+  /** Folded down to its label row; it keeps its size for when it opens. */
+  folded?: boolean
 }
 
 export const MIN_SCALE = 0.3
@@ -24,9 +26,11 @@ export const MAX_SCALE = 1
 /** The smallest a sheet can be, at 100%. */
 export const MIN_W = 160
 export const MIN_H = 120
+/** A folded sheet's height at 100%: its label row. */
+export const FOLDED_H = 36
 
 export function footprint(sheet: SheetBox): Rect {
-  return { x: sheet.x, y: sheet.y, w: sheet.w * sheet.scale, h: sheet.h * sheet.scale }
+  return { x: sheet.x, y: sheet.y, w: sheet.w * sheet.scale, h: (sheet.folded ? FOLDED_H : sheet.h) * sheet.scale }
 }
 
 export function clampScale(scale: number): number {

@@ -47,6 +47,8 @@ export interface Sheet {
   z: number
   /** The pile it lies in, if any. */
   pile?: string
+  /** Folded down to its label row. */
+  folded?: boolean
 }
 
 export interface DeskFile {
