@@ -473,7 +473,11 @@ async function deskInteractions(
 }
 
 async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promise<void>): Promise<void> {
-  const page = <T>(script: string): Promise<T> => window.webContents.executeJavaScript(script) as Promise<T>
+  // A script that throws names itself, so a failed smoke says which step it was on.
+  const page = <T>(script: string): Promise<T> =>
+    (window.webContents.executeJavaScript(script) as Promise<T>).catch((error: unknown) => {
+      throw new Error(`${error instanceof Error ? error.message : String(error)} Script: ${script.replace(/\s+/g, ' ').slice(0, 200)}`)
+    })
   const waitFor = async (script: string): Promise<boolean> => {
     const deadline = Date.now() + 15_000
     while (Date.now() < deadline) {
