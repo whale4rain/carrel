@@ -138,10 +138,10 @@ export class Library {
     return next
   }
 
-  /** Copies a PDF into the project as a new item. */
+  /** Copies a PDF, an EPUB or a Markdown file into the project as a new item. */
   async addFile(folder: string, path: string, actor: Actor = 'user'): Promise<ItemFile> {
     const extension = extname(path).toLowerCase()
-    if (!STORED_EXTENSIONS.includes(extension)) throw new Error(`Carrel can't open ${extension || 'that kind of'} files yet. Try a PDF or a Markdown file.`)
+    if (!STORED_EXTENSIONS.includes(extension)) throw new Error(`Carrel can't open ${extension || 'that kind of'} files yet. Try a PDF, an EPUB or a Markdown file.`)
     const info = await stat(path)
     if (!info.isFile()) throw new Error('That is not a file.')
     const id = randomUUID()
@@ -151,7 +151,8 @@ export class Library {
     const item: ItemFile = {
       format: FORMAT,
       id,
-      kind: 'paper',
+      // An EPUB is always a book; a PDF or a Markdown file could be either, and starts as a paper.
+      kind: extension === '.epub' ? 'book' : 'paper',
       title: titleFromFile(file),
       createdBy: actor,
       createdAt: this.now().toISOString(),
