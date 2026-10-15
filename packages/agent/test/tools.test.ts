@@ -1,7 +1,9 @@
+import type { ProposalChange } from '@carrel/core'
 import { describe, expect, it } from 'vitest'
 import { carrelTools, chip, describeStep, type ProjectAccess } from '../src/index.js'
 
 const made: Array<{ item: string; page: number; quote: string }> = []
+const proposed: Array<{ change: ProposalChange; why: string | undefined }> = []
 const access: ProjectAccess = {
   search: async () => [
     { kind: 'page', id: 'pdf1', itemId: 'pdf1', page: 3, title: 'Principles', snippet: 'price \u0001elasticity\u0002 of demand' },
@@ -12,6 +14,10 @@ const access: ProjectAccess = {
   makeThat: async (item, page, quote) => {
     made.push({ item, page, quote })
     return { id: 't9', label: `p.${page}` }
+  },
+  propose: async (change, why) => {
+    proposed.push({ change, why })
+    return { id: `p${proposed.length}` }
   },
 }
 
@@ -43,6 +49,21 @@ describe('carrelTools', () => {
     expect(await tool('make_that')({ item: 'pdf1', page: 4, quote: 'Demand is elastic' })).toEqual({ that: 't9', cite: '[p.4](that:t9)' })
     expect(made).toEqual([{ item: 'pdf1', page: 4, quote: 'Demand is elastic' }])
     await expect(tool('make_that')({ item: 'pdf1', quote: 'x' })).rejects.toThrow('needs an item')
+  })
+
+  it('proposes notes and sources without writing them', async () => {
+    expect(await tool('propose_note_edit')({ text: ' # Coffee\n\nA habit. ', why: 'You asked' })).toMatchObject({ proposal: 'p1' })
+    expect(await tool('propose_note_edit')({ note: 'n1', text: 'More.' })).toMatchObject({ proposal: 'p2' })
+    expect(await tool('propose_source')({ url: 'https://example.com/a' })).toMatchObject({ proposal: 'p3' })
+    expect(proposed).toEqual([
+      { change: { kind: 'note', text: '# Coffee\n\nA habit.' }, why: 'You asked' },
+      { change: { kind: 'note', note: 'n1', text: 'More.' }, why: undefined },
+      { change: { kind: 'source', url: 'https://example.com/a' }, why: undefined },
+    ])
+    await expect(tool('propose_source')({ url: 'file:///etc/passwd' })).rejects.toThrow('http or https')
+    await expect(tool('propose_note_edit')({ text: ' ' })).rejects.toThrow('needs text')
+    expect(describeStep('propose_note_edit', { text: 'x' })).toBe('Proposed a note')
+    expect(describeStep('propose_note_edit', { note: 'n1', text: 'x' })).toBe('Proposed an addition to a note')
   })
 
   it('writes chips and steps in words', () => {

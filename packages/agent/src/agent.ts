@@ -37,6 +37,8 @@ export class ProjectAgent {
   private readonly tools: (folder: string) => readonly ToolDefinition[]
   private readonly opened = new Map<string, Promise<OpenCarrelProject>>()
   private queue: Promise<unknown> = Promise.resolve()
+  /** The question being answered now, per project. */
+  private readonly answering = new Map<string, string>()
 
   constructor(options: ProjectAgentOptions) {
     this.workspace = options.workspace
@@ -48,6 +50,11 @@ export class ProjectAgent {
 
   turns(folder: string): Promise<Turn[]> {
     return this.threads.turns(folder)
+  }
+
+  /** The question the agent is answering in a project now, by turn id, so a proposal can say what led to it. */
+  asking(folder: string): string | undefined {
+    return this.answering.get(folder)
   }
 
   /**
@@ -65,6 +72,7 @@ export class ProjectAgent {
     const run = this.queue.then(async () => {
       const points = options.points?.length ? { points: options.points } : {}
       const question = await this.threads.add(folder, { by: 'user', text, ...points })
+      this.answering.set(folder, question.id)
       const sent = options.context ? `${options.context}\n\n${text}` : text
       const steps: TurnStep[] = []
       let streamed = ''
@@ -87,6 +95,8 @@ export class ProjectAgent {
         })
       } catch (reason) {
         error = reason instanceof Error ? reason.message : String(reason)
+      } finally {
+        this.answering.delete(folder)
       }
       const answer = await this.threads.add(folder, {
         by: 'agent',

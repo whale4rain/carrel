@@ -51,7 +51,7 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
     return (model ??= createLlmAdapter({ baseUrl: BASE_URL, model: MODEL, apiKey: key, protocol: 'openai' }))
   }
 
-  const agent = new ProjectAgent({
+  const agent: ProjectAgent = new ProjectAgent({
     workspace,
     model: current,
     tools: (folder) =>
@@ -63,6 +63,12 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
           const that = await controller.agentThat(folder, id, page, quote)
           for (const window of BrowserWindow.getAllWindows()) window.webContents.send(agentChannels.that, that)
           return that
+        },
+        propose: async (change, why) => {
+          const asked = agent.asking(folder)
+          const proposal = await controller.propose(folder, change, { ...(why ? { why } : {}), ...(asked ? { asked } : {}) })
+          for (const window of BrowserWindow.getAllWindows()) window.webContents.send(agentChannels.proposal, proposal)
+          return proposal
         },
       }),
   })
@@ -94,6 +100,8 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
     const turns = await agent.turns(await openFolder())
     return { turns, total: totalCost(turns) }
   })
+  handle(agentChannels.proposals, () => controller.proposalList())
+  handle(agentChannels.decide, (_event, id, accept) => controller.decideProposal(id, accept))
   handle(agentChannels.ask, async (event, text, context) => {
     if (typeof text !== 'string' || text.trim().length === 0) throw new Error('Ask something first.')
     const folder = await openFolder()

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
-import { agentChannels, type AgentApi, type AgentLive } from '../shared/agent-api.js'
+import { agentChannels, type AgentApi, type AgentLive, type ProposalView } from '../shared/agent-api.js'
 import { workspaceChannels, type ItemView, type ThatView, type WebApi, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -59,6 +59,9 @@ const agent: AgentApi = {
   ask: (text, context) => call(agentChannels.ask, text, context),
   onLive: (listener) => listen<AgentLive>(agentChannels.live, listener),
   onThat: (listener) => listen<ThatView>(agentChannels.that, listener),
+  proposals: () => call(agentChannels.proposals),
+  decide: (id, accept) => call(agentChannels.decide, id, accept),
+  onProposal: (listener) => listen<ProposalView>(agentChannels.proposal, listener),
 }
 
 // The typed bridge between renderer and main.

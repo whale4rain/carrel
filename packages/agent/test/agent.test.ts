@@ -60,7 +60,17 @@ afterEach(async () => {
 describe('ProjectAgent', () => {
   it('answers in the project thread, searching first, and keeps both turns with steps and cost', async () => {
     const model = scriptedModel()
-    const agent = new ProjectAgent({ workspace, model: () => model.llm, tools: () => [searchProjectTool(async () => hits)] })
+    const asked: Array<string | undefined> = []
+    const agent: ProjectAgent = new ProjectAgent({
+      workspace,
+      model: () => model.llm,
+      tools: (folder) => [
+        searchProjectTool(async () => {
+          asked.push(agent.asking(folder))
+          return hits
+        }),
+      ],
+    })
     try {
       const events: AgentEvent[] = []
       const { question, answer } = await agent.ask('Learn economics', 'What did I note about elasticity?', (event) => events.push(event))
@@ -79,6 +89,9 @@ describe('ProjectAgent', () => {
       expect(texts).toContain('Let me look. ')
       expect(texts.slice(texts.lastIndexOf(''))).toEqual(['', 'Your note ', 'Your note “Elasticity” ', 'Your note “Elasticity” says coffee is inelastic.'])
       expect((await agent.turns('Learn economics')).map((turn) => turn.by)).toEqual(['user', 'agent'])
+      // Tools know which question they answer (proposals keep it); only while it is answered.
+      expect(asked).toEqual([question.id])
+      expect(agent.asking('Learn economics')).toBeUndefined()
     } finally {
       await agent.dispose()
     }

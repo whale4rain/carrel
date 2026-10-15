@@ -206,3 +206,33 @@ describe("the agent's reads through the shell", () => {
     }
   })
 })
+
+describe("the agent's proposals through the shell", () => {
+  it('writes nothing until accepted, then makes a note, adds to one, or links a source', async () => {
+    const shell = controller()
+    await shell.createProject('Learn economics')
+    const fresh = await shell.propose('Learn economics', { kind: 'note', text: '# Coffee\n\nA habit, so inelastic.' }, { why: 'You asked', asked: 'q1' })
+    expect((await shell.items()).filter((item) => item.kind === 'note')).toEqual([])
+    expect(await shell.proposalList()).toEqual([fresh])
+
+    const { proposal, item } = await shell.decideProposal(fresh.id, true)
+    expect(proposal).toMatchObject({ state: 'accepted', result: item?.id })
+    expect(item).toMatchObject({ kind: 'note', title: 'Coffee' })
+
+    const more = await shell.propose('Learn economics', { kind: 'note', note: item!.id, text: 'Tea too.' }, {})
+    expect(more.target).toBe('Coffee')
+    await shell.decideProposal(more.id, true)
+    expect(await shell.readItem('Learn economics', item!.id)).toMatchObject({ text: expect.stringMatching(/inelastic\.\n\nTea too\./) })
+
+    const source = await shell.propose('Learn economics', { kind: 'source', url: 'https://example.com/elasticity' }, {})
+    const dismissed = await shell.decideProposal(source.id, false)
+    expect(dismissed).toEqual({ proposal: expect.objectContaining({ state: 'dismissed' }) })
+    expect((await shell.items()).filter((known) => known.kind !== 'note')).toEqual([])
+    await expect(shell.decideProposal(source.id, true)).rejects.toThrow('already dismissed')
+
+    const again = await shell.propose('Learn economics', { kind: 'source', url: 'https://example.com/elasticity' }, {})
+    expect((await shell.decideProposal(again.id, true)).item).toMatchObject({ url: 'https://example.com/elasticity' })
+    await expect(shell.propose('Learn economics', { kind: 'note', note: 'nope', text: 'x' }, {})).rejects.toThrow('not in this project')
+    shell.close()
+  })
+})

@@ -406,6 +406,20 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"][data-selected]') !== null"))) return 'the sidebar did not bring the note forward'
   await page("document.querySelector('.agent-text .that-chip').click()")
   if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null"))) return 'the chip in the answer did not open the PDF'
+  // Asked for a note, the agent proposes one in pencil; nothing is written until Tab accepts it.
+  const notes = "document.querySelectorAll('[aria-label=\"Notes\"] .row.note').length"
+  const before = await page<number>(notes)
+  await page("document.querySelector('.agent-input textarea').focus()")
+  window.webContents.insertText('Make a note about coffee')
+  await page("document.querySelector('.agent-send:not(:disabled)')?.click()")
+  if (!(await waitFor("document.querySelector('.agent-panel .proposal[data-state=\"open\"] .proposal-tag')?.textContent.includes('SUGGEST') === true && document.querySelector('.agent-answer[data-live]') === null"))) {
+    return `the agent did not propose a note: ${String(await page("document.querySelector('.agent-body')?.innerText ?? 'no panel'"))}`
+  }
+  if ((await page<number>(notes)) !== before) return 'a proposal was written before it was accepted'
+  await key('Tab')
+  if (!(await waitFor(`document.querySelector('.agent-panel .proposal[data-state="accepted"]') !== null && ${notes} === ${before + 1} && document.querySelector('.agent-panel .proposal-open')?.textContent === 'Open note'`))) {
+    return `Tab did not accept the proposal: ${String(await page("document.querySelector('.agent-body')?.innerText ?? 'no panel'"))}`
+  }
   return undefined
 }
 
@@ -446,7 +460,11 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`(() => { const s = document.querySelector('.sheet'); return !!s && s.style.left === '${MOVED.x}px' && s.style.top === '${MOVED.y}px' && s.style.width === '${SCALED.w}px' })()`))) {
       return fail(`the sheet came back at ${String(await page("document.querySelector('.sheet')?.getAttribute('style') ?? 'nowhere'"))}`)
     }
-    if (!(await waitFor("document.querySelector('.zoom-level')?.textContent === '80%'"))) return fail('the desk did not come back at 80%')
+    // The desk comes back at the zoom it was left at (80%, or less if a chip had to zoom out to show its sheet).
+    const left = "window.carrel.workspace.state().then((s) => window.carrel.workspace.desk(s.open.desk)).then((d) => Math.round(d.viewport.zoom * 100) + '%')"
+    if (!(await waitFor(`${left}.then((zoom) => zoom !== '100%' && document.querySelector('.zoom-level')?.textContent === zoom)`))) {
+      return fail(`the desk did not come back at its zoom: ${String(await page("document.querySelector('.zoom-level')?.textContent"))}`)
+    }
     if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) {
       return fail('the web page sheet did not come back')
     }
@@ -492,7 +510,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     }
     // The agent's thread comes back with its turns and what they sent.
     await page("document.querySelector('.agent-button').click()")
-    if (!(await waitFor("document.querySelectorAll('.agent-panel .agent-me').length === 1 && document.querySelector('.agent-title span')?.textContent.includes('sent') === true"))) {
+    if (!(await waitFor("document.querySelectorAll('.agent-panel .agent-me').length === 2 && document.querySelector('.agent-panel .proposal[data-state=\"accepted\"]') !== null && document.querySelector('.agent-title span')?.textContent.includes('sent') === true"))) {
       return fail(`the agent's thread did not come back: ${String(await page("document.querySelector('.agent-panel')?.innerText ?? 'no panel'"))}`)
     }
     await page("document.querySelector('.agent-close').click()")

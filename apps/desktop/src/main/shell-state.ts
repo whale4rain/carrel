@@ -2,10 +2,12 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import {
   Anchors,
+  fromMarkdown,
   isNoteDoc,
   Library,
   Notes,
   plainText,
+  Proposals,
   toMarkdown,
   SearchIndex,
   momentSelector,
@@ -19,6 +21,8 @@ import {
   type NoteFile,
   type NoteSummary,
   type OpenProject,
+  type Proposal,
+  type ProposalChange,
   type Selector,
   type Sheet,
   type SheetChange,
@@ -26,6 +30,7 @@ import {
   type Workspace,
 } from '@carrel/core'
 import type { ItemText, ThatText } from '@carrel/agent'
+import type { ProposalView } from '../shared/agent-api.js'
 import type { DeskView, ItemView, NoteView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 
 /** Reads each page's text from a stored PDF. */
@@ -40,6 +45,7 @@ export class ShellController {
   private readonly library: Library
   private readonly anchors: Anchors
   private readonly notes: Notes
+  private readonly proposals: Proposals
   private readonly index: SearchIndex
   private readonly readPages: PageReader | undefined
   /** PDFs being read for search, by item. */
@@ -50,6 +56,7 @@ export class ShellController {
     this.library = new Library(workspace)
     this.anchors = new Anchors(workspace)
     this.notes = new Notes(workspace)
+    this.proposals = new Proposals(workspace)
     this.index = new SearchIndex(workspace)
     this.readPages = options.readPages
   }
@@ -233,6 +240,50 @@ export class ShellController {
     if (!found) throw new Error(`Those words are not on page ${page}. Copy them exactly from read_item.`)
     const selectors = [pageSelector(page), ...textSelectors(text, found.index, found.index + found[0].length)]
     return thatView(await this.anchors.make(folder, { itemId, selectors, text: found[0] }, 'agent'))
+  }
+
+  /** The agent proposes a change; it waits in pencil. */
+  async propose(folder: string, change: ProposalChange, options: { why?: string; asked?: string }): Promise<ProposalView> {
+    if (change.kind === 'note' && change.note !== undefined) await this.notes.read(folder, change.note)
+    return this.proposalView(folder, await this.proposals.make(folder, change, options))
+  }
+
+  /** The open project's proposals, oldest first. */
+  async proposalList(): Promise<ProposalView[]> {
+    const { open } = await this.state()
+    if (!open) return []
+    const all = await this.proposals.list(open.project)
+    return Promise.all(all.map((proposal) => this.proposalView(open.project, proposal)))
+  }
+
+  /**
+   * The person accepts or dismisses a proposal. Accepting writes it: a new
+   * note, words added at the end of a note, or a linked source.
+   */
+  async decideProposal(id: unknown, accept: unknown): Promise<{ proposal: ProposalView; item?: ItemView }> {
+    if (typeof id !== 'string' || typeof accept !== 'boolean') throw new Error('That is not a decision.')
+    const folder = await this.openFolder()
+    let item: ItemView | undefined
+    const decided = await this.proposals.decide(folder, id, accept ? 'accepted' : 'dismissed', async (change) => {
+      item = await this.apply(folder, change)
+      return item.id
+    })
+    return { proposal: await this.proposalView(folder, decided), ...(item ? { item } : {}) }
+  }
+
+  private async apply(folder: string, change: ProposalChange): Promise<ItemView> {
+    if (change.kind === 'source') return itemView(await this.library.addLink(folder, change.url, 'agent'))
+    const added = fromMarkdown(change.text)
+    if (change.note === undefined) return noteItem(await this.notes.create(folder, added, 'agent'), await this.citedItems(folder))
+    const before = await this.notes.read(folder, change.note)
+    const saved = await this.notes.save(folder, change.note, { ...before.doc, content: [...before.doc.content, ...added.content] }, 'agent')
+    return noteItem(saved, await this.citedItems(folder))
+  }
+
+  private async proposalView(folder: string, proposal: Proposal): Promise<ProposalView> {
+    const { change } = proposal
+    const target = change.kind === 'note' && change.note !== undefined ? await this.notes.read(folder, change.note).catch(() => undefined) : undefined
+    return { ...proposal, ...(target ? { target: target.title } : {}) }
   }
 
   /** Lets go of the search index (tests, quitting). */
