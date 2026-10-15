@@ -27,6 +27,12 @@ test('browse the library and put a source back on the desk', async () => {
   await page.locator('.add-menu button', { hasText: 'Book or paper' }).click()
   const paper = page.locator('.sheet[data-kind="paper"]')
   await expect(paper.locator('.textLayer')).toHaveText('Marginal cost')
+  // Take the paper off the desk (before a note can land over it); it stays in the library.
+  await paper.locator('.sheet-title').click()
+  await page.getByRole('toolbar', { name: 'Actions for the selection' }).getByRole('button', { name: 'Remove' }).click()
+  await expect(paper).toHaveCount(0)
+
+  // A tagged note.
   await page.locator('[aria-label="Notes"] button', { hasText: '+ New note' }).click()
   const editor = page.locator('.sheet[data-kind="note"] .ProseMirror')
   await expect(editor).toBeFocused()
@@ -34,11 +40,6 @@ test('browse the library and put a source back on the desk', async () => {
   await editor.locator('p').click()
   await page.keyboard.type('Rising at the margin #econ ')
   await expect(page.locator('[aria-label="Notes"] .row.note')).toHaveText(['Costs'])
-
-  // Take the paper off the desk; it stays in the library.
-  await paper.locator('.sheet-title').click()
-  await page.getByRole('toolbar', { name: 'Actions for the selection' }).getByRole('button', { name: 'Remove' }).click()
-  await expect(paper).toHaveCount(0)
 
   const sidebar = page.getByRole('navigation', { name: 'Project' })
   await sidebar.getByRole('button', { name: /Books & papers/ }).click()
