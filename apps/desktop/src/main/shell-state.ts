@@ -318,6 +318,13 @@ export class ShellController {
     await this.library.setReadAt(await this.openFolder(), id, at)
   }
 
+  /** Keeps a page of a book or paper as a bookmark, or lets it go (`label` null). */
+  async setBookmark(id: string, page: unknown, label: unknown): Promise<ItemView> {
+    if (typeof page !== 'number' || !Number.isFinite(page) || page < 1) throw new Error('That is not a page.')
+    if (label !== null && typeof label !== 'string') throw new Error('A bookmark is known by a few words.')
+    return itemView(await this.library.setBookmark(await this.openFolder(), id, page, label))
+  }
+
   /** A web page's last snapshot (PNG bytes), if it has one. */
   async snapshot(id: string): Promise<Uint8Array | null> {
     const path = this.library.snapshotPath(await this.openFolder(), id)
@@ -448,7 +455,9 @@ function summary(opened: OpenProject, desk: string | undefined): NonNullable<She
 
 function itemView(item: ItemFile): ItemView {
   const base = { id: item.id, kind: item.kind, title: item.title, createdBy: item.createdBy, createdAt: item.createdAt }
-  return item.source.storage === 'linked' ? { ...base, url: item.source.url } : { ...base, file: { name: item.source.file, size: item.source.size } }
+  if (item.source.storage === 'linked') return { ...base, url: item.source.url }
+  const bookmarks = item.bookmarks?.map(({ page, label }) => ({ page, label }))
+  return { ...base, file: { name: item.source.file, size: item.source.size }, ...(bookmarks ? { bookmarks } : {}) }
 }
 
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {

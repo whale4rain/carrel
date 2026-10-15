@@ -73,3 +73,10 @@ export const SidebarIcon = () => (
     <path d="M9 4v16" />
   </svg>
 )
+
+/** A ribbon: hollow, or filled when the page is kept. */
+export const BookmarkIcon = ({ filled = false }: { filled?: boolean }) => (
+  <svg {...line} fill={filled ? 'currentColor' : 'none'}>
+    <path d="M6 3h12v18l-6-4-6 4z" />
+  </svg>
+)

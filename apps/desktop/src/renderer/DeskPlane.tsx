@@ -1124,6 +1124,14 @@ export function DeskPlane({
                     onZoom={(how) => void zoomPage(sheet.id, how === 'fit' ? 'actual' : how)}
                     onPage={(page) => reportPosition(sheet.id, page)}
                     onFound={found}
+                    bookmarks={item.bookmarks ?? []}
+                    keys={focused ? focused === sheet.id : selected.size === 1 && selected.has(sheet.id)}
+                    onBookmark={(page, label) =>
+                      void api.setBookmark(item.id, page, label).then(
+                        (kept) => onItemsAdded([kept]),
+                        (reason: unknown) => setError(message(reason)),
+                      )
+                    }
                   />
                 ) : embedded(item) ? (
                   <VideoView
