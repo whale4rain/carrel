@@ -165,9 +165,20 @@ export interface WebApi {
   showThat(sheet: string, that: string): void
   /** Whether a *that.* was found in its page as it is now. */
   onFound(listener: (that: string, found: boolean) => void): () => void
-  /** An app shortcut pressed while a live page had the keyboard: "k" (search) or "j" (the agent). */
+  /**
+   * An app shortcut pressed while a live page had the keyboard: "k" (search),
+   * "j" (the agent), or "=", "-", "0" (the page's zoom).
+   */
   onShortcut(listener: (key: string) => void): () => void
+  /** A web sheet's page started or stopped loading, or failed to load (with why). */
+  onLoading(listener: (sheet: string, state: WebLoading) => void): () => void
+  /** How much the live page must shrink to fit its sheet's width (1 when it fits). */
+  fitWidth(sheet: string): Promise<number>
+  /** Loads the sheet's page again. */
+  reload(sheet: string): void
 }
+
+export type WebLoading = { loading: boolean; error?: string }
 
 export const workspaceChannels = {
   state: 'workspace:state',

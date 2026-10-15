@@ -43,7 +43,10 @@ export function App() {
       event.preventDefault()
     }
     window.addEventListener('keydown', onKey, true)
-    const offPage = window.carrel.web.onShortcut((key) => (key === 'k' ? setSearching : setTalking)((now) => !now))
+    const offPage = window.carrel.web.onShortcut((key) => {
+      if (key === 'k') setSearching((now) => !now)
+      else if (key === 'j') setTalking((now) => !now)
+    })
     return () => {
       window.removeEventListener('keydown', onKey, true)
       offPage()
