@@ -18,7 +18,7 @@ export function pageZoomStep(current: number, direction: 1 | -1): number {
 }
 
 /** Things drawn over the desk that a live page must not cover (search covers the whole window). */
-const OVERLAYS = '.desk-nav, .focus-bar, .focus-shelf, .selection-bar, .add-menu, .desk-error, .that-tray, .that-saved, .search-scrim'
+const OVERLAYS = '.desk-nav, .focus-bar, .focus-shelf, .selection-bar, .add-menu, .desk-error, .that-tray, .that-saved, .search-scrim, .library-scrim'
 
 /**
  * Web pages on the desk. Main draws the live page as a native view over its
