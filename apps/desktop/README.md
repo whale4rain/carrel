@@ -121,8 +121,8 @@ Select words in a PDF, or select a playing video's sheet, and press **⌘ .**
 (Ctrl+. on Windows) or **that.** on the selection bar. In a live web page,
 select words and press ⌘ . there. Carrel keeps a *that.* in the project and
 puts its chip on the tray at the bottom left: the page (`p.42`), the moment
-(`▶ 12:34`) or the site. Hover a chip for its words; click it to bring its
-sheet into view; × takes it off the tray but keeps it.
+(`▶ 12:34`) or the site. Hover a chip for its words; × takes it off the tray
+but keeps it.
 
 ```
 ~/Carrel/<project>/anchors/
@@ -132,6 +132,17 @@ sheet into view; × takes it off the tray but keeps it.
 
 Text selectors are relative to the page for a PDF and to the page's text for
 a web page, so a *that.* can be found again when the source shifts.
+
+![An opened chip brightens its band in the PDF; at night, a that. whose words are gone shows its saved copy](screenshot-reanchor.png)
+
+**Opening a chip** finds its spot again. The sheet comes to the middle of the
+view and to the top. A PDF scrolls to the words and brightens their band; a
+video seeks to the moment; a web page goes live and scrolls to its words.
+Each *that.* is looked for at its exact position first, then by its quote and
+the words around it. When the words are gone, the chip turns grey ("saved")
+and shows what it said when it was made. Every *that.* on a PDF page or a web
+page keeps a soft yellow band under its words. The tray shows the *that.*s of
+the sources on this desk, so chips come back after a restart.
 
 ## Frames
 

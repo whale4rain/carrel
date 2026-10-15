@@ -1,6 +1,6 @@
 import { carrelRoots, Workspace } from '@carrel/core'
 import { isTheme, type Theme } from '@carrel/margin'
-import { app, BrowserWindow, ipcMain, nativeTheme } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, webContents, type WebContents } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { fileURLToPath } from 'node:url'
@@ -32,6 +32,9 @@ const controller = new ShellController(workspace)
 const webViews = new Map<number, WebViews>()
 ipcMain.on('web:layout', (event, layout: WebLayout) => {
   if (isWebLayout(layout)) void webViews.get(event.sender.id)?.layout(layout)
+})
+ipcMain.on('web:show-that', (event, request: { sheet?: unknown; that?: unknown }) => {
+  if (typeof request?.sheet === 'string' && typeof request.that === 'string') webViews.get(event.sender.id)?.showThat(request.sheet, request.that)
 })
 
 // A rectangle of the window as a PNG: a video's frame for its *that.*
@@ -67,11 +70,14 @@ async function createWindow(): Promise<void> {
           if (item && !window.isDestroyed()) window.webContents.send('web:item', item)
         }, () => undefined)
       },
-      that: (itemId, text) => {
-        void controller.makeThat({ itemId, text }).then((that) => {
-          if (!window.isDestroyed()) window.webContents.send('web:that', that)
-        }, (error: unknown) => console.error('that.:', error))
-      },
+      that: (itemId, text) =>
+        controller.makeThat({ itemId, text }).then(
+          (that) => {
+            if (!window.isDestroyed()) window.webContents.send('web:that', that)
+          },
+          (error: unknown) => console.error('that.:', error),
+        ),
+      anchors: async (itemId) => (await controller.thats()).filter((that) => that.itemId === itemId),
     }),
   )
   window.on('closed', () => webViews.delete(id))
@@ -110,6 +116,20 @@ const VIDEO_ID = 'aqz-KE-bpKQ'
 const VIDEO = `https://www.youtube.com/watch?v=${VIDEO_ID}`
 /** The text of the smoke's PDF, as its sheet's text layer has it. */
 const PDF_TEXT = "document.querySelector('.sheet[data-kind=\"paper\"] .textLayer')?.textContent"
+/** The words the smoke points at in its web page. */
+const PAGE_WORDS = 'A page on the desk.'
+/** The live web page, if one is open: the one showing the smoke's link. */
+const livePage = (): WebContents | undefined => webContents.getAllWebContents().find((contents) => contents.getURL() === LINK)
+/** Waits for a script to come true in a page that may not exist yet. */
+async function waitForIn(target: () => WebContents | undefined, script: string): Promise<boolean> {
+  const deadline = Date.now() + 15_000
+  while (Date.now() < deadline) {
+    const contents = target()
+    if (contents && (await contents.executeJavaScript(script).catch(() => false)) === true) return true
+    await new Promise((resolve) => setTimeout(resolve, 100))
+  }
+  return false
+}
 /** The word the smoke points at with that. */
 const THAT_WORD = 'elasticity'
 /** Then scaled to 60% from the selection bar. */
@@ -244,6 +264,23 @@ async function deskInteractions(
     return `the web sheet is called ${String(await page(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label')`))}`
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
+  // that. inside the live page: select its words and press ⌘. there; the chip names the site.
+  const live = livePage()
+  if (!live) return 'the live page was not found'
+  await live.executeJavaScript(`(() => {
+    const words = document.querySelector('p').firstChild
+    const range = document.createRange()
+    range.setStart(words, 0)
+    range.setEnd(words, words.length)
+    getSelection().removeAllRanges()
+    getSelection().addRange(range)
+  })()`)
+  live.sendInputEvent({ type: 'keyDown', keyCode: '.', modifiers: [mod] })
+  live.sendInputEvent({ type: 'keyUp', keyCode: '.', modifiers: [mod] })
+  if (!(await waitFor(`[...document.querySelectorAll('.that-tray .that-chip')].some((chip) => chip.textContent === '127.0.0.1')`))) {
+    return 'pointing inside the web page made no chip'
+  }
+  if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.some((that) => that.text === '${PAGE_WORDS}'))`))) return 'the web page\'s that. was not kept'
   await key('Escape')
   if (!(await waitFor("document.querySelector('.web-page[data-live]') === null && document.querySelector('.web-page img') !== null"))) {
     return 'leaving the web page left no snapshot'
@@ -277,10 +314,12 @@ async function deskInteractions(
     }
   })()`)
   await key('.', [mod])
-  if (!(await waitFor("document.querySelector('.that-tray .that-chip')?.textContent === 'p.1'"))) {
+  if (!(await waitFor(`[...document.querySelectorAll('.that-tray .that-chip')].some((chip) => chip.textContent === 'p.1')`))) {
     return `pointing at the PDF made no chip: ${String(await page("document.querySelector('.desk-error')?.textContent ?? 'no message'"))}`
   }
-  if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.length === 1 && thats[0].text === '${THAT_WORD}')`))) return 'the that. was not kept'
+  if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.text === '${THAT_WORD}'))`))) {
+    return 'the that. was not kept'
+  }
   return undefined
 }
 
@@ -327,8 +366,31 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     }
     if (!(await waitFor("document.querySelector('.web-page img') !== null"))) return fail('the web page came back without its snapshot')
     if (!(await waitFor(`${PDF_TEXT} === 'Price elasticity of demand'`))) return fail(`the PDF came back saying ${String(await page(PDF_TEXT))}`)
-    if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats[0]?.label === 'p.1' && thats[0]?.text === '${THAT_WORD}')`))) {
+    if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.text === '${THAT_WORD}'))`))) {
       return fail('the that. did not come back')
+    }
+    // Its chip is back on the tray; opening it finds the word and brightens its band.
+    const chip = (label: string): string => `[...document.querySelectorAll('.that-tray .that-chip')].find((chip) => chip.textContent === '${label}')`
+    if (!(await waitFor(`${chip('p.1')} !== undefined`))) return fail('the chip did not come back')
+    await page(`${chip('p.1')}.click()`)
+    if (!(await waitFor("CSS.highlights.get('that-active')?.size === 1 && document.querySelector('.that-saved') === null"))) {
+      return fail('opening the chip did not find its words')
+    }
+    // The web page's chip makes its page live and marks the words there.
+    await page(`${chip('127.0.0.1')}.click()`)
+    if (!(await waitFor("document.querySelector('.web-page[data-live]') !== null"))) {
+      return fail(`opening the web chip did not open its page: ${JSON.stringify(webViews.get(window.webContents.id)?.status)}`)
+    }
+    if (!(await waitForIn(livePage, "CSS.highlights?.get('carrel-that-active')?.size === 1"))) return fail('the web page did not mark its that.')
+    // A that. whose words are gone opens its saved copy.
+    await page(`window.carrel.workspace.items().then((items) => window.carrel.workspace.makeThat({
+      itemId: items.find((item) => item.kind === 'paper').id, page: 1, text: { source: 'Words this PDF never had', start: 0, end: 24 },
+    }))`)
+    await reload()
+    if (!(await waitFor("document.querySelectorAll('.that-tray .that-chip').length === 3"))) return fail('the new chip did not show')
+    await page("[...document.querySelectorAll('.that-tray .that-chip')].at(-1).click()")
+    if (!(await waitFor("document.querySelector('.that-saved blockquote')?.textContent === 'Words this PDF never had'"))) {
+      return fail('a that. with its words gone did not show its saved copy')
     }
   }
   // Calls run in order, so this answers only after the gestures' saves are written.

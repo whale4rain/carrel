@@ -1,6 +1,7 @@
+import { findText, type Selector } from '@carrel/core'
 import { pickLive, type LiveBlocker, type LiveSheet, type Rect } from '@carrel/desk'
 import { shell, WebContentsView, type BrowserWindow } from 'electron'
-import { SELECTION_IN_PAGE } from './page-text.js'
+import { BAND_STYLE, bandsInPage, SELECTION_IN_PAGE, TEXT_OF_PAGE } from './page-text.js'
 
 /** A web sheet as the renderer lays it out, in window pixels. */
 export interface WebSheetLayout extends LiveSheet {
@@ -23,17 +24,19 @@ export interface WebHooks {
   saveSnapshot(itemId: string, png: Buffer): Promise<void>
   /** The page told us its title. */
   title(itemId: string, title: string): void
-  /** ⌘. (Ctrl+.) in the page, with its selected text. */
-  that(itemId: string, text: { source: string; start: number; end: number }): void
+  /** ⌘. (Ctrl+.) in the page, with its selected text. Resolves once it is kept. */
+  that(itemId: string, text: { source: string; start: number; end: number }): Promise<void>
+  /** The item's *that.*s, to mark them in its page. */
+  anchors(itemId: string): Promise<ReadonlyArray<{ id: string; selectors: Selector[] }>>
 }
 
-/** Web pages get their own session: their cookies and logins stay apart from the desk's. */
 function isPageSelection(value: unknown): value is { source: string; start: number; end: number } {
   if (typeof value !== 'object' || value === null) return false
   const text = value as Record<string, unknown>
   return typeof text.source === 'string' && typeof text.start === 'number' && typeof text.end === 'number'
 }
 
+/** Web pages get their own session: their cookies and logins stay apart from the desk's. */
 const WEB_PARTITION = 'persist:web'
 
 /** Live views kept loaded besides the live one, so switching back is quick. */
@@ -48,6 +51,10 @@ interface Page {
   /** The sheet's zoom, kept across loads. */
   zoom: number
   usedAt: number
+  /** Set once the page has loaded and can be marked. */
+  loaded: boolean
+  /** A *that.* to open once it has. */
+  focus?: string
 }
 
 /**
@@ -62,6 +69,10 @@ export class WebViews {
   private queue: Promise<void> = Promise.resolve()
   private next: WebLayout | undefined
   private reason: LiveBlocker | undefined
+  /** The layout last applied, to explain a decision. */
+  private applied: WebLayout | undefined
+  /** *that.*s asked for before their page was opened, by sheet. */
+  private readonly waiting = new Map<string, string>()
 
   constructor(
     private readonly window: BrowserWindow,
@@ -69,8 +80,8 @@ export class WebViews {
   ) {}
 
   /** Which sheet is live, or why none is. */
-  get status(): { live: string | undefined; reason: LiveBlocker | undefined } {
-    return { live: this.live, reason: this.reason }
+  get status(): { live: string | undefined; reason: LiveBlocker | undefined; layout: WebLayout | undefined } {
+    return { live: this.live, reason: this.reason, layout: this.applied }
   }
 
   /** Layouts apply in order; the newest one waiting replaces older ones. */
@@ -89,6 +100,7 @@ export class WebViews {
 
   private async apply(layout: WebLayout): Promise<void> {
     const decision = pickLive(layout)
+    this.applied = layout
     this.reason = 'reason' in decision ? decision.reason : undefined
     const present = new Set(layout.sheets.map((sheet) => sheet.id))
 
@@ -126,6 +138,9 @@ export class WebViews {
     if (known && known.url === url) return known
     if (known) this.close(id)
     const view = new WebContentsView({ webPreferences: { sandbox: true, contextIsolation: true, nodeIntegration: false, partition: WEB_PARTITION } })
+    const focus = this.waiting.get(id)
+    this.waiting.delete(id)
+    const page: Page = { view, itemId, url, zoom: 1, usedAt: Date.now(), loaded: false, ...(focus ? { focus } : {}) }
     view.setVisible(false)
     view.webContents.setWindowOpenHandler(({ url: target }) => {
       if (/^https?:/.test(target)) void shell.openExternal(target)
@@ -137,16 +152,52 @@ export class WebViews {
       if (input.type !== 'keyDown' || input.key !== '.' || !(process.platform === 'darwin' ? input.meta : input.control)) return
       event.preventDefault()
       void view.webContents.executeJavaScript(SELECTION_IN_PAGE).then((text: unknown) => {
-        if (isPageSelection(text)) this.hooks.that(itemId, text)
-      }, () => undefined)
+        if (isPageSelection(text)) return this.hooks.that(itemId, text).then(() => this.mark(page))
+      }).catch(() => undefined)
     })
-    // Loading a page resets its zoom, so the sheet's is put back.
-    view.webContents.on('did-finish-load', () => view.webContents.setZoomFactor(page.zoom))
+    view.webContents.on('did-start-loading', () => (page.loaded = false))
+    view.webContents.on('did-finish-load', () => {
+      // Loading a page resets its zoom, so the sheet's is put back.
+      view.webContents.setZoomFactor(page.zoom)
+      page.loaded = true
+      const focus = page.focus
+      delete page.focus
+      void view.webContents.insertCSS(BAND_STYLE).then(() => this.mark(page, focus))
+    })
     this.window.contentView.addChildView(view)
-    void view.webContents.loadURL(url).catch(() => undefined)
-    const page: Page = { view, itemId, url, zoom: 1, usedAt: Date.now() }
     this.pages.set(id, page)
+    void view.webContents.loadURL(url).catch(() => undefined)
     return page
+  }
+
+  /** Opens a *that.* in its sheet's page, now or once the page has loaded. */
+  showThat(sheet: string, that: string): void {
+    const page = this.pages.get(sheet)
+    if (!page) this.waiting.set(sheet, that)
+    else if (!page.loaded) page.focus = that
+    else void this.mark(page, that)
+  }
+
+  /**
+   * Finds the item's *that.*s in the page as it is now (exact position, then
+   * the quote) and marks them; the focused one is scrolled to and brightened.
+   * The renderer hears whether the focused one was found.
+   */
+  private async mark(page: Page, focus?: string): Promise<void> {
+    try {
+      const anchors = await this.hooks.anchors(page.itemId)
+      if (anchors.length === 0 && !focus) return
+      const text = (await page.view.webContents.executeJavaScript(TEXT_OF_PAGE)) as unknown
+      if (typeof text !== 'string') return
+      const bands = anchors.flatMap((anchor) => {
+        const found = findText(text, anchor.selectors)
+        return found ? [{ id: anchor.id, start: found.start, end: found.end }] : []
+      })
+      await page.view.webContents.executeJavaScript(bandsInPage(bands, focus))
+      if (focus) this.send('web:found', { that: focus, found: bands.some((band) => band.id === focus) })
+    } catch {
+      if (focus) this.send('web:found', { that: focus, found: false })
+    }
   }
 
   private hide(id: string): void {

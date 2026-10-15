@@ -61,3 +61,18 @@ export function fitView(rect: Rect, width: number, height: number, padding = 48)
   const zoom = clampZoom(Math.min(1, (width - padding * 2) / Math.max(1, rect.w), (height - padding * 2) / Math.max(1, rect.h)))
   return { zoom, x: (width - rect.w * zoom) / 2 - rect.x * zoom, y: (height - rect.h * zoom) / 2 - rect.y * zoom }
 }
+
+/**
+ * A view with `rect` (desk units) in the middle of `area` (screen pixels),
+ * zoomed out only as far as it takes to fit with `margin` around it.
+ */
+export function showIn(view: View, rect: Rect, area: Rect, margin = 16): View {
+  const room = { w: Math.max(1, area.w - margin * 2), h: Math.max(1, area.h - margin * 2) }
+  const fits = Math.min(room.w / rect.w, room.h / rect.h)
+  const zoom = view.zoom <= fits ? view.zoom : Math.max(MIN_ZOOM, Math.floor(fits * 100) / 100)
+  return {
+    zoom,
+    x: area.x + area.w / 2 - (rect.x + rect.w / 2) * zoom,
+    y: area.y + area.h / 2 - (rect.y + rect.h / 2) * zoom,
+  }
+}

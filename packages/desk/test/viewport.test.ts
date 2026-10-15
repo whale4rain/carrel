@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fitView, MAX_ZOOM, MIN_ZOOM, toDesk, toScreen, visibleRect, zoomAt, zoomStep } from '../src/index.js'
+import { fitView, MAX_ZOOM, MIN_ZOOM, showIn, toDesk, toScreen, visibleRect, zoomAt, zoomStep } from '../src/index.js'
 
 describe('view', () => {
   const view = { x: 100, y: 50, zoom: 0.5 }
@@ -37,5 +37,19 @@ describe('view', () => {
     expect(fitted.zoom).toBe(0.5)
     expect(toScreen(fitted, { x: 1000, y: 500 })).toEqual({ x: 548, y: 300 })
     expect(fitView({ x: 0, y: 0, w: 100, h: 100 }, 1000, 1000).zoom).toBe(1)
+  })
+})
+
+describe('showIn', () => {
+  it('centers a rect in an area at the same zoom when it fits', () => {
+    const view = showIn({ x: 0, y: 0, zoom: 0.8 }, { x: 100, y: 100, w: 200, h: 100 }, { x: 0, y: 0, w: 800, h: 400 })
+    expect(view).toEqual({ zoom: 0.8, x: 400 - 200 * 0.8, y: 200 - 150 * 0.8 })
+  })
+
+  it('zooms out just enough to fit, margin and all', () => {
+    const view = showIn({ x: 0, y: 0, zoom: 1 }, { x: 0, y: 0, w: 576, h: 408 }, { x: 0, y: 0, w: 784, h: 400 })
+    expect(view.zoom).toBe(0.9)
+    expect(view.y).toBeGreaterThanOrEqual(16)
+    expect(view.y + 408 * view.zoom).toBeLessThanOrEqual(400 - 16)
   })
 })

@@ -5,7 +5,8 @@
   "description": "Carrel data model and workspace files, built on tnega.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./selectors": "./src/selectors.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

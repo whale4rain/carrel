@@ -1092,3 +1092,69 @@ kbd {
 .that-remove:focus-visible {
   display: block;
 }
+
+/* that. bands in a source: the highlighter under the words. The PDF's text layer
+   multiplies over the drawn page, so the words stay dark under the yellow, like ink.
+   A PDF page stays light at night, so its bands use Day's highlight-soft and highlight. */
+.pdf-page .textLayer {
+  mix-blend-mode: multiply;
+}
+
+::highlight(that) {
+  background-color: #fff2a8;
+}
+
+::highlight(that-active) {
+  background-color: #ffe14d;
+}
+
+/* Source changed: the chip shows the saved copy. */
+.that-chip[data-state='saved'] {
+  border-color: var(--rule);
+  background: var(--paper-2);
+  color: var(--ink-muted);
+}
+
+.that-saved {
+  position: absolute;
+  left: 16px;
+  bottom: 64px;
+  z-index: 100003;
+  width: 320px;
+  padding: 10px 12px 12px;
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+}
+
+.that-saved header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.that-saved .that-remove {
+  display: block;
+}
+
+.that-saved-note {
+  margin: 8px 0;
+  color: var(--ink-muted);
+  font-size: 12px;
+}
+
+.that-saved blockquote {
+  margin: 0;
+  padding-left: 10px;
+  border-left: 2px solid var(--rule);
+  font: var(--text-reading);
+  font-size: 15px;
+  line-height: 22px;
+}
+
+.that-saved img {
+  display: block;
+  width: 100%;
+  margin-top: 8px;
+  border-radius: var(--radius-mark);
+}
