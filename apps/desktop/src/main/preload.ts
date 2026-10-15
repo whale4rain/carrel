@@ -30,6 +30,7 @@ const workspace: WorkspaceApi = {
   snapshot: (id) => call(workspaceChannels.snapshot, id),
   readAt: (id) => call(workspaceChannels.readAt, id),
   saveReadAt: (id, at) => call(workspaceChannels.saveReadAt, id, at),
+  setBookmark: (id, page, label) => call(workspaceChannels.setBookmark, id, page, label),
   sourceTitle: (id, title) => call(workspaceChannels.sourceTitle, id, title),
   makeThat: (request) => call(workspaceChannels.makeThat, request),
   thats: () => call(workspaceChannels.thats),

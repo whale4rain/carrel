@@ -5,6 +5,9 @@ import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 're
 import type { ThatView } from '../shared/workspace-api.js'
 import { bandKey, setActiveBand, setBands } from './bands.js'
 import { rangeAt, textOf } from './that.js'
+import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
+import { BookmarkIcon } from './icons.js'
+import { frame } from './platform.js'
 
 GlobalWorkerOptions.workerSrc = workerUrl
 
@@ -49,6 +52,9 @@ export function PdfView({
   onZoom,
   onPage,
   onFound,
+  bookmarks,
+  keys,
+  onBookmark,
 }: {
   sheet: string
   itemId: string
@@ -65,6 +71,12 @@ export function PdfView({
   onPage?: (page: string) => void
   /** Whether the focused *that.* was found where it pointed. */
   onFound: (that: string, found: boolean) => void
+  /** Pages kept to come back to. */
+  bookmarks: ReadonlyArray<{ page: number; label: string }>
+  /** Whether the reader's own keys work now: its sheet is focused, or the only one selected. */
+  keys: boolean
+  /** Keep a page as a bookmark, with a few words to know it by, or let it go (null). */
+  onBookmark: (page: number, label: string | null) => void
 }) {
   const [pdf, setPdf] = useState<{ doc: PDFDocumentProxy; ratio: number }>()
   const [error, setError] = useState<string>()
@@ -194,6 +206,28 @@ export function PdfView({
     scrollTo({ page: goTo.page, offset: 0 })
   }, [goTo?.nonce, pdf])
 
+  // A bookmark keeps the page you're reading, known by its first words.
+  const marked = bookmarks.some((bookmark) => bookmark.page === page)
+  const toggleBookmark = (): void => {
+    if (!pdf) return
+    const at = page
+    if (marked) onBookmark(at, null)
+    else void firstWords(pdf.doc, at).then((words) => onBookmark(at, words))
+  }
+  const toggleRef = useRef(toggleBookmark)
+  toggleRef.current = toggleBookmark
+  useEffect(() => {
+    if (!keys) return
+    const onKey = (event: KeyboardEvent): void => {
+      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey || event.key.toLowerCase() !== 'd') return
+      if ((event.target as HTMLElement | null)?.closest('input, textarea, [contenteditable="true"]')) return
+      event.preventDefault()
+      toggleRef.current()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [keys])
+
   if (error) return <p className="viewer-note">This PDF couldn't be opened: {error}</p>
   if (!pdf) return <p className="viewer-note">Opening…</p>
   const pages = pdf.doc.numPages
@@ -229,6 +263,16 @@ export function PdfView({
           />
           <span>/ {pages}</span>
         </label>
+        <button
+          type="button"
+          className="pdf-bookmark"
+          aria-label={marked ? `Remove the bookmark on page ${page}` : `Bookmark page ${page}`}
+          aria-pressed={marked}
+          title={withShortcut(frame, marked ? 'Remove this page’s bookmark' : 'Bookmark this page', 'bookmark')}
+          onClick={toggleBookmark}
+        >
+          <BookmarkIcon filled={marked} />
+        </button>
         <span className="grow" />
         <button type="button" aria-label="Zoom pages out" title="Zoom out" onClick={() => onZoom(-1)}>
           −
@@ -241,6 +285,31 @@ export function PdfView({
         </button>
         {showContents && (
           <nav className="pdf-contents" aria-label="Contents">
+            <h4>Bookmarks</h4>
+            {bookmarks.length === 0 ? (
+              <p>No bookmarks yet. The ribbon, or {shortcutLabel(frame, 'bookmark')}, keeps the page you’re reading.</p>
+            ) : (
+              <ul aria-label="Bookmarks">
+                {bookmarks.map((bookmark) => (
+                  <li key={bookmark.page} className="pdf-bookmark-row">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setShowContents(false)
+                        scrollTo({ page: bookmark.page, offset: 0 })
+                      }}
+                    >
+                      <span className="grow">{bookmark.label}</span>
+                      <span className="position">{bookmark.page}</span>
+                    </button>
+                    <button type="button" className="pdf-unmark" aria-label={`Remove the bookmark on page ${bookmark.page}`} onClick={() => onBookmark(bookmark.page, null)}>
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+            <h4>Chapters</h4>
             {contents === undefined ? (
               <p>Reading the contents…</p>
             ) : contents === 'none' ? (
@@ -271,6 +340,7 @@ export function PdfView({
           thats={thats}
           focus={focus && pageOf(focus.that.selectors) === i + 1 ? focus : undefined}
           onFound={onFound}
+          marked={bookmarks.some((bookmark) => bookmark.page === i + 1)}
         />
       ))}
       </div>
@@ -292,6 +362,18 @@ function ChapterList({ chapters, onOpen }: { chapters: Chapter[]; onOpen: (page:
       ))}
     </ul>
   )
+}
+
+/** A page's first few words, to know its bookmark by. */
+async function firstWords(doc: PDFDocumentProxy, number: number): Promise<string> {
+  try {
+    const content = await (await doc.getPage(number)).getTextContent()
+    const text = content.items.map((item) => ('str' in item ? item.str : '')).join(' ').replace(/\s+/g, ' ').trim()
+    const words = text.split(' ').slice(0, 8).join(' ')
+    return words.length > 0 ? (words.length < text.length ? `${words}…` : words) : `Page ${number}`
+  } catch {
+    return `Page ${number}`
+  }
 }
 
 /** The PDF's outline, each entry with the page it points to. */
@@ -322,6 +404,8 @@ async function chaptersOf(doc: PDFDocumentProxy): Promise<Chapter[]> {
 
 function PdfPage(props: {
   sheet: string
+  /** A bookmark is kept on this page. */
+  marked: boolean
   thats: readonly ThatView[]
   focus: Focus | undefined
   onFound: (that: string, found: boolean) => void
@@ -332,7 +416,7 @@ function PdfPage(props: {
   detail: number
   root: RefObject<HTMLDivElement | null>
 }) {
-  const { sheet, thats, focus, onFound, doc, number, width, height, detail, root } = props
+  const { sheet, thats, focus, onFound, doc, number, width, height, detail, root, marked } = props
   const box = useRef<HTMLDivElement>(null)
   const canvas = useRef<HTMLCanvasElement>(null)
   const text = useRef<HTMLDivElement>(null)
@@ -438,7 +522,8 @@ function PdfPage(props: {
   }, [drawn, sheet, mine.map((that) => that.id).join(), focus?.nonce])
 
   return (
-    <div className="pdf-page" ref={box} data-page={number} style={{ width, height }}>
+    <div className="pdf-page" ref={box} data-page={number} data-bookmarked={marked || undefined} style={{ width, height }}>
+      {marked && <span className="pdf-ribbon" aria-hidden />}
       {near && (
         <>
           <canvas ref={canvas} style={{ width, height }} />

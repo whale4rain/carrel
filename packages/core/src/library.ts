@@ -32,6 +32,16 @@ export interface ItemFile {
   source: ItemSource
   /** Where a book or paper was last read: a page, and how far down it (0 to 1). */
   readAt?: ReadingPosition
+  /** Pages of a book or paper kept to come back to, in page order. */
+  bookmarks?: Bookmark[]
+}
+
+/** A page kept to come back to, with a few words to know it by. */
+export interface Bookmark {
+  page: number
+  label: string
+  /** When it was kept. */
+  at: string
 }
 
 export interface ReadingPosition {
@@ -106,6 +116,25 @@ export class Library {
     const offset = Math.min(1, Math.max(0, at.offset))
     if (item.readAt?.page === page && item.readAt.offset === offset) return
     await writeJson(this.itemFile(folder, id), { ...item, readAt: { page, offset } })
+  }
+
+  /**
+   * Keeps a page of a book or paper to come back to (one bookmark a page; a
+   * new label replaces the old), or lets it go with `label` null.
+   */
+  async setBookmark(folder: string, id: string, page: number, label: string | null, actor: Actor = 'user'): Promise<ItemFile> {
+    const item = await this.read(folder, id)
+    if (item.source.storage !== 'stored') throw new Error('Only books and papers keep bookmarks.')
+    const at = Math.max(1, Math.round(page))
+    const others = (item.bookmarks ?? []).filter((bookmark) => bookmark.page !== at)
+    const words = label?.replace(/\s+/g, ' ').trim().slice(0, 120)
+    if (label === null && others.length === (item.bookmarks ?? []).length) return item
+    const bookmarks = label === null ? others : [...others, { page: at, label: words || `Page ${at}`, at: this.now().toISOString() }].sort((a, b) => a.page - b.page)
+    const next: ItemFile = { ...item, bookmarks }
+    if (bookmarks.length === 0) delete next.bookmarks
+    await writeJson(this.itemFile(folder, id), next)
+    await this.workspace.event(folder, actor, label === null ? 'item.unbookmarked' : 'item.bookmarked', { id, page: at })
+    return next
   }
 
   /** Copies a PDF into the project as a new item. */

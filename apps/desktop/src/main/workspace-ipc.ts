@@ -54,6 +54,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     snapshot: (id) => controller.snapshot(text(id)),
     readAt: (id) => controller.readAt(text(id)),
     saveReadAt: (id, at) => controller.saveReadAt(text(id), at),
+    setBookmark: (id, page, label) => controller.setBookmark(text(id), page, label),
     makeThat: (request) => controller.makeThat(request),
     thats: () => controller.thats(),
     thatImage: (id) => controller.thatImage(text(id)),

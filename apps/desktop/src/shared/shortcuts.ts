@@ -59,6 +59,10 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
     ],
   },
   {
+    title: 'Reading a book or paper',
+    shortcuts: [{ id: 'bookmark', label: 'Bookmark the page you’re reading, or remove its bookmark', keys: { mod: true, key: 'd' } }],
+  },
+  {
     title: 'Pointing with that.',
     shortcuts: [
       { id: 'that', label: 'that.: point at selected words, a video moment or a region', keys: { mod: true, key: '.' } },

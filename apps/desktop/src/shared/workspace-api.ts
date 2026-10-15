@@ -22,6 +22,8 @@ export interface ItemView {
   url?: string
   /** Stored items: the file's name and size in bytes. */
   file?: { name: string; size: number }
+  /** Books and papers: pages kept to come back to, in page order. */
+  bookmarks?: Array<{ page: number; label: string }>
   /** Who added it, and when. */
   createdBy?: 'user' | 'agent'
   createdAt?: string
@@ -143,6 +145,8 @@ export interface WorkspaceApi {
   readAt(id: string): Promise<ReadingPosition | null>
   /** Remembers where a book or paper is being read. */
   saveReadAt(id: string, at: ReadingPosition): Promise<void>
+  /** Keeps a page of a book or paper as a bookmark, or lets it go (`label` null); the item as it is now. */
+  setBookmark(id: string, page: number, label: string | null): Promise<ItemView>
   /** A linked source told us its title (a video player does); the item, if renamed. */
   sourceTitle(id: string, title: string): Promise<ItemView | null>
   /** Keeps a *that.* in the project. */
@@ -207,6 +211,7 @@ export const workspaceChannels = {
   snapshot: 'workspace:snapshot',
   readAt: 'workspace:read-at',
   saveReadAt: 'workspace:save-read-at',
+  setBookmark: 'workspace:set-bookmark',
   sourceTitle: 'workspace:source-title',
   makeThat: 'workspace:make-that',
   thats: 'workspace:thats',

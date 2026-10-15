@@ -46,6 +46,29 @@ describe('Library', () => {
     await expect(library.setReadAt('Learn economics', page.id, { page: 1, offset: 0 })).rejects.toThrow(/books and papers/)
   })
 
+  it('keeps bookmarks on pages of a book, one a page, as events', async () => {
+    const pdf = join(home, 'Book.pdf')
+    await writeFile(pdf, '%PDF-1.4')
+    const item = await library.addFile('Learn economics', pdf)
+    await library.setBookmark('Learn economics', item.id, 9, '  Demand   curves ')
+    await library.setBookmark('Learn economics', item.id, 2.6, '')
+    await library.setBookmark('Learn economics', item.id, 9, 'Demand, again')
+    const kept = await library.read('Learn economics', item.id)
+    expect(kept.bookmarks?.map(({ page, label }) => ({ page, label }))).toEqual([
+      { page: 3, label: 'Page 3' },
+      { page: 9, label: 'Demand, again' },
+    ])
+    const removed = await library.setBookmark('Learn economics', item.id, 3, null)
+    expect(removed.bookmarks?.map((bookmark) => bookmark.page)).toEqual([9])
+    await library.setBookmark('Learn economics', item.id, 9, null)
+    expect((await library.read('Learn economics', item.id)).bookmarks).toBeUndefined()
+    const kinds = (await workspace.readEvents('Learn economics')).map((event) => event.type)
+    expect(kinds.filter((kind) => kind === 'item.bookmarked')).toHaveLength(3)
+    expect(kinds.filter((kind) => kind === 'item.unbookmarked')).toHaveLength(2)
+    const page = await library.addLink('Learn economics', 'https://example.com/rent')
+    await expect(library.setBookmark('Learn economics', page.id, 1, 'x')).rejects.toThrow(/books and papers/)
+  })
+
   it('refuses files it cannot open', async () => {
     const text = join(home, 'notes.txt')
     await writeFile(text, 'hi')
