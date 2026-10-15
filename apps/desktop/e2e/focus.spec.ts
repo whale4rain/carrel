@@ -52,7 +52,8 @@ test('focus a sheet, swap from the shelf, and go back', async () => {
   await expect(page.locator('.focus-bar')).toContainText('Back to desk')
   await expect(page.locator('.sheet')).toHaveCount(1)
   const shelf = page.getByRole('navigation', { name: 'On this desk' })
-  await expect(shelf.getByRole('button')).toHaveText(['SheetBlank sheet'])
+  const cards = shelf.locator('li > button:not(.focus-pin)')
+  await expect(cards).toHaveText(['SheetBlank sheet'])
   await expect(page.locator('.desk-nav')).toHaveCount(0)
   await expect(page.locator('.handle-e')).toHaveCount(0)
   const screen = (await page.locator('.desk-mat').boundingBox())!
@@ -70,10 +71,10 @@ test('focus a sheet, swap from the shelf, and go back', async () => {
   await expect(page.locator('.that-tray .that-chip', { hasText: 'p.1' })).toBeVisible()
 
   // A card on the shelf swaps in.
-  await shelf.getByRole('button', { name: /Blank sheet/ }).click()
+  await cards.filter({ hasText: 'Blank sheet' }).click()
   await expect(page.locator('.sheet')).toHaveCount(1)
   await expect(page.locator('.sheet[data-focused]')).toHaveAttribute('aria-label', 'Blank sheet')
-  await expect(shelf.getByRole('button')).toHaveText(['PaperReading'])
+  await expect(cards).toHaveText(['PaperReading'])
 
   // Esc: the desk is back exactly as it was.
   await page.keyboard.press('Escape')
