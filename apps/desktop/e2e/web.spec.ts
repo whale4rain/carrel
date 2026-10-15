@@ -86,6 +86,10 @@ test('right-click words in a web page and ask the agent to explain them', async 
   await expect(sheet.getByRole('progressbar')).toHaveCount(0, { timeout: 20_000 })
 
   // The page is its own view, so select its words and right-click there from main.
+  // The view can still be on its way when the loading bar clears, so wait for it.
+  await expect
+    .poll(() => app.evaluate(({ webContents }, link) => webContents.getAllWebContents().some((contents) => contents.getURL() === link && !contents.isLoading()), link), { timeout: 20_000 })
+    .toBe(true)
   await app.evaluate(async ({ webContents }, link) => {
     const view = webContents.getAllWebContents().find((contents) => contents.getURL() === link)
     if (!view) throw new Error('The page is not open')
