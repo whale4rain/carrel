@@ -13,6 +13,8 @@ export interface WorkspaceActions {
   createDesk(name: string): Promise<void>
   createNote(): Promise<void>
   openNote(id: string): void
+  /** Opens Search everything. */
+  search(): void
 }
 
 interface Props {
@@ -88,7 +90,7 @@ export function Sidebar({ frame, state, actions, items }: Props) {
         <p className="no-project">No project yet</p>
       )}
 
-      <button type="button" className="search">
+      <button type="button" className="search" onClick={actions.search} disabled={!open}>
         <SearchIcon />
         <span>Search everything</span>
         <kbd>{shortcut(frame, 'K')}</kbd>

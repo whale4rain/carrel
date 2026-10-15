@@ -1375,3 +1375,134 @@ kbd {
 .cited-by-menu button:hover {
   background: var(--paper-2);
 }
+
+/* Search everything (⌘K): a sheet of paper over the desk. Matches are bold, never yellow;
+   yellow means that. and nothing else. */
+.search-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 12vh;
+  background: rgba(18, 26, 23, 0.18);
+}
+
+.search-palette {
+  display: flex;
+  flex-direction: column;
+  width: min(620px, calc(100vw - 48px));
+  max-height: 70vh;
+  border-radius: var(--radius-sheet);
+  background: var(--paper);
+  box-shadow: var(--shadow-lift);
+  overflow: hidden;
+}
+
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 0 var(--space-4);
+  border-bottom: 1px solid var(--rule);
+  color: var(--ink-muted);
+}
+
+.search-field input {
+  flex: 1;
+  height: 48px;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: var(--text-body);
+  outline: none;
+}
+
+.search-hits {
+  margin: 0;
+  padding: var(--space-1);
+  list-style: none;
+  overflow-y: auto;
+}
+
+.search-hit {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  width: 100%;
+  padding: var(--space-2) var(--space-3);
+  border-radius: 6px;
+  text-align: left;
+  color: var(--ink);
+}
+
+[data-chosen] > .search-hit {
+  background: var(--paper-2);
+}
+
+.search-hit-mark {
+  display: flex;
+  justify-content: center;
+  flex: none;
+  width: 40px;
+  padding-top: 2px;
+  color: var(--ink-muted);
+}
+
+.search-that {
+  height: 18px;
+  line-height: 16px;
+  padding: 0 5px;
+  font-size: 10px;
+}
+
+.search-hit-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.search-hit-title {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  font: var(--text-label);
+}
+
+.search-hit-page {
+  font: var(--text-position);
+  color: var(--ink-muted);
+}
+
+.search-hit-snippet {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+.search-match {
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.search-empty {
+  margin: 0;
+  padding: var(--space-4);
+  font: var(--text-body);
+  color: var(--ink-muted);
+}
+
+.search-foot {
+  display: flex;
+  gap: var(--space-4);
+  margin: 0;
+  padding: var(--space-2) var(--space-4);
+  border-top: 1px solid var(--rule);
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}

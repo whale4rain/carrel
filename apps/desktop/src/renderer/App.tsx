@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { frameFor } from '../shared/frame.js'
-import type { ItemView, ShellState } from '../shared/workspace-api.js'
+import type { ItemView, SearchHitView, ShellState } from '../shared/workspace-api.js'
 import { Welcome } from './Desk.js'
-import { DeskPlane } from './DeskPlane.js'
+import { DeskPlane, type ShowRequest } from './DeskPlane.js'
+import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
 import './shell.css'
@@ -13,8 +14,27 @@ const api = window.carrel.workspace
 export function App() {
   const [state, setState] = useState<ShellState>()
   const [items, setItems] = useState<ReadonlyMap<string, ItemView>>(new Map())
-  // A note the sidebar asked the desk to show.
-  const [show, setShow] = useState<{ itemId: string; nonce: number; write?: boolean }>()
+  // What the sidebar or search asked the desk to show.
+  const [show, setShow] = useState<ShowRequest>()
+  const [searching, setSearching] = useState(false)
+
+  // ⌘K / Ctrl+K searches from anywhere, even while writing.
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent): void => {
+      if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setSearching((now) => !now)
+      }
+    }
+    window.addEventListener('keydown', onKey, true)
+    return () => window.removeEventListener('keydown', onKey, true)
+  }, [])
+  const openHit = (hit: SearchHitView): void => {
+    const nonce = Date.now()
+    if (hit.kind === 'that' && hit.itemId) setShow({ itemId: hit.itemId, nonce, that: hit.id })
+    else if (hit.kind === 'page' && hit.itemId && hit.page !== undefined) setShow({ itemId: hit.itemId, nonce, page: hit.page })
+    else setShow({ itemId: hit.id, nonce })
+  }
 
   useEffect(() => {
     void api.state().then(setState)
@@ -49,6 +69,7 @@ export function App() {
       setShow({ itemId: note.id, nonce: Date.now(), write: true })
     },
     openNote: (id) => setShow({ itemId: id, nonce: Date.now(), write: true }),
+    search: () => setSearching(true),
   }
 
   const open = state?.open
@@ -71,6 +92,7 @@ export function App() {
           <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} />
           <TopBar frame={frame} project={open?.project} desk={desk?.name} />
           {open && desk ? <DeskPlane key={desk.id} deskId={desk.id} name={desk.name} items={items} onItemsAdded={addItems} show={show} /> : <Welcome onCreate={actions.createProject} />}
+          {searching && open && <SearchPalette items={items} onOpen={openHit} onClose={() => setSearching(false)} />}
         </>
       )}
     </div>

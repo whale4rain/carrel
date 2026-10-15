@@ -195,6 +195,21 @@ pick one to list all its notes. A source's label says how many notes cite
 it; click it to bring the note forward, or pick one when there are several.
 A note ends with what it cites ("Cites a paper and a video.").
 
+## Search
+
+![Search everything finds a note, a that., a PDF page and a source; choosing the page lays the PDF on the desk; day and night](screenshot-search.png)
+
+Press ⌘K (Ctrl+K), or click Search everything in the sidebar, and type. It
+searches the open project: notes, source titles, the words of each *that.*,
+and the text of every PDF page. Every word must match; the last may be half
+typed. Arrows choose, Enter opens: a note or source comes forward (or is laid
+on the desk), a *that.* opens at its spot, and a page scrolls its PDF there.
+Matches are bold, never yellow (yellow means *that.*).
+
+The index is SQLite full-text search in `~/.carrel/index/<project>.sqlite`,
+rebuilt from the project's files as needed. A PDF's pages are read once when
+it is added, and again only if its file changes.
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,

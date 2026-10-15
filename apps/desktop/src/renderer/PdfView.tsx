@@ -34,6 +34,7 @@ export function PdfView({
   detail,
   thats,
   focus,
+  goTo,
   onPage,
   onFound,
 }: {
@@ -44,6 +45,8 @@ export function PdfView({
   /** The item's *that.*s, marked on their pages. */
   thats: readonly ThatView[]
   focus: Focus | undefined
+  /** A page to scroll to (a search found it). */
+  goTo?: { page: number; nonce: number } | undefined
   onPage?: (page: string) => void
   /** Whether the focused *that.* was found where it pointed. */
   onFound: (that: string, found: boolean) => void
@@ -100,6 +103,13 @@ export function PdfView({
     element.scrollTop = (page - 1) * (pageWidth * pdf.ratio + GAP)
     // Only the newest request counts.
   }, [focus?.nonce, pdf])
+
+  // A page asked for: its top at the top of the view.
+  useEffect(() => {
+    const element = scroller.current
+    if (!element || !pdf || !goTo) return
+    element.scrollTop = (Math.min(goTo.page, pdf.doc.numPages) - 1) * (pageWidth * pdf.ratio + GAP)
+  }, [goTo?.nonce, pdf])
 
   if (error) return <p className="viewer-note">This PDF couldn't be opened: {error}</p>
   if (!pdf) return <p className="viewer-note">Opening…</p>

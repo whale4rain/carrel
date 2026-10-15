@@ -20,6 +20,7 @@ const workspace: WorkspaceApi = {
   createNote: () => call(workspaceChannels.createNote),
   note: (id) => call(workspaceChannels.note, id),
   saveNote: (id, doc) => call(workspaceChannels.saveNote, id, doc),
+  search: (query) => call(workspaceChannels.search, query),
   chooseFiles: () => call(workspaceChannels.chooseFiles),
   addFiles: (paths) => call(workspaceChannels.addFiles, paths),
   addLink: (url) => call(workspaceChannels.addLink, url),
