@@ -1,7 +1,7 @@
 import { getDocument, GlobalWorkerOptions, TextLayer, type PDFDocumentProxy, type PDFPageProxy } from 'pdfjs-dist'
 import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { findText, pageOf, regionOf } from '@carrel/core/selectors'
-import { useEffect, useRef, useState, type RefObject } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import type { ThatView } from '../shared/workspace-api.js'
 import { bandKey, setActiveBand, setBands } from './bands.js'
 import { rangeAt, textOf } from './that.js'
@@ -14,6 +14,16 @@ const api = window.carrel.workspace
 const MARGIN = 16
 const SCROLLBAR = 10
 const GAP = 12
+
+/** How long scrolling must pause before the reading position is saved. */
+const SAVE_AFTER = 600
+
+/** One entry of a PDF's contents, with the page it starts on. */
+interface Chapter {
+  title: string
+  page: number | undefined
+  items: Chapter[]
+}
 
 /** A *that.* to open: scroll to it and brighten it. `nonce` lets the same one be opened again. */
 export interface Focus {
@@ -35,6 +45,8 @@ export function PdfView({
   thats,
   focus,
   goTo,
+  zoom,
+  onZoom,
   onPage,
   onFound,
 }: {
@@ -47,6 +59,9 @@ export function PdfView({
   focus: Focus | undefined
   /** A page to scroll to (a search found it). */
   goTo?: { page: number; nonce: number } | undefined
+  /** The pages' zoom: 1 fits the sheet's width. */
+  zoom: number
+  onZoom: (how: 1 | -1 | 'fit') => void
   onPage?: (page: string) => void
   /** Whether the focused *that.* was found where it pointed. */
   onFound: (that: string, found: boolean) => void
@@ -77,19 +92,87 @@ export function PdfView({
   }, [itemId])
 
   // The page nearest the top of the view, for the sheet's label.
-  const pageWidth = width - MARGIN * 2 - SCROLLBAR
+  const pageWidth = (width - MARGIN * 2 - SCROLLBAR) * zoom
+  const step = pdf ? pageWidth * pdf.ratio + GAP : 0
+  const [page, setPage] = useState(1)
+  /** Where the view is: a page and how far down it. */
+  const where = (): { page: number; offset: number } => {
+    const element = scroller.current
+    if (!element || !pdf || step === 0) return { page: 1, offset: 0 }
+    // A pixel of slack: scrollTop is rounded.
+    const at = Math.max(0, element.scrollTop - MARGIN + 1) / step
+    const index = Math.min(pdf.doc.numPages - 1, Math.floor(at))
+    return { page: index + 1, offset: Math.min(1, at - index) }
+  }
+  const scrollTo = (at: { page: number; offset: number }): void => {
+    const element = scroller.current
+    if (!element || !pdf) return
+    element.scrollTop = (Math.min(Math.max(1, at.page), pdf.doc.numPages) - 1 + at.offset) * step + (at.page > 1 || at.offset > 0 ? MARGIN : 0)
+  }
+
+  // Back where it was last read, unless a that. or a page was asked for. Saved as you read.
+  const restored = useRef(false)
+  useEffect(() => {
+    if (!pdf) return
+    restored.current = false
+    let current = true
+    if (focus || goTo) {
+      restored.current = true
+      return
+    }
+    void api.readAt(itemId).then(
+      (at) => {
+        if (!current) return
+        if (at) scrollTo(at)
+        restored.current = true
+      },
+      () => (restored.current = true),
+    )
+    return () => {
+      current = false
+    }
+    // Once per document.
+  }, [pdf])
   useEffect(() => {
     const element = scroller.current
-    if (!element || !pdf || !onPage) return
-    const report = (): void => {
-      const pageHeight = pageWidth * pdf.ratio + GAP
-      const page = Math.min(pdf.doc.numPages, Math.floor((element.scrollTop + pageHeight / 3) / pageHeight) + 1)
-      onPage(`p. ${page} / ${pdf.doc.numPages}`)
+    if (!element || !pdf) return
+    let timer: ReturnType<typeof setTimeout> | undefined
+    const onScroll = (): void => {
+      setPage(where().page)
+      if (!restored.current) return
+      clearTimeout(timer)
+      timer = setTimeout(() => void api.saveReadAt(itemId, where()).catch(() => undefined), SAVE_AFTER)
     }
-    report()
-    element.addEventListener('scroll', report, { passive: true })
-    return () => element.removeEventListener('scroll', report)
-  }, [pdf, pageWidth, onPage])
+    element.addEventListener('scroll', onScroll, { passive: true })
+    return () => {
+      clearTimeout(timer)
+      element.removeEventListener('scroll', onScroll)
+    }
+  })
+
+  // Zooming keeps the same spot in view.
+  const lastStep = useRef(step)
+  useLayoutEffect(() => {
+    const element = scroller.current
+    const before = lastStep.current
+    lastStep.current = step
+    if (!element || before === 0 || step === 0 || before === step) return
+    const at = Math.max(0, element.scrollTop - MARGIN) / before
+    element.scrollTop = at * step + MARGIN
+    // Only a change of size matters.
+  }, [step])
+
+  const [contents, setContents] = useState<Chapter[] | 'none'>()
+  const [showContents, setShowContents] = useState(false)
+  const openContents = (): void => {
+    setShowContents((open) => !open)
+    if (contents || !pdf) return
+    void chaptersOf(pdf.doc).then((found) => setContents(found.length > 0 ? found : 'none'), () => setContents('none'))
+  }
+  const [typing, setTyping] = useState<string>()
+  useEffect(() => {
+    if (pdf) onPage?.(`p. ${page} / ${pdf.doc.numPages}`)
+  }, [pdf, page, onPage])
 
   // Opening a that.: go to its page; the page finds the words once its text is drawn.
   useEffect(() => {
@@ -100,7 +183,7 @@ export function PdfView({
       onFound(focus.that.id, false)
       return
     }
-    element.scrollTop = (page - 1) * (pageWidth * pdf.ratio + GAP)
+    scrollTo({ page, offset: 0 })
     // Only the newest request counts.
   }, [focus?.nonce, pdf])
 
@@ -108,13 +191,73 @@ export function PdfView({
   useEffect(() => {
     const element = scroller.current
     if (!element || !pdf || !goTo) return
-    element.scrollTop = (Math.min(goTo.page, pdf.doc.numPages) - 1) * (pageWidth * pdf.ratio + GAP)
+    scrollTo({ page: goTo.page, offset: 0 })
   }, [goTo?.nonce, pdf])
 
   if (error) return <p className="viewer-note">This PDF couldn't be opened: {error}</p>
   if (!pdf) return <p className="viewer-note">Opening…</p>
+  const pages = pdf.doc.numPages
+  const jump = (): void => {
+    const wanted = Number(typing)
+    setTyping(undefined)
+    if (Number.isFinite(wanted) && wanted >= 1) scrollTo({ page: Math.min(pages, Math.round(wanted)), offset: 0 })
+  }
   return (
-    <div className="pdf-view" ref={scroller} data-scrolls="">
+    <div className="pdf-reader">
+      <div className="pdf-tools" role="toolbar" aria-label="Reading" onPointerDown={(event) => event.stopPropagation()}>
+        <button type="button" aria-expanded={showContents} onClick={openContents}>
+          Contents
+        </button>
+        <label className="pdf-jump">
+          <span>p.</span>
+          <input
+            aria-label="Go to page"
+            inputMode="numeric"
+            value={typing ?? String(page)}
+            onFocus={(event) => {
+              setTyping(String(page))
+              event.target.select()
+            }}
+            onChange={(event) => setTyping(event.target.value.replace(/\D/g, ''))}
+            onBlur={() => setTyping(undefined)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter') {
+                jump()
+                event.currentTarget.blur()
+              } else if (event.key === 'Escape') event.currentTarget.blur()
+            }}
+          />
+          <span>/ {pages}</span>
+        </label>
+        <span className="grow" />
+        <button type="button" aria-label="Zoom pages out" title="Zoom out" onClick={() => onZoom(-1)}>
+          −
+        </button>
+        <button type="button" className="position" aria-label="Pages zoom" title="Fit the width" onClick={() => onZoom('fit')}>
+          {Math.round(zoom * 100)}%
+        </button>
+        <button type="button" aria-label="Zoom pages in" title="Zoom in" onClick={() => onZoom(1)}>
+          +
+        </button>
+        {showContents && (
+          <nav className="pdf-contents" aria-label="Contents">
+            {contents === undefined ? (
+              <p>Reading the contents…</p>
+            ) : contents === 'none' ? (
+              <p>This PDF has no contents list. Type a page number to jump.</p>
+            ) : (
+              <ChapterList
+                chapters={contents}
+                onOpen={(chapter) => {
+                  setShowContents(false)
+                  scrollTo({ page: chapter, offset: 0 })
+                }}
+              />
+            )}
+          </nav>
+        )}
+      </div>
+      <div className="pdf-view" ref={scroller} data-scrolls="">
       {Array.from({ length: pdf.doc.numPages }, (_, i) => (
         <PdfPage
           key={i}
@@ -130,8 +273,51 @@ export function PdfView({
           onFound={onFound}
         />
       ))}
+      </div>
     </div>
   )
+}
+
+function ChapterList({ chapters, onOpen }: { chapters: Chapter[]; onOpen: (page: number) => void }) {
+  return (
+    <ul>
+      {chapters.map((chapter, i) => (
+        <li key={i}>
+          <button type="button" disabled={chapter.page === undefined} onClick={() => chapter.page !== undefined && onOpen(chapter.page)}>
+            <span className="grow">{chapter.title}</span>
+            {chapter.page !== undefined && <span className="position">{chapter.page}</span>}
+          </button>
+          {chapter.items.length > 0 && <ChapterList chapters={chapter.items} onOpen={onOpen} />}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+/** The PDF's outline, each entry with the page it points to. */
+async function chaptersOf(doc: PDFDocumentProxy): Promise<Chapter[]> {
+  const outline = (await doc.getOutline()) ?? []
+  const pageOfDest = async (dest: unknown): Promise<number | undefined> => {
+    try {
+      const resolved = typeof dest === 'string' ? await doc.getDestination(dest) : dest
+      if (!Array.isArray(resolved)) return undefined
+      const target: unknown = resolved[0]
+      if (typeof target === 'number') return target + 1
+      if (target && typeof target === 'object') return (await doc.getPageIndex(target as Parameters<PDFDocumentProxy['getPageIndex']>[0])) + 1
+    } catch {
+      return undefined
+    }
+    return undefined
+  }
+  const walk = async (entries: readonly { title: string; dest: unknown; items: readonly unknown[] }[]): Promise<Chapter[]> =>
+    Promise.all(
+      entries.map(async (entry) => ({
+        title: entry.title,
+        page: await pageOfDest(entry.dest),
+        items: await walk(entry.items as typeof entries),
+      })),
+    )
+  return walk(outline)
 }
 
 function PdfPage(props: {

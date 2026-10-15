@@ -28,6 +28,7 @@ import {
   type NoteSummary,
   type OpenProject,
   type Proposal,
+  type ReadingPosition,
   type ProposalChange,
   type Selector,
   type Sheet,
@@ -308,6 +309,15 @@ export class ShellController {
     return new Uint8Array(await readFile(await this.library.filePath(await this.openFolder(), id)))
   }
 
+  async readAt(id: string): Promise<ReadingPosition | null> {
+    return (await this.library.read(await this.openFolder(), id)).readAt ?? null
+  }
+
+  async saveReadAt(id: string, at: unknown): Promise<void> {
+    if (!isReadingPosition(at)) throw new Error('That is not a place in a book.')
+    await this.library.setReadAt(await this.openFolder(), id, at)
+  }
+
   /** A web page's last snapshot (PNG bytes), if it has one. */
   async snapshot(id: string): Promise<Uint8Array | null> {
     const path = this.library.snapshotPath(await this.openFolder(), id)
@@ -487,6 +497,12 @@ function isSheet(value: unknown): value is Sheet {
     (sheet.folded === undefined || sheet.folded === true) &&
     (sheet.pageZoom === undefined || (finite(sheet.pageZoom) && sheet.pageZoom >= 0.25 && sheet.pageZoom <= 3))
   )
+}
+
+function isReadingPosition(value: unknown): value is ReadingPosition {
+  if (typeof value !== 'object' || value === null) return false
+  const at = value as Record<string, unknown>
+  return finite(at.page) && at.page >= 1 && finite(at.offset)
 }
 
 function isViewport(value: unknown): value is Viewport {

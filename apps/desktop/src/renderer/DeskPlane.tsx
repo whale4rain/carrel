@@ -539,7 +539,7 @@ export function DeskPlane({
     setActive(undefined)
   }
 
-  // A web page's own zoom inside its sheet: a step in or out, 100%, or as wide as the sheet.
+  // A web page's or a PDF's own zoom inside its sheet: a step in or out, 100%, or (a web page) as wide as the sheet.
   const zoomPage = useCallback(
     async (id: string, how: 1 | -1 | 'actual' | 'fit'): Promise<void> => {
       const sheet = latest.current.find((candidate) => candidate.id === id)
@@ -741,7 +741,7 @@ export function DeskPlane({
       if (event.key === ' ') space.current = true
       if (focused) {
         // Focus keeps the desk as it is: only Esc, that. and swapping sheets.
-        const page = webSheet(focused)
+        const page = zoomable(focused)
         if (event.key === 'Escape') leaveFocus()
         else if (mod && event.key === '.') void pointAt()
         else if (page && mod && (event.key === '=' || event.key === '+')) void zoomPage(focused, 1)
@@ -797,10 +797,11 @@ export function DeskPlane({
       }),
     [zoomPage],
   )
-  /** The sheet, if it shows a web page. */
-  function webSheet(id: string): boolean {
+  /** Whether the sheet shows something with its own zoom: a web page, or a book or paper. */
+  function zoomable(id: string): boolean {
     const itemId = latest.current.find((sheet) => sheet.id === id)?.itemId
-    return itemId != null && asWebPage(items.get(itemId)) !== undefined
+    const item = itemId == null ? undefined : items.get(itemId)
+    return item?.file !== undefined || asWebPage(item) !== undefined
   }
 
   const chosen = sheets.filter((sheet) => selected.has(sheet.id))
@@ -1016,6 +1017,8 @@ export function DeskPlane({
                     thats={thatsOf(item.id)}
                     focus={focus?.sheet === sheet.id ? focus : undefined}
                     goTo={goTo?.sheet === sheet.id ? goTo : undefined}
+                    zoom={sheet.pageZoom ?? 1}
+                    onZoom={(how) => void zoomPage(sheet.id, how === 'fit' ? 'actual' : how)}
                     onPage={(page) => reportPosition(sheet.id, page)}
                     onFound={found}
                   />
