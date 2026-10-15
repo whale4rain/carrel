@@ -40,8 +40,13 @@ async function start(): Promise<{ app: ElectronApplication; page: Page }> {
     // Containers and CI Linux runners have no user namespace for Chromium's sandbox.
     args: process.platform === 'linux' ? [appDir, '--no-sandbox'] : [appDir],
     env: { ...process.env, CARREL_HOME: home, CARREL_CHOOSE_FILES: join(home, 'Elasticity.pdf'), CARREL_LLM: 'scripted' },
+    timeout: 30_000,
   })
-  const page = await app.firstWindow()
+  // What the app says goes to the test's output, so a stuck start shows why.
+  app.process().stdout?.on('data', (chunk) => process.stdout.write(`[app] ${chunk}`))
+  app.process().stderr?.on('data', (chunk) => process.stdout.write(`[app] ${chunk}`))
+  console.log('carrel e2e: launched')
+  const page = await app.firstWindow({ timeout: 30_000 })
   current = page
   await expect(page.locator('[data-carrel-shell] [aria-label="Desk"]')).toBeVisible()
   return { app, page }
