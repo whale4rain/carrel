@@ -179,6 +179,13 @@ a link to its anchor:
   How strongly buyers react when a price moves. [p.42](that:<anchor id>)
 ```
 
+### Citing a *that.*
+
+![Clicking a note's chip opens the PDF at the words it cites; day and night](screenshot-cite.png)
+
+Drag a chip from the tray into a note to cite that spot there. Click a chip
+in a note to open its source at the spot, the same as a chip on the tray.
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,
