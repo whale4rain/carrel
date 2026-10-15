@@ -139,7 +139,8 @@ export function DeskNav(props: {
               props.onAddFiles()
             }}
           >
-            Book or paper (PDF, EPUB, Markdown)…
+            Book or paper…
+            <small>PDF, EPUB, Word, PowerPoint, Markdown</small>
           </button>
           <button type="button" role="menuitem" onClick={() => setAdding('link')}>
             Web page or video link…
