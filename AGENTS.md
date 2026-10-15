@@ -141,6 +141,7 @@ Commands (Node 22.19+, pnpm 10):
 | `pnpm build` | Build the desktop app |
 | `pnpm dev` | Build and open the desktop app |
 | `pnpm --filter @carrel/desktop smoke` | Start the built app, check it renders, quit |
+| `pnpm --filter @carrel/desktop e2e` | The core loop end to end with real clicks and keys, across a restart (Playwright) |
 
 ## Milestone 1 (next)
 

@@ -10,7 +10,8 @@
     "dev": "pnpm build && electron .",
     "start": "electron .",
     "typecheck": "tsc -p tsconfig.json",
-    "smoke": "node scripts/smoke.mjs"
+    "smoke": "node scripts/smoke.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@carrel/agent": "workspace:*",
@@ -28,6 +29,7 @@
     "tnega": "0.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "1.56.1",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.0",
