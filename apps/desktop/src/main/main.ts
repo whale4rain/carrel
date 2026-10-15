@@ -440,11 +440,16 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
       return fail('the sidebar did not list the note after a restart')
     }
-    // Its chip opens the PDF at the word it cites.
+    // Its chip opens the PDF at the word it cites. The note is brought forward from the sidebar first,
+    // since other sheets on a small window can cover it.
+    await page(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].find((row) => row.textContent === '${NOTE_TITLE}').click()`)
+    if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"][data-selected]') !== null"))) return fail('the sidebar did not bring the note forward')
+    await new Promise((resolve) => setTimeout(resolve, 300))
     const at = await page<{ x: number; y: number }>(`(() => { const r = ${note}.querySelector('.note-chip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
     for (const type of ['mouseDown', 'mouseUp'] as const) window.webContents.sendInputEvent({ type, x: at.x, y: at.y, button: 'left', clickCount: 1 })
     if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null && CSS.highlights.get('that-active')?.size === 1"))) {
-      return fail('the note\'s chip did not open its PDF')
+      const hit = await page<string>(`(() => { const e = document.elementFromPoint(${at.x}, ${at.y}); return (e?.className ?? 'none') + ' in ' + (e?.closest('.sheet')?.getAttribute('data-kind') ?? 'no sheet') })()`)
+      return fail(`the note's chip did not open its PDF (at ${at.x},${at.y} is ${hit})`)
     }
     // A that. whose words are gone opens its saved copy.
     await page(`window.carrel.workspace.items().then((items) => window.carrel.workspace.makeThat({
