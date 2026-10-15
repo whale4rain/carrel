@@ -411,7 +411,7 @@ async function deskInteractions(
   const before = await page<number>(notes)
   await page("document.querySelector('.agent-input textarea').focus()")
   window.webContents.insertText('Make a note about coffee')
-  await key('Enter')
+  await page("document.querySelector('.agent-send:not(:disabled)')?.click()")
   if (!(await waitFor("document.querySelector('.agent-panel .proposal[data-state=\"open\"] .proposal-tag')?.textContent.includes('SUGGEST') === true && document.querySelector('.agent-answer[data-live]') === null"))) {
     return `the agent did not propose a note: ${String(await page("document.querySelector('.agent-body')?.innerText ?? 'no panel'"))}`
   }
