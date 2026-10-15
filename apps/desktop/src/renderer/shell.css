@@ -1822,3 +1822,137 @@ kbd {
 .agent-me .that-chip + .that-chip {
   margin-left: 4px;
 }
+
+/* A proposal: pencil until inked (Margin "Hands"). Accept inks it over 240 ms. */
+.proposal {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-top: 4px;
+  padding: 10px 12px;
+  border: 1px dashed var(--pencil);
+  border-radius: var(--radius-control);
+  background: var(--pencil-wash);
+  transition:
+    border-color 240ms ease-out,
+    background-color 240ms ease-out,
+    color 240ms ease-out;
+}
+
+.proposal-tag {
+  margin: 0;
+  font: var(--text-label);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  color: var(--pencil);
+}
+
+.proposal-tag span {
+  font-weight: 400;
+  letter-spacing: 0;
+}
+
+.proposal-text {
+  font-family: var(--font-ui);
+  font-size: 13px;
+  line-height: 20px;
+  color: var(--pencil);
+  overflow-wrap: anywhere;
+}
+
+.proposal-text > * {
+  margin: 0;
+}
+
+.proposal-text > * + * {
+  margin-top: 6px;
+}
+
+.proposal-text h1,
+.proposal-text h2,
+.proposal-text h3 {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.proposal-text ul,
+.proposal-text ol {
+  padding-left: 18px;
+}
+
+.proposal-url {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.proposal-why {
+  margin: 0;
+  font-family: var(--font-read);
+  font-style: italic;
+  font-size: 12px;
+  color: var(--pencil);
+}
+
+.proposal-actions {
+  display: flex;
+  gap: var(--space-2);
+}
+
+.proposal-actions button {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: var(--radius-control);
+  font: var(--text-label);
+  font-size: 12px;
+}
+
+.proposal-accept {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.proposal-dismiss {
+  border: 1px solid var(--graphite);
+  color: var(--ink);
+}
+
+.proposal-actions button:focus-visible,
+.proposal-open:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.proposal .kbd {
+  margin-left: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  opacity: 0.75;
+}
+
+.proposal[data-state='accepted'] {
+  border-color: transparent;
+  background: transparent;
+  padding: 0;
+}
+
+.proposal[data-state='accepted'] .proposal-text {
+  color: var(--ink);
+}
+
+.proposal-open {
+  align-self: flex-start;
+  padding: 0;
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+.proposal-open:hover {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .proposal {
+    transition: none;
+  }
+}

@@ -1,4 +1,4 @@
-import { HIT_END, HIT_START, type SearchHit } from '@carrel/core'
+import { HIT_END, HIT_START, type ProposalChange, type SearchHit } from '@carrel/core'
 import type { ToolDefinition } from 'tnega/tools'
 
 /** Results the agent gets from one search at most. */
@@ -14,6 +14,8 @@ export interface ProjectAccess {
   that(id: string): Promise<ThatText>
   /** Points at a quote on a PDF page; returns the new *that.* */
   makeThat(itemId: string, page: number, quote: string): Promise<{ id: string; label: string }>
+  /** Proposes a change for the person to accept or dismiss; nothing is written until they accept. */
+  propose(change: ProposalChange, why: string | undefined): Promise<{ id: string }>
 }
 
 export interface ItemText {
@@ -37,7 +39,7 @@ export const chip = (that: { id: string; label: string }): string => `[${that.la
 
 /** Carrel's tools for the agent: one project's search, reading and pointing. */
 export function carrelTools(access: ProjectAccess): ToolDefinition[] {
-  return [searchProjectTool(access.search), readItemTool(access), resolveThatTool(access), makeThatTool(access)]
+  return [searchProjectTool(access.search), readItemTool(access), resolveThatTool(access), makeThatTool(access), proposeNoteTool(access), proposeSourceTool(access)]
 }
 
 /**
@@ -155,6 +157,60 @@ function makeThatTool(access: ProjectAccess): ToolDefinition {
   }
 }
 
+function proposeNoteTool(access: ProjectAccess): ToolDefinition {
+  return {
+    schema: {
+      name: 'propose_note_edit',
+      description:
+        "Propose a new note, or words to add at the end of one of the person's notes. It is shown in pencil until they accept it; nothing is written before. Write Markdown in the person's voice of a study note, keep chips exactly as tools gave them, and only propose when they ask for a note or clearly want one.",
+      parameters: {
+        type: 'object',
+        properties: {
+          note: { type: 'string', description: 'The note to add to, by item id. Leave out for a new note.' },
+          text: { type: 'string', minLength: 1, description: 'Markdown. A new note starts with a "# Title" line.' },
+          why: { type: 'string', description: 'In a few words, why.' },
+        },
+        required: ['text'],
+        additionalProperties: false,
+      },
+    },
+    execute: async (input: unknown) => {
+      const text = field(input, 'text')
+      const note = field(input, 'note')
+      const why = field(input, 'why')
+      if (typeof text !== 'string' || text.trim().length === 0) throw new Error('propose_note_edit needs text')
+      const change: ProposalChange = { kind: 'note', text: text.trim(), ...(typeof note === 'string' && note ? { note } : {}) }
+      const made = await access.propose(change, typeof why === 'string' ? why : undefined)
+      return { proposal: made.id, shown: 'in pencil, waiting for the person to accept or dismiss it' }
+    },
+  }
+}
+
+function proposeSourceTool(access: ProjectAccess): ToolDefinition {
+  return {
+    schema: {
+      name: 'propose_source',
+      description: 'Propose a web page or video (by its address) to add to the project. It is shown in pencil until the person accepts it. Only propose addresses you are sure of.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'An http or https address.' },
+          why: { type: 'string', description: 'In a few words, why.' },
+        },
+        required: ['url'],
+        additionalProperties: false,
+      },
+    },
+    execute: async (input: unknown) => {
+      const url = field(input, 'url')
+      const why = field(input, 'why')
+      if (typeof url !== 'string' || !/^https?:\/\//i.test(url.trim())) throw new Error('propose_source needs an http or https address')
+      const made = await access.propose({ kind: 'source', url: url.trim() }, typeof why === 'string' ? why : undefined)
+      return { proposal: made.id, shown: 'in pencil, waiting for the person to accept or dismiss it' }
+    },
+  }
+}
+
 /** One step of the agent's work, in the words of its folded steps line. */
 export function describeStep(tool: string, input: unknown): string {
   const query = field(input, 'query')
@@ -164,6 +220,8 @@ export function describeStep(tool: string, input: unknown): string {
   if (tool === 'search_project' && typeof query === 'string') return `Searched for “${query}”`
   if (tool === 'read_item') return from === undefined ? 'Read a note or source' : to !== undefined && to !== from ? `Read pages ${from}–${to}` : `Read page ${from}`
   if (tool === 'resolve_that') return 'Looked at a that.'
+  if (tool === 'propose_note_edit') return typeof field(input, 'note') === 'string' ? 'Proposed an addition to a note' : 'Proposed a note'
+  if (tool === 'propose_source') return 'Proposed a source'
   if (tool === 'make_that') return page === undefined ? 'Pointed at a passage' : `Pointed at p.${page}`
   return `Used ${tool.replace(/_/g, ' ')}`
 }

@@ -4,6 +4,7 @@ import type { ItemView, SearchHitView, ShellState, ThatView } from '../shared/wo
 import { Welcome } from './Desk.js'
 import { AgentPanel } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
+import { NOTE_CHANGED } from './NoteView.js'
 import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
@@ -127,6 +128,12 @@ export function App() {
               onUnpoint={(id) => setPointing((now) => now.filter((that) => that.id !== id))}
               onAsked={() => setPointing([])}
               onOpenThat={(id) => void openThat(id)}
+              onOpenItem={(id) => setShow({ itemId: id, nonce: Date.now() })}
+              onAccepted={(item) => {
+                addItems([item])
+                // The desk stays as you left it; an open note shows what was added.
+                if (item.kind === 'note') window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: item.id }))
+              }}
               onClose={() => setTalking(false)}
             />
           )}

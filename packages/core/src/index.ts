@@ -56,3 +56,4 @@ export {
 } from './note-markdown.js'
 export { HIT_END, HIT_START, matchOf, SearchIndex, type Searchable, type SearchHit, type SearchKind } from './search.js'
 export { PROJECT_THREAD, Threads, totalCost, type NewTurn, type Turn, type TurnCost, type TurnStep } from './threads.js'
+export { isProposal, Proposals, type Proposal, type ProposalChange, type ProposalState } from './proposals.js'

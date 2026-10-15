@@ -1,7 +1,8 @@
-import { useEffect, useRef, useState } from 'react'
-import type { AgentStatus, AskContext, ThreadView, Turn, TurnCost, TurnStep } from '../shared/agent-api.js'
-import type { ThatView } from '../shared/workspace-api.js'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import type { AgentStatus, AskContext, ProposalView, ThreadView, Turn, TurnCost, TurnStep } from '../shared/agent-api.js'
+import type { ItemView, ThatView } from '../shared/workspace-api.js'
 import { Markdown } from './Markdown.js'
+import { ProposalCard } from './ProposalCard.js'
 
 const agent = window.carrel.agent
 
@@ -17,6 +18,8 @@ export function AgentPanel({
   onUnpoint,
   onAsked,
   onOpenThat,
+  onOpenItem,
+  onAccepted,
   onClose,
 }: {
   project: string
@@ -27,6 +30,10 @@ export function AgentPanel({
   onAsked: () => void
   /** A chip in the thread was clicked. */
   onOpenThat: (id: string) => void
+  /** Open a note or source an accepted proposal made. */
+  onOpenItem: (id: string) => void
+  /** A proposal was accepted: the note or source it made or changed. */
+  onAccepted: (item: ItemView) => void
   onClose: () => void
 }) {
   const [status, setStatus] = useState<AgentStatus>()
@@ -35,6 +42,7 @@ export function AgentPanel({
   const [asking, setAsking] = useState<{ text: string; points: string[]; steps: TurnStep[]; answer: string }>()
   // Labels of the project's that.s, for the chips your questions pointed at.
   const [labels, setLabels] = useState<ReadonlyMap<string, string>>(new Map())
+  const [proposals, setProposals] = useState<ProposalView[]>([])
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string>()
   const body = useRef<HTMLDivElement>(null)
@@ -42,10 +50,11 @@ export function AgentPanel({
 
   useEffect(() => {
     let current = true
-    void Promise.all([agent.status(), agent.thread(), window.carrel.workspace.thats()]).then(([known, turns, thats]) => {
+    void Promise.all([agent.status(), agent.thread(), window.carrel.workspace.thats(), agent.proposals()]).then(([known, turns, thats, proposed]) => {
       if (!current) return
       setStatus(known)
       setThread(turns)
+      setProposals(proposed)
       setLabels(new Map(thats.map((that) => [that.id, that.label])))
     })
     return () => {
@@ -64,11 +73,13 @@ export function AgentPanel({
     [],
   )
 
+  useEffect(() => agent.onProposal((proposal) => setProposals((known) => [...known.filter((other) => other.id !== proposal.id), proposal])), [])
+
   // Keep the newest words in view.
   useEffect(() => {
     const element = body.current
     if (element) element.scrollTop = element.scrollHeight
-  }, [thread.turns.length, asking?.answer, asking?.steps.length])
+  }, [thread.turns.length, asking?.answer, asking?.steps.length, proposals.length])
 
   useEffect(() => input.current?.focus(), [status?.ready])
 
@@ -88,6 +99,48 @@ export function AgentPanel({
       .finally(() => setAsking(undefined))
   }
 
+  const decide = (proposal: ProposalView, accept: boolean): void => {
+    agent.decide(proposal.id, accept).then(
+      ({ proposal: decided, item }) => {
+        setProposals((known) => known.map((other) => (other.id === decided.id ? decided : other)))
+        if (item) onAccepted(item)
+        input.current?.focus()
+      },
+      (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
+    )
+  }
+  const newest = proposals.findLast((proposal) => proposal.state === 'open')
+
+  // Proposals sit under the answer to the question that led to them; any
+  // other (still being answered) at the end.
+  const answered = new Map<string, string>()
+  let question: string | undefined
+  for (const turn of thread.turns) {
+    if (turn.by === 'user') question = turn.id
+    else if (question) answered.set(turn.id, question)
+  }
+  const shownWith = new Set(answered.values())
+  const loose = proposals.filter((proposal) => !proposal.asked || !shownWith.has(proposal.asked))
+  const cards = (list: readonly ProposalView[]) =>
+    list.map((proposal) => (
+      <ProposalCard
+        key={proposal.id}
+        proposal={proposal}
+        newest={proposal === newest}
+        onDecide={(accept) => decide(proposal, accept)}
+        onOpen={onOpenItem}
+        onOpenThat={onOpenThat}
+      />
+    ))
+  const turnView = (turn: Turn) => {
+    const asked = answered.get(turn.id)
+    return (
+      <TurnView key={turn.id} turn={turn} labels={labels} onOpenThat={onOpenThat}>
+        {asked && cards(proposals.filter((proposal) => proposal.asked === asked))}
+      </TurnView>
+    )
+  }
+
   const today = new Date().toDateString()
   const earlier = thread.turns.filter((turn) => new Date(turn.createdAt).toDateString() !== today)
   const recent = thread.turns.slice(earlier.length)
@@ -95,7 +148,19 @@ export function AgentPanel({
   const since = thread.turns[0] ? shortDate(thread.turns[0].createdAt) : undefined
 
   return (
-    <aside className="agent-panel" aria-label="Project thread">
+    <aside
+      className="agent-panel"
+      aria-label="Project thread"
+      onKeyDown={(event) => {
+        // Tab accepts the newest proposal, Esc dismisses it, unless you are typing.
+        if (!newest || draft.trim() || event.metaKey || event.ctrlKey || event.altKey || event.shiftKey) return
+        if (event.key !== 'Tab' && event.key !== 'Escape') return
+        if (event.target instanceof HTMLInputElement) return
+        event.preventDefault()
+        event.stopPropagation()
+        decide(newest, event.key === 'Tab')
+      }}
+    >
       <header className="agent-head">
         <span className="agent-seat" aria-hidden="true">
           a
@@ -124,7 +189,7 @@ export function AgentPanel({
             <i />
           </button>
         )}
-        {unfolded && earlier.map((turn) => <TurnView key={turn.id} turn={turn} labels={labels} onOpenThat={onOpenThat} />)}
+        {unfolded && earlier.map(turnView)}
         {recent.length > 0 && earlier.length > 0 && (
           <p className="agent-day">
             <i />
@@ -132,9 +197,7 @@ export function AgentPanel({
             <i />
           </p>
         )}
-        {recent.map((turn) => (
-          <TurnView key={turn.id} turn={turn} labels={labels} onOpenThat={onOpenThat} />
-        ))}
+        {recent.map(turnView)}
         {asking && (
           <>
             <Mine text={asking.text} points={asking.points} labels={labels} onOpenThat={onOpenThat} />
@@ -144,6 +207,7 @@ export function AgentPanel({
             </div>
           </>
         )}
+        {cards(loose)}
         {error && (
           <p className="agent-error" role="alert">
             {error}
@@ -195,7 +259,18 @@ export function AgentPanel({
   )
 }
 
-function TurnView({ turn, labels, onOpenThat }: { turn: Turn; labels: ReadonlyMap<string, string>; onOpenThat: (id: string) => void }) {
+function TurnView({
+  turn,
+  labels,
+  onOpenThat,
+  children,
+}: {
+  turn: Turn
+  labels: ReadonlyMap<string, string>
+  onOpenThat: (id: string) => void
+  /** Proposals the answer made. */
+  children?: ReactNode
+}) {
   if (turn.by === 'user') return <Mine text={turn.text} points={turn.points ?? []} labels={labels} onOpenThat={onOpenThat} />
   return (
     <div className="agent-answer">
@@ -205,6 +280,7 @@ function TurnView({ turn, labels, onOpenThat }: { turn: Turn; labels: ReadonlyMa
       ) : (
         <Markdown className="agent-text" text={turn.text} onThat={onOpenThat} />
       )}
+      {children}
     </div>
   )
 }

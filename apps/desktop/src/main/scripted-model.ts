@@ -4,7 +4,7 @@ import type { LLMAdapter, LLMStreamEvent } from 'tnega/agent'
  * A stand-in model for checks and screenshots (`CARREL_LLM=scripted`): it
  * searches the project for the longest word of the question, then answers
  * with the first thing it found, citing a chip the question pointed at.
- * No network, no key.
+ * Asked to "make a note", it proposes one. No network, no key.
  */
 export function scriptedModel(): LLMAdapter {
   let call = 0
@@ -25,12 +25,22 @@ export function scriptedModel(): LLMAdapter {
         yield { type: 'message_stop', id, finishReason: 'tool_calls' }
         return
       }
-      const hit = firstHit(last.content)
+      const asked = messages.findLastIndex((message) => message.role === 'user')
+      const results = messages.slice(asked + 1).filter((message) => message.role === 'tool')
+      const hit = firstHit(results[0]?.content ?? '')
       // A chip the question pointed at is cited back, the way a real answer would.
-      const question = [...messages].reverse().find((message) => message.role === 'user')?.content ?? ''
+      const question = messages[asked]?.content ?? ''
       const pointed = /\[[^\]]+\]\(that:[\w-]+\)/.exec(question.replaceAll('[that.]', ''))?.[0]
+      const noting = /\bmake a note\b/i.test(question.split('\n\n').at(-1) ?? '')
+      if (noting && results.length === 1) {
+        const text = `# Note on ${hit?.title ?? 'that'}\n\n${hit ? hit.text.trim() : 'Nothing found yet.'}${pointed ? ` ${pointed}` : ''}`
+        yield { type: 'toolcall_start', id, index: 0, name: 'propose_note_edit' }
+        yield { type: 'toolcall_end', id, index: 0, name: 'propose_note_edit', arguments: { text, why: 'You asked for a note' } }
+        yield { type: 'message_stop', id, finishReason: 'tool_calls' }
+        return
+      }
       const found = hit ? `Your ${hit.kind === 'note' ? 'note' : 'source'} “${hit.title}” says: ${hit.text.trim()}` : "I couldn't find anything about that in this project yet."
-      const answer = (pointed ? `You are pointing at ${pointed}. ` : '') + found
+      const answer = noting ? 'I proposed a note from what I found. Accept it with Tab.' : (pointed ? `You are pointing at ${pointed}. ` : '') + found
       for (const word of answer.split(/(?<= )/)) {
         yield { type: 'message_delta', id, delta: word }
         await new Promise((resolve) => setTimeout(resolve, 15))

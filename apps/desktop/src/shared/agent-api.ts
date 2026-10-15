@@ -1,8 +1,14 @@
 // What the renderer sees of the agent: the open project's thread, and a way to ask.
-import type { Turn, TurnCost, TurnStep } from '@carrel/core'
-import type { ThatView } from './workspace-api.js'
+import type { Proposal, ProposalChange, Turn, TurnCost, TurnStep } from '@carrel/core'
+import type { ItemView, ThatView } from './workspace-api.js'
 
-export type { Turn, TurnCost, TurnStep }
+export type { Proposal, ProposalChange, Turn, TurnCost, TurnStep }
+
+/** A change the agent proposed, drawn in pencil until you accept or dismiss it. */
+export interface ProposalView extends Proposal {
+  /** Additions to a note: that note's title. */
+  target?: string
+}
 
 /** Which model answers, and whether it can. */
 export interface AgentStatus {
@@ -39,6 +45,12 @@ export interface AgentApi {
   ask(text: string, context?: AskContext): Promise<Turn>
   /** The answer as it arrives. */
   onLive(listener: (event: AgentLive) => void): () => void
+  /** The project's proposals, oldest first. */
+  proposals(): Promise<ProposalView[]>
+  /** Accept (writes it) or dismiss a proposal. Accepting gives back the note or source it made or changed. */
+  decide(id: string, accept: boolean): Promise<{ proposal: ProposalView; item?: ItemView }>
+  /** A proposal the agent just made. */
+  onProposal(listener: (proposal: ProposalView) => void): () => void
   /** A *that.* the agent made while answering, to show with the others. */
   onThat(listener: (that: ThatView) => void): () => void
 }
@@ -50,4 +62,7 @@ export const agentChannels = {
   ask: 'agent:ask',
   live: 'agent:live',
   that: 'agent:that',
+  proposals: 'agent:proposals',
+  decide: 'agent:decide',
+  proposal: 'agent:proposal',
 } as const

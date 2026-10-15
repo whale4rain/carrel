@@ -240,6 +240,20 @@ points at exact words on a PDF page. Its chips in the answer open the spot,
 laying the source on the desk if it isn't there; *that.*s it made are marked
 as the agent's.
 
+### Proposals in pencil
+
+![Left: the agent suggests an addition to a note, in pencil, with Accept (Tab) and Dismiss (Esc). Right: an accepted new note, inked, and listed in the sidebar; day and night](screenshot-proposals.png)
+
+The agent never writes. Ask it for a note ("make me a short note from
+this") and it proposes one with `propose_note_edit`: a new note, or words
+added at the end of one of yours. It can also propose a web page or video
+with `propose_source`. A proposal sits under the answer in pencil (dashed
+blue, a SUGGEST tag) until you decide: **Tab** accepts the newest one,
+**Esc** dismisses it (while the box is empty), or use the buttons. Accepting
+inks it and writes it; "Open note" lays it on the desk. Proposals are kept in
+`~/Carrel/<project>/proposals/`, and the events log says who proposed and who
+accepted.
+
 **The model.** DeepSeek (`deepseek-flash`) by default. The first time, the
 panel asks for a key and keeps it in `~/.carrel/model.json`, encrypted by the
 system keychain. `CARREL_LLM_API_KEY` overrides it; `CARREL_LLM_BASE_URL` and

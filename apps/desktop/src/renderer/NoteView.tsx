@@ -10,6 +10,9 @@ import { THAT_DRAG } from './ThatTray.js'
 
 const api = window.carrel.workspace
 
+/** Sent on window (detail: the note id) when a note changed outside its editor, such as an accepted proposal. */
+export const NOTE_CHANGED = 'carrel:note-changed'
+
 /** Waits this long after the last keystroke before writing the note. */
 const SAVE_AFTER = 500
 
@@ -162,6 +165,17 @@ export function NoteView({
     onBlur: () => flushRef.current(),
   })
 
+  // A note changed elsewhere (an accepted proposal) is read again. Leaving the
+  // editor to accept already wrote what was typed.
+  const [revision, setRevision] = useState(0)
+  useEffect(() => {
+    const changed = (event: Event): void => {
+      if ((event as CustomEvent<string>).detail === item.id) setRevision((now) => now + 1)
+    }
+    window.addEventListener(NOTE_CHANGED, changed)
+    return () => window.removeEventListener(NOTE_CHANGED, changed)
+  }, [item.id])
+
   useEffect(() => {
     if (!editor) return
     let current = true
@@ -174,7 +188,7 @@ export function NoteView({
     return () => {
       current = false
     }
-  }, [editor, item.id])
+  }, [editor, item.id, revision])
 
   // A note just asked for from the sidebar takes the keyboard.
   useEffect(() => {
