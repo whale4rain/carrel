@@ -3,6 +3,7 @@ import { isTheme, type Theme } from '@carrel/margin'
 import { app, BrowserWindow, ipcMain, nativeTheme, webContents, type WebContents } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
+import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { frameFor } from '../shared/frame.js'
 import { DESK_ORIGIN, deskUrl, serveDesk } from './desk-origin.js'
@@ -28,6 +29,9 @@ const currentTheme = (): Theme => (nativeTheme.shouldUseDarkColors ? 'night' : '
 
 // `CARREL_HOME` puts ~/Carrel and ~/.carrel somewhere else (checks, screenshots).
 const workspace = new Workspace(carrelRoots(process.env.CARREL_HOME ?? homedir()))
+// It also keeps the browser's own data (remembered view choices, web sign-ins) there,
+// so a check starts clean and leaves nothing behind.
+if (process.env.CARREL_HOME) app.setPath('userData', join(workspace.roots.internal, 'electron'))
 const controller = new ShellController(workspace, { readPages: pdfPages })
 
 // Each window's web pages, by its renderer.
