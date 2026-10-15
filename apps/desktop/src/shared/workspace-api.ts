@@ -180,6 +180,8 @@ export interface WebApi {
   fitWidth(sheet: string): Promise<number>
   /** Loads the sheet's page again. */
   reload(sheet: string): void
+  /** Right-clicked words in a live page, made a *that.*, to ask the agent about. */
+  onAsk(listener: (ask: import('./menu.js').AgentAsk, that: ThatView) => void): () => void
 }
 
 export type WebLoading = { loading: boolean; error?: string }

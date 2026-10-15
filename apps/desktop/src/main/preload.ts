@@ -1,5 +1,6 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { agentChannels, type AgentApi, type AgentLive, type ProposalView } from '../shared/agent-api.js'
+import type { AgentAsk, MenuEntry } from '../shared/menu.js'
 import { workspaceChannels, type ItemView, type ThatView, type WebApi, type WebLoading, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -55,6 +56,7 @@ const web: WebApi = {
   onLoading: (listener) => listen<{ sheet: string; state: WebLoading }>('web:loading', ({ sheet, state }) => listener(sheet, state)),
   fitWidth: (sheet) => ipcRenderer.invoke('web:fit-width', sheet) as Promise<number>,
   reload: (sheet) => ipcRenderer.send('web:reload', sheet),
+  onAsk: (listener) => listen<{ ask: AgentAsk; that: ThatView }>('web:ask', ({ ask, that }) => listener(ask, that)),
 }
 
 const agent: AgentApi = {
@@ -79,6 +81,8 @@ contextBridge.exposeInMainWorld('carrel', {
   workspace,
   web,
   agent,
+  /** Shows a native right-click menu; resolves with the id of the command picked. */
+  menu: (entries: MenuEntry[]) => ipcRenderer.invoke('menu:popup', entries) as Promise<string | undefined>,
   /** The path of a file dropped on the window. */
   pathForFile: (file: File) => webUtils.getPathForFile(file),
 })

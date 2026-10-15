@@ -1,6 +1,8 @@
 import { findText, type Selector } from '@carrel/core'
 import { pickLive, type LiveBlocker, type LiveSheet, type Rect } from '@carrel/desk'
 import { shell, WebContentsView, type BrowserWindow } from 'electron'
+import { TEXT_COMMANDS, type AgentAsk, type MenuEntry } from '../shared/menu.js'
+import { popupMenu } from './menus.js'
 import { BAND_STYLE, bandsInPage, SELECTION_IN_PAGE, TEXT_OF_PAGE } from './page-text.js'
 
 /** A web sheet as the renderer lays it out, in window pixels. */
@@ -24,8 +26,10 @@ export interface WebHooks {
   saveSnapshot(itemId: string, png: Buffer): Promise<void>
   /** The page told us its title. */
   title(itemId: string, title: string): void
-  /** ⌘. (Ctrl+.) in the page, with its selected text. Resolves once it is kept. */
-  that(itemId: string, text: { source: string; start: number; end: number }): Promise<void>
+  /** ⌘. (Ctrl+.) in the page, with its selected text. Resolves with the *that.* once it is kept. */
+  that(itemId: string, text: { source: string; start: number; end: number }): Promise<{ id: string } | undefined>
+  /** Ask the agent about a *that.* just made in the page, from its right-click menu. */
+  ask(ask: AgentAsk, that: unknown): void
   /** The item's *that.*s, to mark them in its page. */
   anchors(itemId: string): Promise<ReadonlyArray<{ id: string; selectors: Selector[] }>>
 }
@@ -135,6 +139,15 @@ export class WebViews {
     this.trim()
   }
 
+  /** Makes a *that.* of the words selected in a page, and marks it there. */
+  private async pointAt(page: Page): Promise<{ id: string } | undefined> {
+    const text: unknown = await page.view.webContents.executeJavaScript(SELECTION_IN_PAGE).catch(() => undefined)
+    if (!isPageSelection(text)) return undefined
+    const that = await this.hooks.that(page.itemId, text)
+    await this.mark(page).catch(() => undefined)
+    return that
+  }
+
   private open(id: string, itemId: string, url: string): Page {
     const known = this.pages.get(id)
     if (known && known.url === url) return known
@@ -165,9 +178,29 @@ export class WebViews {
       }
       if (input.type !== 'keyDown' || input.key !== '.' || !mod) return
       event.preventDefault()
-      void view.webContents.executeJavaScript(SELECTION_IN_PAGE).then((text: unknown) => {
-        if (isPageSelection(text)) return this.hooks.that(itemId, text).then(() => this.mark(page))
-      }).catch(() => undefined)
+      void this.pointAt(page)
+    })
+    // Right-click: point at the selected words, or ask the agent about them.
+    view.webContents.on('context-menu', (_event, params) => {
+      const selected = params.selectionText.trim() !== ''
+      const entries: MenuEntry[] = selected
+        ? [...TEXT_COMMANDS, { separator: true }, { role: 'copy' }]
+        : [
+            { id: 'back', label: 'Back', enabled: view.webContents.navigationHistory.canGoBack() },
+            { id: 'forward', label: 'Forward', enabled: view.webContents.navigationHistory.canGoForward() },
+            { id: 'reload', label: 'Reload' },
+          ]
+      if (params.isEditable) entries.push({ separator: true }, { role: 'cut' }, { role: 'copy' }, { role: 'paste' })
+      void popupMenu(this.window, entries, view.webContents).then(async (picked) => {
+        if (picked === 'back') view.webContents.navigationHistory.goBack()
+        else if (picked === 'forward') view.webContents.navigationHistory.goForward()
+        else if (picked === 'reload') view.webContents.reload()
+        else if (picked === 'that') await this.pointAt(page)
+        else if (picked === 'ask' || picked === 'explain') {
+          const that = await this.pointAt(page)
+          if (that) this.hooks.ask({ kind: picked }, that)
+        }
+      })
     })
     view.webContents.on('did-start-loading', () => {
       page.loaded = false

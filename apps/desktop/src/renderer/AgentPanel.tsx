@@ -30,6 +30,7 @@ export function AgentPanel({
   onAccepted,
   onAddToNote,
   focusTurn,
+  prompt,
   onClose,
 }: {
   project: string
@@ -53,6 +54,8 @@ export function AgentPanel({
   onAddToNote: (turnId: string, thread: string) => Promise<ItemView>
   /** A turn to bring into view, from a chip that points at it. */
   focusTurn?: { id: string; nonce: number } | undefined
+  /** Words for the composer from a right-click on the desk: sent at once, or left for you to finish. */
+  prompt?: { text: string; send: boolean; nonce: number } | undefined
   onClose: () => void
 }) {
   const [status, setStatus] = useState<AgentStatus>()
@@ -111,8 +114,8 @@ export function AgentPanel({
 
   useEffect(() => input.current?.focus(), [status?.ready])
 
-  const send = (): void => {
-    const text = draft.trim()
+  const send = (words = draft): void => {
+    const text = words.trim()
     if (!text || asking) return
     const asked = context()
     setDraft('')
@@ -131,6 +134,24 @@ export function AgentPanel({
       .catch((reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)))
       .finally(() => setAsking(undefined))
   }
+
+  // A right-click on the desk asks now, or starts a question for you to finish.
+  const sendRef = useRef(send)
+  sendRef.current = send
+  useEffect(() => {
+    if (!prompt) return
+    if (prompt.send && !asking) sendRef.current(prompt.text)
+    else {
+      setDraft(prompt.text)
+      requestAnimationFrame(() => {
+        const field = input.current
+        if (!field) return
+        field.focus()
+        field.setSelectionRange(field.value.length, field.value.length)
+      })
+    }
+    // Only a new prompt; what is being asked is read when it arrives.
+  }, [prompt?.nonce])
 
   // A chip that points at a turn brings it into view, and it brightens.
   useEffect(() => {
@@ -347,7 +368,7 @@ export function AgentPanel({
                 }
               }}
             />
-            <button type="button" className="agent-send" aria-label="Send" disabled={!draft.trim() || asking !== undefined} onClick={send}>
+            <button type="button" className="agent-send" aria-label="Send" disabled={!draft.trim() || asking !== undefined} onClick={() => send()}>
               <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                 <path d="M12 19V5M5 12l7-7 7 7" />
               </svg>

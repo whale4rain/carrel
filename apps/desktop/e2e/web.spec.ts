@@ -1,5 +1,6 @@
 // A web sheet: a pencil bar while its page loads, and the page's own zoom
-// (−, +, 100%, Fit) that stays with the sheet. A local server stands in for the web.
+// (−, +, 100%, Fit) that stays with the sheet, and its right-click menu.
+// A local server stands in for the web.
 // Run `pnpm build` first.
 import { mkdtemp, rm } from 'node:fs/promises'
 import { createServer, type Server } from 'node:http'
@@ -7,7 +8,7 @@ import type { AddressInfo } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { quit, start } from './app.js'
+import { catchMenus, menuShown, pick, quit, start } from './app.js'
 
 let home: string
 let server: Server
@@ -66,5 +67,38 @@ test('a web page loads, zooms and fits', async () => {
   await page.keyboard.press('Escape')
   await expect(zoom).toHaveText(`${fitted}%`)
   await page.evaluate(() => window.carrel.workspace.state())
+  await quit(app)
+})
+
+test('right-click words in a web page and ask the agent to explain them', async () => {
+  // A home of its own, so the app starts on a new project.
+  const own = await mkdtemp(join(home, 'menu-'))
+  const { app, page } = await start(own, [])
+  await catchMenus(app)
+  await page.getByLabel('Project name').fill('Web menu')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+  await page.locator('.add-menu button', { hasText: 'Web page or video link' }).click()
+  await page.getByLabel('Link to a web page or video').fill(link)
+  await page.keyboard.press('Enter')
+  const sheet = page.locator('.sheet[data-kind="web_page"]')
+  await sheet.locator('.sheet-title').dblclick()
+  await expect(sheet.getByRole('progressbar')).toHaveCount(0, { timeout: 20_000 })
+
+  // The page is its own view, so select its words and right-click there from main.
+  await app.evaluate(async ({ webContents }, link) => {
+    const view = webContents.getAllWebContents().find((contents) => contents.getURL() === link)
+    if (!view) throw new Error('The page is not open')
+    await view.executeJavaScript("getSelection().selectAllChildren(document.querySelector('div'))")
+    view.emit('context-menu', {}, { selectionText: 'Wide page', isEditable: false })
+  }, link)
+  expect(await menuShown(app)).toEqual(['that. [CommandOrControl+.]', 'Ask the agent about this…', 'Explain this', '—', 'copy'])
+  await pick(app, 'Explain this')
+  const panel = page.locator('.agent-panel')
+  // The question points at the words, made a that. of the page.
+  const asked = panel.locator('.agent-me').last()
+  await expect(asked).toContainText('Explain this')
+  await expect(asked.locator('.that-chip')).toHaveCount(1)
+  await expect(page.locator('.that-tray .that-chip', { hasText: '127.0.0.1' })).toBeVisible()
   await quit(app)
 })
