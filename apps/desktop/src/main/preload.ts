@@ -56,8 +56,9 @@ const agent: AgentApi = {
   status: () => call(agentChannels.status),
   saveKey: (key) => call(agentChannels.saveKey, key),
   thread: () => call(agentChannels.thread),
-  ask: (text) => call(agentChannels.ask, text),
+  ask: (text, context) => call(agentChannels.ask, text, context),
   onLive: (listener) => listen<AgentLive>(agentChannels.live, listener),
+  onThat: (listener) => listen<ThatView>(agentChannels.that, listener),
 }
 
 // The typed bridge between renderer and main.

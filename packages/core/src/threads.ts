@@ -39,6 +39,8 @@ export interface Turn {
   by: Actor
   text: string
   createdAt: string
+  /** Your turns: the *that.*s you were pointing at, by id. */
+  points?: string[]
   /** Agent turns: what it did first. */
   steps?: TurnStep[]
   cost?: TurnCost

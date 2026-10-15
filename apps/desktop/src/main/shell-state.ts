@@ -6,6 +6,7 @@ import {
   Library,
   Notes,
   plainText,
+  toMarkdown,
   SearchIndex,
   momentSelector,
   pageSelector,
@@ -24,6 +25,7 @@ import {
   type Viewport,
   type Workspace,
 } from '@carrel/core'
+import type { ItemText, ThatText } from '@carrel/agent'
 import type { DeskView, ItemView, NoteView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 
 /** Reads each page's text from a stored PDF. */
@@ -193,6 +195,44 @@ export class ShellController {
     })().finally(() => this.reading.delete(key))
     this.reading.set(key, run)
     return run
+  }
+
+  // ---- What the agent's tools read (see ProjectAccess in @carrel/agent) ----
+
+  /** A note's Markdown, or a PDF's page texts (`pages` 1-based, inclusive). */
+  async readItem(folder: string, id: string, pages?: { from: number; to: number }): Promise<ItemText> {
+    const note = await this.notes.read(folder, id).catch(() => undefined)
+    if (note) return { title: note.title, kind: 'note', text: toMarkdown(note.doc) }
+    const item = await this.library.read(folder, id)
+    if (item.source.storage !== 'stored') return { title: item.title, kind: item.kind, text: "This source is linked, not stored; its text can't be read yet." }
+    await this.readForSearch(folder, id)
+    const all = this.index.pages(folder, id)
+    const last = all.at(-1)?.page ?? 0
+    const from = pages?.from ?? 1
+    const to = pages?.to ?? Math.min(last, from + 9)
+    const text = all
+      .filter(({ page }) => page >= from && page <= to)
+      .map(({ page, text: words }) => `[p.${page}]\n${words}`)
+      .join('\n\n')
+    return { title: item.title, kind: item.kind, text: text || `No text on pages ${from}–${to}.`, pages: last }
+  }
+
+  async thatText(folder: string, id: string): Promise<ThatText> {
+    const anchor = await this.anchors.read(folder, id)
+    const item = await this.library.read(folder, anchor.itemId).catch(() => undefined)
+    return { id, item: anchor.itemId, source: item?.title ?? 'A source no longer here', label: anchor.label, ...(anchor.snapshot.text ? { quote: anchor.snapshot.text } : {}) }
+  }
+
+  /** The agent points at words on a PDF page: a *that.* made by the agent, found the way the page's own text has it. */
+  async agentThat(folder: string, itemId: string, page: number, quote: string): Promise<ThatView> {
+    await this.readForSearch(folder, itemId)
+    const text = this.index.pages(folder, itemId).find((entry) => entry.page === page)?.text
+    if (!text) throw new Error(`Page ${page} has no text to point at.`)
+    const words = quote.trim().split(/\s+/).map((word) => word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'))
+    const found = words.length > 0 ? new RegExp(words.join('\\s*')).exec(text) : null
+    if (!found) throw new Error(`Those words are not on page ${page}. Copy them exactly from read_item.`)
+    const selectors = [pageSelector(page), ...textSelectors(text, found.index, found.index + found[0].length)]
+    return thatView(await this.anchors.make(folder, { itemId, selectors, text: found[0] }, 'agent'))
   }
 
   /** Lets go of the search index (tests, quitting). */

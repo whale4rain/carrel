@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import type { AgentStatus, ThreadView, Turn, TurnCost, TurnStep } from '../shared/agent-api.js'
+import type { AgentStatus, AskContext, ThreadView, Turn, TurnCost, TurnStep } from '../shared/agent-api.js'
+import type { ThatView } from '../shared/workspace-api.js'
 import { Markdown } from './Markdown.js'
 
 const agent = window.carrel.agent
@@ -9,11 +10,31 @@ const agent = window.carrel.agent
  * Your turns sit right on paper-2; the agent's answers sit left in Literata,
  * each opened by one folded line of what it did and what it sent.
  */
-export function AgentPanel({ project, onClose }: { project: string; onClose: () => void }) {
+export function AgentPanel({
+  project,
+  pointing,
+  context,
+  onUnpoint,
+  onAsked,
+  onOpenThat,
+  onClose,
+}: {
+  project: string
+  /** The *that.*s you are pointing at; they go with your next question. */
+  pointing: readonly ThatView[]
+  context: () => AskContext
+  onUnpoint: (id: string) => void
+  onAsked: () => void
+  /** A chip in the thread was clicked. */
+  onOpenThat: (id: string) => void
+  onClose: () => void
+}) {
   const [status, setStatus] = useState<AgentStatus>()
   const [thread, setThread] = useState<ThreadView>({ turns: [], total: { bytes: 0, calls: 0 } })
   // A question on its way, and the answer as it arrives.
-  const [asking, setAsking] = useState<{ text: string; steps: TurnStep[]; answer: string }>()
+  const [asking, setAsking] = useState<{ text: string; points: string[]; steps: TurnStep[]; answer: string }>()
+  // Labels of the project's that.s, for the chips your questions pointed at.
+  const [labels, setLabels] = useState<ReadonlyMap<string, string>>(new Map())
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string>()
   const body = useRef<HTMLDivElement>(null)
@@ -21,10 +42,11 @@ export function AgentPanel({ project, onClose }: { project: string; onClose: () 
 
   useEffect(() => {
     let current = true
-    void Promise.all([agent.status(), agent.thread()]).then(([known, turns]) => {
+    void Promise.all([agent.status(), agent.thread(), window.carrel.workspace.thats()]).then(([known, turns, thats]) => {
       if (!current) return
       setStatus(known)
       setThread(turns)
+      setLabels(new Map(thats.map((that) => [that.id, that.label])))
     })
     return () => {
       current = false
@@ -53,11 +75,14 @@ export function AgentPanel({ project, onClose }: { project: string; onClose: () 
   const send = (): void => {
     const text = draft.trim()
     if (!text || asking) return
+    const asked = context()
     setDraft('')
     setError(undefined)
-    setAsking({ text, steps: [], answer: '' })
+    setLabels((known) => new Map([...known, ...pointing.map((that) => [that.id, that.label] as const)]))
+    setAsking({ text, points: asked.points, steps: [], answer: '' })
+    onAsked()
     agent
-      .ask(text)
+      .ask(text, asked)
       .then(() => agent.thread())
       .then(setThread, (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)))
       .finally(() => setAsking(undefined))
@@ -99,7 +124,7 @@ export function AgentPanel({ project, onClose }: { project: string; onClose: () 
             <i />
           </button>
         )}
-        {unfolded && earlier.map((turn) => <TurnView key={turn.id} turn={turn} />)}
+        {unfolded && earlier.map((turn) => <TurnView key={turn.id} turn={turn} labels={labels} onOpenThat={onOpenThat} />)}
         {recent.length > 0 && earlier.length > 0 && (
           <p className="agent-day">
             <i />
@@ -108,14 +133,14 @@ export function AgentPanel({ project, onClose }: { project: string; onClose: () 
           </p>
         )}
         {recent.map((turn) => (
-          <TurnView key={turn.id} turn={turn} />
+          <TurnView key={turn.id} turn={turn} labels={labels} onOpenThat={onOpenThat} />
         ))}
         {asking && (
           <>
-            <p className="agent-me">{asking.text}</p>
+            <Mine text={asking.text} points={asking.points} labels={labels} onOpenThat={onOpenThat} />
             <div className="agent-answer" data-live="">
               <Steps steps={asking.steps} cost={undefined} />
-              {asking.answer ? <Markdown className="agent-text" text={asking.answer} /> : <p className="agent-thinking">Thinking…</p>}
+              {asking.answer ? <Markdown className="agent-text" text={asking.answer} onThat={onOpenThat} /> : <p className="agent-thinking">Thinking…</p>}
             </div>
           </>
         )}
@@ -127,6 +152,19 @@ export function AgentPanel({ project, onClose }: { project: string; onClose: () 
       </div>
 
       <footer className="agent-foot">
+        {pointing.length > 0 && status?.ready && (
+          <p className="agent-pointing">
+            <span className="agent-lead">pointing at</span>
+            {pointing.map((that) => (
+              <span key={that.id} className="that-chip agent-point">
+                {that.label || 'that.'}
+                <button type="button" aria-label={`Stop pointing at ${that.label || 'that.'}`} onClick={() => onUnpoint(that.id)}>
+                  ×
+                </button>
+              </span>
+            ))}
+          </p>
+        )}
         {status && !status.ready ? (
           <KeyForm status={status} onSaved={setStatus} />
         ) : (
@@ -157,17 +195,32 @@ export function AgentPanel({ project, onClose }: { project: string; onClose: () 
   )
 }
 
-function TurnView({ turn }: { turn: Turn }) {
-  if (turn.by === 'user') return <p className="agent-me">{turn.text}</p>
+function TurnView({ turn, labels, onOpenThat }: { turn: Turn; labels: ReadonlyMap<string, string>; onOpenThat: (id: string) => void }) {
+  if (turn.by === 'user') return <Mine text={turn.text} points={turn.points ?? []} labels={labels} onOpenThat={onOpenThat} />
   return (
     <div className="agent-answer">
       <Steps steps={turn.steps ?? []} cost={turn.cost} />
       {turn.error ? (
         <p className="agent-error">No answer: {turn.error}</p>
       ) : (
-        <Markdown className="agent-text" text={turn.text} />
+        <Markdown className="agent-text" text={turn.text} onThat={onOpenThat} />
       )}
     </div>
+  )
+}
+
+/** Your question, led by the chips it pointed at. */
+function Mine({ text, points, labels, onOpenThat }: { text: string; points: readonly string[]; labels: ReadonlyMap<string, string>; onOpenThat: (id: string) => void }) {
+  return (
+    <p className="agent-me">
+      {points.map((id) => (
+        <button key={id} type="button" className="that-chip" data-that={id} onClick={() => onOpenThat(id)}>
+          {labels.get(id) || 'that.'}
+        </button>
+      ))}
+      {points.length > 0 ? ' ' : ''}
+      {text}
+    </p>
   )
 }
 

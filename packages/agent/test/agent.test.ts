@@ -119,6 +119,6 @@ describe('ProjectAgent', () => {
 describe('describeStep', () => {
   it('says what a step did', () => {
     expect(describeStep('search_project', { query: 'price' })).toBe('Searched for “price”')
-    expect(describeStep('read_item', {})).toBe('Used read item')
+    expect(describeStep('point_somewhere', {})).toBe('Used point somewhere')
   })
 })

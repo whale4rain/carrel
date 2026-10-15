@@ -3,7 +3,8 @@ import type { LLMAdapter, LLMStreamEvent } from 'tnega/agent'
 /**
  * A stand-in model for checks and screenshots (`CARREL_LLM=scripted`): it
  * searches the project for the longest word of the question, then answers
- * with the first thing it found. No network, no key.
+ * with the first thing it found, citing a chip the question pointed at.
+ * No network, no key.
  */
 export function scriptedModel(): LLMAdapter {
   let call = 0
@@ -14,7 +15,9 @@ export function scriptedModel(): LLMAdapter {
       const last = messages.at(-1)
       yield { type: 'message_start', id }
       if (last?.role !== 'tool') {
-        const question = [...messages].reverse().find((message) => message.role === 'user')?.content ?? ''
+        const asked = [...messages].reverse().find((message) => message.role === 'user')?.content ?? ''
+        // The question comes after any [Context] block.
+        const question = asked.split('\n\n').at(-1) ?? asked
         const query = question.split(/[^\p{L}\p{N}]+/u).sort((a, b) => b.length - a.length)[0] ?? question
         yield { type: 'message_delta', id, delta: 'Let me look in your project. ' }
         yield { type: 'toolcall_start', id, index: 0, name: 'search_project' }
@@ -23,9 +26,11 @@ export function scriptedModel(): LLMAdapter {
         return
       }
       const hit = firstHit(last.content)
-      const answer = hit
-        ? `Your ${hit.kind === 'note' ? 'note' : 'source'} “${hit.title}” says: ${hit.text.trim()}`
-        : "I couldn't find anything about that in this project yet."
+      // A chip the question pointed at is cited back, the way a real answer would.
+      const question = [...messages].reverse().find((message) => message.role === 'user')?.content ?? ''
+      const pointed = /\[[^\]]+\]\(that:[\w-]+\)/.exec(question.replaceAll('[that.]', ''))?.[0]
+      const found = hit ? `Your ${hit.kind === 'note' ? 'note' : 'source'} “${hit.title}” says: ${hit.text.trim()}` : "I couldn't find anything about that in this project yet."
+      const answer = (pointed ? `You are pointing at ${pointed}. ` : '') + found
       for (const word of answer.split(/(?<= )/)) {
         yield { type: 'message_delta', id, delta: word }
         await new Promise((resolve) => setTimeout(resolve, 15))

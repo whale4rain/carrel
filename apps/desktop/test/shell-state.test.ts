@@ -181,3 +181,28 @@ describe('search through the shell', () => {
     }
   })
 })
+
+describe("the agent's reads through the shell", () => {
+  it('reads PDF pages and notes, and points at words the page has', async () => {
+    const shell = new ShellController(new Workspace(carrelRoots(home)), {
+      readPages: async () => ['Chapter 5', 'Habits and necessities tend\nto be inelastic.'],
+    })
+    try {
+      await shell.createProject('Learn economics')
+      const pdf = join(home, 'Supply.pdf')
+      await writeFile(pdf, '%PDF-1.4')
+      const [paper] = await shell.addFiles([pdf])
+      const read = await shell.readItem('Learn economics', paper!.id, { from: 2, to: 2 })
+      expect(read).toEqual({ title: 'Supply', kind: 'paper', text: '[p.2]\nHabits and necessities tend\nto be inelastic.', pages: 2 })
+      const that = await shell.agentThat('Learn economics', paper!.id, 2, 'tend to be inelastic')
+      expect(that).toMatchObject({ label: 'p.2', text: 'tend\nto be inelastic' })
+      expect(await shell.thatText('Learn economics', that.id)).toMatchObject({ source: 'Supply', label: 'p.2', quote: 'tend\nto be inelastic' })
+      await expect(shell.agentThat('Learn economics', paper!.id, 2, 'not on the page')).rejects.toThrow('not on page 2')
+      const note = await shell.createNote()
+      await shell.saveNote(note.id, { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Coffee', marks: [{ type: 'bold' }] }] }] })
+      expect(await shell.readItem('Learn economics', note.id)).toEqual({ title: 'Coffee', kind: 'note', text: '**Coffee**\n' })
+    } finally {
+      shell.close()
+    }
+  })
+})
