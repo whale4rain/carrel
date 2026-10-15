@@ -47,20 +47,36 @@ async function start(): Promise<{ app: ElectronApplication; page: Page }> {
   return { app, page }
 }
 
+/**
+ * Quit the app. Playwright's close() waits for the process to end, which on the
+ * Windows runner it can wait on forever; past ten seconds, end the process.
+ * Saves are already written by then (the test asks for the workspace state first).
+ */
+async function quit(app: ElectronApplication): Promise<void> {
+  const closed = app.close().then(() => true)
+  const gave = new Promise<boolean>((resolve) => setTimeout(() => resolve(false), 10_000))
+  if (await Promise.race([closed, gave])) return
+  console.warn('carrel e2e: the app did not quit within 10 s; ending it')
+  app.process().kill()
+}
+
 test('a source, a that., a note, the agent, and a restart', async () => {
   const { app, page } = await start()
 
+  console.log('carrel e2e: started')
   // A project from the welcome screen.
   await page.getByLabel('Project name').fill('Learn economics')
   await page.getByRole('button', { name: 'Create project' }).click()
   await expect(page.locator('.desk-name')).toBeVisible()
 
+  console.log('carrel e2e: project made')
   // A PDF through + Add (the test stands in at the file dialog).
   await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
   await page.locator('.add-menu button', { hasText: 'Book or paper' }).click()
   const textLayer = page.locator('.sheet[data-kind="paper"] .textLayer')
   await expect(textLayer).toHaveText('Price elasticity of demand')
 
+  console.log('carrel e2e: PDF shown')
   // that.: select a word on the page and press ⌘. (Ctrl+.).
   await textLayer.evaluate((layer) => {
     const walker = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT)
@@ -80,6 +96,7 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   const chip = page.locator('.that-tray .that-chip', { hasText: 'p.1' })
   await expect(chip).toBeVisible()
 
+  console.log('carrel e2e: that. made')
   // A note from the sidebar, typed, with the chip dragged to the end of its text.
   await page.locator('[aria-label="Notes"] button', { hasText: '+ New note' }).click()
   const editor = page.locator('.sheet[data-kind="note"] .ProseMirror')
@@ -94,6 +111,7 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await expect(page.locator('[aria-label="Notes"] .row.note')).toHaveText([NOTE_TITLE])
   await expect(page.locator('.sheet[data-kind="paper"] .cited-by button')).toHaveText('1 note')
 
+  console.log('carrel e2e: note written')
   // The agent (⌘J) answers from the note.
   await page.keyboard.press(`${mod}+KeyJ`)
   const panel = page.locator('.agent-panel')
@@ -107,6 +125,7 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await ask('What did I note about coffee?')
   await expect(panel.locator('.agent-answer .agent-text').last()).toContainText(NOTE_TITLE)
 
+  console.log('carrel e2e: agent answered')
   // Asked for a note, it proposes one in pencil; nothing is written until Tab.
   const notes = page.locator('[aria-label="Notes"] .row.note')
   await ask('Make a note about coffee')
@@ -117,10 +136,12 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await expect(panel.locator('.proposal[data-state="accepted"] .proposal-open')).toHaveText('Open note')
   await expect(notes).toHaveCount(2)
 
+  console.log('carrel e2e: proposal accepted')
   // Let the last saves land, then quit.
   await page.evaluate(() => window.carrel.workspace.state())
-  await app.close()
+  await quit(app)
 
+  console.log('carrel e2e: quit')
   // Started again, everything is where it was left.
   const again = await start()
   const back = again.page
@@ -132,9 +153,10 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await expect(note.locator('h1')).toHaveText(NOTE_TITLE)
   await expect(note.locator('p')).toHaveText(`${NOTE_TEXT}p.1`)
   await expect(note.locator('.note-chip')).toHaveText('p.1')
+  console.log('carrel e2e: restarted, note back')
   await back.locator('.agent-button').click()
   const thread = back.locator('.agent-panel')
   await expect(thread.locator('.agent-me')).toHaveCount(2)
   await expect(thread.locator('.proposal[data-state="accepted"]')).toHaveCount(1)
-  await again.app.close()
+  await quit(again.app)
 })
