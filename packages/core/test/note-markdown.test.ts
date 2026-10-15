@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { citedThats, fromMarkdown, isNoteDoc, plainText, toMarkdown, type NoteDoc } from '../src/index.js'
+import { citedThats, fromMarkdown, isNoteDoc, plainText, tagsOf, toMarkdown, type NoteDoc } from '../src/index.js'
 
 const doc: NoteDoc = {
   type: 'doc',
@@ -91,5 +91,12 @@ describe('empty lines', () => {
     const empty: NoteDoc = { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 } }, { type: 'paragraph' }, { type: 'paragraph', content: [{ type: 'text', text: 'Words' }] }] }
     expect(toMarkdown(empty)).toBe('Words\n')
     expect(toMarkdown({ type: 'doc', content: [{ type: 'paragraph' }] })).toBe('')
+  })
+})
+
+describe('tags', () => {
+  it('finds #tags anywhere in the text, once each', () => {
+    const tagged = fromMarkdown('# Elasticity #micro\n\nSee #Elasticity and #exam-prep, not a#b or # alone.\n\n- also (#micro)\n')
+    expect(tagsOf(tagged)).toEqual(['micro', 'elasticity', 'exam-prep'])
   })
 })

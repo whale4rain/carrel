@@ -32,6 +32,9 @@ export function Sidebar({ frame, state, actions, items }: Props) {
   const open = state.open
   const [menu, setMenu] = useState(false)
   const [naming, setNaming] = useState<'project' | 'desk'>()
+  // A tag picked under Notes: the list shows every note with it.
+  const [tag, setTag] = useState<string>()
+  const tags = [...new Set(notes.flatMap((note) => note.tags ?? []))].sort()
 
   return (
     <nav className="sidebar" aria-label="Project">
@@ -128,7 +131,7 @@ export function Sidebar({ frame, state, actions, items }: Props) {
 
           <section className="group" aria-label="Notes">
             <h2>Notes</h2>
-            {notes.slice(0, RECENT_NOTES).map((note) => (
+            {(tag ? notes.filter((note) => note.tags?.includes(tag)) : notes.slice(0, RECENT_NOTES)).map((note) => (
               <button type="button" key={note.id} className="row note" onClick={() => actions.openNote(note.id)}>
                 <NoteIcon />
                 <span className="grow">{note.title}</span>
@@ -138,6 +141,15 @@ export function Sidebar({ frame, state, actions, items }: Props) {
               <span className="grow indent">All notes</span>
               <span className="count">{notes.length}</span>
             </button>
+            {tags.length > 0 && (
+              <div className="tags" aria-label="Tags">
+                {tags.map((name) => (
+                  <button type="button" key={name} className="tag" aria-pressed={tag === name} onClick={() => setTag(tag === name ? undefined : name)}>
+                    #{name}
+                  </button>
+                ))}
+              </div>
+            )}
             <button type="button" className="row desk muted" onClick={() => void actions.createNote()}>
               + New note
             </button>

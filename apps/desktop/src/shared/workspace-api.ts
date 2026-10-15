@@ -14,6 +14,10 @@ export interface ItemView {
   title: string
   /** Notes: when it last changed. */
   updatedAt?: string
+  /** Notes: its #tags, lower-cased. */
+  tags?: string[]
+  /** Notes: the items its *that.* chips point into. */
+  cites?: string[]
   /** Linked items: the address. */
   url?: string
   /** Stored items: the file's name and size in bytes. */

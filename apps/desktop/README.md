@@ -186,6 +186,15 @@ a link to its anchor:
 Drag a chip from the tray into a note to cite that spot there. Click a chip
 in a note to open its source at the spot, the same as a chip on the tray.
 
+### Tags and backlinks
+
+![Tags in a note and the sidebar; a PDF's label lists the notes that cite it; day and night](screenshot-tags.png)
+
+Type a `#tag` anywhere in a note. The sidebar lists every tag under Notes;
+pick one to list all its notes. A source's label says how many notes cite
+it; click it to bring the note forward, or pick one when there are several.
+A note ends with what it cites ("Cites a paper and a video.").
+
 ## Frames
 
 - **Mac:** hidden inset title bar; the traffic lights sit over the sidebar,
