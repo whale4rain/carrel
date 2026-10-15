@@ -460,7 +460,11 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`(() => { const s = document.querySelector('.sheet'); return !!s && s.style.left === '${MOVED.x}px' && s.style.top === '${MOVED.y}px' && s.style.width === '${SCALED.w}px' })()`))) {
       return fail(`the sheet came back at ${String(await page("document.querySelector('.sheet')?.getAttribute('style') ?? 'nowhere'"))}`)
     }
-    if (!(await waitFor("document.querySelector('.zoom-level')?.textContent === '80%'"))) return fail('the desk did not come back at 80%')
+    // The desk comes back at the zoom it was left at (80%, or less if a chip had to zoom out to show its sheet).
+    const left = "window.carrel.workspace.state().then((s) => window.carrel.workspace.desk(s.open.desk)).then((d) => Math.round(d.viewport.zoom * 100) + '%')"
+    if (!(await waitFor(`${left}.then((zoom) => zoom !== '100%' && document.querySelector('.zoom-level')?.textContent === zoom)`))) {
+      return fail(`the desk did not come back at its zoom: ${String(await page("document.querySelector('.zoom-level')?.textContent"))}`)
+    }
     if (!(await waitFor(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label') === '${LINK_TITLE}'`))) {
       return fail('the web page sheet did not come back')
     }
