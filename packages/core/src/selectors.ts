@@ -18,10 +18,13 @@ export interface TextPositionSelector {
   end: number
 }
 
-/** A PDF page (`page=3`, RFC 3778) or a media moment or range (`t=754.3`, Media Fragments). */
+/**
+ * A PDF page (`page=3`, RFC 3778), a media moment or range (`t=754.3`, Media
+ * Fragments), or a turn in one of the agent's threads (`turn=<id>`).
+ */
 export interface FragmentSelector {
   type: 'FragmentSelector'
-  conformsTo: typeof PDF_FRAGMENT | typeof MEDIA_FRAGMENT
+  conformsTo: typeof PDF_FRAGMENT | typeof MEDIA_FRAGMENT | typeof TURN_FRAGMENT
   value: string
 }
 
@@ -29,6 +32,28 @@ export type Selector = TextQuoteSelector | TextPositionSelector | FragmentSelect
 
 export const PDF_FRAGMENT = 'http://tools.ietf.org/rfc/rfc3778'
 export const MEDIA_FRAGMENT = 'http://www.w3.org/TR/media-frags/'
+/** Carrel's own fragment: a turn in a thread. */
+export const TURN_FRAGMENT = 'https://carrel.app/ns/turn'
+
+/** What a *that.* on a turn points into: the thread, in place of an item. */
+export const threadItem = (thread: string): string => `thread:${thread}`
+
+/** The thread a *that.*'s item id names, if it is one. */
+export function threadOf(itemId: string): string | undefined {
+  return itemId.startsWith('thread:') ? itemId.slice('thread:'.length) : undefined
+}
+
+/** A turn of a thread, for a *that.* on something the agent said. */
+export function turnSelector(turn: string): FragmentSelector {
+  if (!/^[\w-]+$/.test(turn)) throw new Error('That is not a turn.')
+  return { type: 'FragmentSelector', conformsTo: TURN_FRAGMENT, value: `turn=${turn}` }
+}
+
+/** The turn a selector list points at, if any. */
+export function turnOf(selectors: readonly Selector[]): string | undefined {
+  const fragment = selectors.find((selector) => selector.type === 'FragmentSelector' && selector.conformsTo === TURN_FRAGMENT)
+  return fragment?.type === 'FragmentSelector' ? /^turn=([\w-]+)$/.exec(fragment.value)?.[1] : undefined
+}
 
 /** Selectors for `text.slice(start, end)`: the quote with its context, and where it is. */
 export function textSelectors(text: string, start: number, end: number): [TextQuoteSelector, TextPositionSelector] {
@@ -107,6 +132,7 @@ export function positionLabel(selectors: readonly Selector[]): string {
   if (page !== undefined) return `p.${page}`
   const moment = momentOf(selectors)
   if (moment !== undefined) return formatMoment(moment)
+  if (turnOf(selectors) !== undefined) return 'turn'
   return ''
 }
 
@@ -152,7 +178,7 @@ export function isSelector(value: unknown): value is Selector {
     case 'TextPositionSelector':
       return Number.isInteger(selector.start) && Number.isInteger(selector.end)
     case 'FragmentSelector':
-      return (selector.conformsTo === PDF_FRAGMENT || selector.conformsTo === MEDIA_FRAGMENT) && typeof selector.value === 'string'
+      return (selector.conformsTo === PDF_FRAGMENT || selector.conformsTo === MEDIA_FRAGMENT || selector.conformsTo === TURN_FRAGMENT) && typeof selector.value === 'string'
     default:
       return false
   }

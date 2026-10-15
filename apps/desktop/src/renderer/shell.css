@@ -1956,3 +1956,88 @@ kbd {
     transition: none;
   }
 }
+
+/* Under an answer: that. this turn, and Add to note. Quiet until you reach for them. */
+.turn-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  opacity: 0;
+  transition: opacity 180ms ease-out;
+}
+
+.agent-answer:hover .turn-actions,
+.agent-answer:focus-within .turn-actions,
+.agent-answer[data-that] .turn-actions {
+  opacity: 1;
+}
+
+.turn-that {
+  height: 20px;
+  padding: 0 6px;
+  border-radius: var(--radius-mark);
+  background: var(--highlight-soft);
+  color: var(--highlight-ink);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.turn-that:hover {
+  background: var(--highlight);
+}
+
+.turn-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 20px;
+  padding: 0 6px;
+  font-size: 10px;
+  cursor: grab;
+}
+
+/* Add to note: an outline button (Margin AgentPanel). */
+.turn-note {
+  max-width: 240px;
+  height: 22px;
+  overflow: hidden;
+  padding: 0 8px;
+  border: 1px solid var(--graphite);
+  border-radius: var(--radius-control);
+  font: var(--text-caption);
+  font-size: 11px;
+  color: var(--ink);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.turn-note:hover {
+  background: var(--paper-2);
+}
+
+.turn-that:focus-visible,
+.turn-note:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+/* A turn pointed at with that. keeps a highlighter stroke in its margin. */
+.agent-answer[data-that] {
+  margin-left: -8px;
+  padding-left: 6px;
+  border-left: 2px solid var(--highlight);
+}
+
+/* Opened from a chip: it brightens for a moment (Margin "Point"). */
+.agent-answer[data-flash],
+.agent-me[data-flash] {
+  background: color-mix(in srgb, var(--highlight) 22%, transparent);
+  transition: background-color 600ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .turn-actions,
+  .agent-answer[data-flash] {
+    transition: none;
+  }
+}

@@ -1,5 +1,21 @@
 import { describe, expect, it } from 'vitest'
-import { findText, formatMoment, momentOf, momentSelector, pageOf, pageSelector, positionLabel, regionOf, regionSelector, textSelectors } from '../src/index.js'
+import {
+  findText,
+  formatMoment,
+  isSelector,
+  momentOf,
+  momentSelector,
+  pageOf,
+  pageSelector,
+  positionLabel,
+  regionOf,
+  regionSelector,
+  textSelectors,
+  threadItem,
+  threadOf,
+  turnOf,
+  turnSelector,
+} from '../src/index.js'
 
 const page = 'Elasticity describes how strongly buyers react when a price moves. When a small price change shifts the quantity bought a lot, demand is elastic.'
 
@@ -56,5 +72,17 @@ describe('findText', () => {
 
   it('says when the quote is gone', () => {
     expect(findText(page.replace('elastic.', 'inelastic.').replace('demand is', 'it is'), selectors)).toBeUndefined()
+  })
+})
+
+describe('turn selectors', () => {
+  it('point at a turn of a thread', () => {
+    const selector = turnSelector('abc-1')
+    expect(isSelector(selector)).toBe(true)
+    expect(turnOf([selector])).toBe('abc-1')
+    expect(positionLabel([selector])).toBe('turn')
+    expect(threadOf(threadItem('project'))).toBe('project')
+    expect(threadOf('book')).toBeUndefined()
+    expect(() => turnSelector('../x')).toThrow('not a turn')
   })
 })

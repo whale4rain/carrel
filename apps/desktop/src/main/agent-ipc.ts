@@ -102,6 +102,8 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
   })
   handle(agentChannels.proposals, () => controller.proposalList())
   handle(agentChannels.decide, (_event, id, accept) => controller.decideProposal(id, accept))
+  handle(agentChannels.thatTurn, (_event, turnId) => controller.thatTurn(turnId))
+  handle(agentChannels.addToNote, (_event, turnId, noteId) => controller.addTurnToNote(turnId, noteId ?? undefined))
   handle(agentChannels.ask, async (event, text, context) => {
     if (typeof text !== 'string' || text.trim().length === 0) throw new Error('Ask something first.')
     const folder = await openFolder()

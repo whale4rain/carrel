@@ -8,6 +8,12 @@ import {
   Notes,
   plainText,
   Proposals,
+  PROJECT_THREAD,
+  threadItem,
+  threadOf,
+  Threads,
+  turnOf,
+  turnSelector,
   toMarkdown,
   SearchIndex,
   momentSelector,
@@ -46,6 +52,7 @@ export class ShellController {
   private readonly anchors: Anchors
   private readonly notes: Notes
   private readonly proposals: Proposals
+  private readonly threads: Threads
   private readonly index: SearchIndex
   private readonly readPages: PageReader | undefined
   /** PDFs being read for search, by item. */
@@ -57,6 +64,7 @@ export class ShellController {
     this.anchors = new Anchors(workspace)
     this.notes = new Notes(workspace)
     this.proposals = new Proposals(workspace)
+    this.threads = new Threads(workspace)
     this.index = new SearchIndex(workspace)
     this.readPages = options.readPages
   }
@@ -226,7 +234,7 @@ export class ShellController {
 
   async thatText(folder: string, id: string): Promise<ThatText> {
     const anchor = await this.anchors.read(folder, id)
-    const item = await this.library.read(folder, anchor.itemId).catch(() => undefined)
+    const item = threadOf(anchor.itemId) ? { title: 'Project thread' } : await this.library.read(folder, anchor.itemId).catch(() => undefined)
     return { id, item: anchor.itemId, source: item?.title ?? 'A source no longer here', label: anchor.label, ...(anchor.snapshot.text ? { quote: anchor.snapshot.text } : {}) }
   }
 
@@ -350,6 +358,43 @@ export class ShellController {
     return thatView(await this.anchors.make(folder, { itemId, selectors, ...(quoted ? { text: quoted } : {}), ...(png ? { image: png } : {}) }))
   }
 
+  /**
+   * A *that.* on a turn of the project thread: something the agent (or you)
+   * said, kept with its words. A turn already pointed at keeps its one *that.*
+   */
+  async thatTurn(turnId: unknown): Promise<ThatView> {
+    if (typeof turnId !== 'string') throw new Error('That is not a turn.')
+    const folder = await this.openFolder()
+    const known = (await this.anchors.list(folder, threadItem(PROJECT_THREAD))).find((anchor) => turnOf(anchor.selectors) === turnId)
+    if (known) return thatView(known)
+    const turn = (await this.threads.turns(folder)).find((candidate) => candidate.id === turnId)
+    if (!turn) throw new Error('That turn is not in the project thread.')
+    return thatView(await this.anchors.make(folder, { itemId: threadItem(PROJECT_THREAD), selectors: [turnSelector(turn.id)], text: turn.text }))
+  }
+
+  /**
+   * Adds a turn to a note, as you would by copying it: its words, then a
+   * chip back to the turn. With no note given, it starts a new one.
+   */
+  async addTurnToNote(turnId: unknown, noteId: unknown): Promise<ItemView> {
+    if (noteId !== undefined && typeof noteId !== 'string') throw new Error('That is not a note.')
+    const that = await this.thatTurn(turnId)
+    const folder = await this.openFolder()
+    const added = fromMarkdown(`${that.text ?? ''}\n\n[${that.label}](that:${that.id})`).content
+    if (noteId === undefined) {
+      // A new note is titled with the question the turn answered.
+      const turns = await this.threads.turns(folder)
+      const at = turns.findIndex((turn) => turn.id === turnId)
+      const asked = turns.slice(0, at).findLast((turn) => turn.by === 'user')?.text.replace(/\s+/g, ' ').trim()
+      const title = !asked ? 'From the project thread' : asked.length > 80 ? `${asked.slice(0, 79).trimEnd()}…` : asked
+      const doc = fromMarkdown(`# ${title}`)
+      return noteItem(await this.notes.create(folder, { type: 'doc', content: [...doc.content, ...added] }), await this.citedItems(folder))
+    }
+    const before = await this.notes.read(folder, noteId)
+    const saved = await this.notes.save(folder, noteId, { ...before.doc, content: [...before.doc.content, ...added] })
+    return noteItem(saved, await this.citedItems(folder))
+  }
+
   async thats(): Promise<ThatView[]> {
     const { open } = await this.state()
     return open ? (await this.anchors.list(open.project)).map(thatView) : []
@@ -387,7 +432,8 @@ function itemView(item: ItemFile): ItemView {
 }
 
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {
-  const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) ? [sources.get(that)!] : [])))]
+  // Turns of a thread are not sources.
+  const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) && !threadOf(sources.get(that)!) ? [sources.get(that)!] : [])))]
   return { id: note.id, kind: 'note', title: note.title, updatedAt: note.updatedAt, tags: note.tags, cites }
 }
 

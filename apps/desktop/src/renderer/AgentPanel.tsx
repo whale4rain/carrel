@@ -3,6 +3,7 @@ import type { AgentStatus, AskContext, ProposalView, ThreadView, Turn, TurnCost,
 import type { ItemView, ThatView } from '../shared/workspace-api.js'
 import { Markdown } from './Markdown.js'
 import { ProposalCard } from './ProposalCard.js'
+import { THAT_DRAG } from './ThatTray.js'
 
 const agent = window.carrel.agent
 
@@ -20,6 +21,8 @@ export function AgentPanel({
   onOpenThat,
   onOpenItem,
   onAccepted,
+  onAddToNote,
+  focusTurn,
   onClose,
 }: {
   project: string
@@ -34,6 +37,10 @@ export function AgentPanel({
   onOpenItem: (id: string) => void
   /** A proposal was accepted: the note or source it made or changed. */
   onAccepted: (item: ItemView) => void
+  /** Add a turn to the note selected on the desk, or to a new note. */
+  onAddToNote: (turnId: string) => Promise<ItemView>
+  /** A turn to bring into view, from a chip that points at it. */
+  focusTurn?: { id: string; nonce: number } | undefined
   onClose: () => void
 }) {
   const [status, setStatus] = useState<AgentStatus>()
@@ -43,6 +50,8 @@ export function AgentPanel({
   // Labels of the project's that.s, for the chips your questions pointed at.
   const [labels, setLabels] = useState<ReadonlyMap<string, string>>(new Map())
   const [proposals, setProposals] = useState<ProposalView[]>([])
+  // The that.s made on turns, by turn.
+  const [pointed, setPointed] = useState<ReadonlyMap<string, ThatView>>(new Map())
   const [draft, setDraft] = useState('')
   const [error, setError] = useState<string>()
   const body = useRef<HTMLDivElement>(null)
@@ -56,6 +65,7 @@ export function AgentPanel({
       setThread(turns)
       setProposals(proposed)
       setLabels(new Map(thats.map((that) => [that.id, that.label])))
+      setPointed(new Map(thats.flatMap((that) => (turnOf(that) ? [[turnOf(that)!, that] as const] : []))))
     })
     return () => {
       current = false
@@ -99,6 +109,27 @@ export function AgentPanel({
       .finally(() => setAsking(undefined))
   }
 
+  // A chip that points at a turn brings it into view, and it brightens.
+  useEffect(() => {
+    if (!focusTurn) return
+    const element = body.current?.querySelector<HTMLElement>(`[data-turn="${CSS.escape(focusTurn.id)}"]`)
+    if (!element) return
+    element.scrollIntoView({ block: 'center' })
+    element.dataset.flash = ''
+    const timer = window.setTimeout(() => delete element.dataset.flash, 600)
+    return () => window.clearTimeout(timer)
+  }, [focusTurn, thread.turns.length])
+
+  const thatTurn = (turn: Turn): void => {
+    agent.thatTurn(turn.id).then(
+      (that) => {
+        setPointed((known) => new Map(known).set(turn.id, that))
+        setLabels((known) => new Map(known).set(that.id, that.label))
+      },
+      (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
+    )
+  }
+
   const decide = (proposal: ProposalView, accept: boolean): void => {
     agent.decide(proposal.id, accept).then(
       ({ proposal: decided, item }) => {
@@ -135,7 +166,15 @@ export function AgentPanel({
   const turnView = (turn: Turn) => {
     const asked = answered.get(turn.id)
     return (
-      <TurnView key={turn.id} turn={turn} labels={labels} onOpenThat={onOpenThat}>
+      <TurnView
+        key={turn.id}
+        turn={turn}
+        labels={labels}
+        onOpenThat={onOpenThat}
+        that={pointed.get(turn.id)}
+        onThat={() => thatTurn(turn)}
+        onAddToNote={() => onAddToNote(turn.id)}
+      >
         {asked && cards(proposals.filter((proposal) => proposal.asked === asked))}
       </TurnView>
     )
@@ -263,32 +302,95 @@ function TurnView({
   turn,
   labels,
   onOpenThat,
+  that,
+  onThat,
+  onAddToNote,
   children,
 }: {
   turn: Turn
   labels: ReadonlyMap<string, string>
   onOpenThat: (id: string) => void
+  /** The *that.* on this turn, once made. */
+  that: ThatView | undefined
+  onThat: () => void
+  onAddToNote: () => Promise<ItemView>
   /** Proposals the answer made. */
   children?: ReactNode
 }) {
-  if (turn.by === 'user') return <Mine text={turn.text} points={turn.points ?? []} labels={labels} onOpenThat={onOpenThat} />
+  const [added, setAdded] = useState<string>()
+  if (turn.by === 'user') return <Mine turn={turn.id} text={turn.text} points={turn.points ?? []} labels={labels} onOpenThat={onOpenThat} />
   return (
-    <div className="agent-answer">
+    <div className="agent-answer" data-turn={turn.id} data-that={that ? '' : undefined}>
       <Steps steps={turn.steps ?? []} cost={turn.cost} />
       {turn.error ? (
         <p className="agent-error">No answer: {turn.error}</p>
       ) : (
-        <Markdown className="agent-text" text={turn.text} onThat={onOpenThat} />
+        <>
+          <Markdown className="agent-text" text={turn.text} onThat={onOpenThat} />
+          <div className="turn-actions">
+            {that ? (
+              <span
+                className="that-chip turn-chip"
+                draggable
+                title="Drag into a note to cite this turn"
+                onDragStart={(event) => {
+                  event.dataTransfer.setData(THAT_DRAG, JSON.stringify({ id: that.id, label: that.label }))
+                  event.dataTransfer.setData('text/plain', that.label)
+                  event.dataTransfer.effectAllowed = 'copy'
+                }}
+              >
+                {that.label}
+              </span>
+            ) : (
+              <button type="button" className="turn-that" aria-label="that. this turn" onClick={onThat}>
+                that.
+              </button>
+            )}
+            <button
+              type="button"
+              className="turn-note"
+              onClick={() =>
+                void onAddToNote().then(
+                  (note) => setAdded(note.title),
+                  () => setAdded(undefined),
+                )
+              }
+            >
+              {added ? `Added to “${added}”` : 'Add to note'}
+            </button>
+          </div>
+        </>
       )}
       {children}
     </div>
   )
 }
 
+/** The turn a *that.* points at, if it points at one. */
+function turnOf(that: ThatView): string | undefined {
+  if (!that.itemId.startsWith('thread:')) return undefined
+  for (const selector of that.selectors) {
+    if (selector.type === 'FragmentSelector' && selector.value.startsWith('turn=')) return selector.value.slice('turn='.length)
+  }
+  return undefined
+}
+
 /** Your question, led by the chips it pointed at. */
-function Mine({ text, points, labels, onOpenThat }: { text: string; points: readonly string[]; labels: ReadonlyMap<string, string>; onOpenThat: (id: string) => void }) {
+function Mine({
+  turn,
+  text,
+  points,
+  labels,
+  onOpenThat,
+}: {
+  turn?: string
+  text: string
+  points: readonly string[]
+  labels: ReadonlyMap<string, string>
+  onOpenThat: (id: string) => void
+}) {
   return (
-    <p className="agent-me">
+    <p className="agent-me" data-turn={turn}>
       {points.map((id) => (
         <button key={id} type="button" className="that-chip" data-that={id} onClick={() => onOpenThat(id)}>
           {labels.get(id) || 'that.'}

@@ -51,6 +51,10 @@ export interface AgentApi {
   decide(id: string, accept: boolean): Promise<{ proposal: ProposalView; item?: ItemView }>
   /** A proposal the agent just made. */
   onProposal(listener: (proposal: ProposalView) => void): () => void
+  /** A *that.* on a turn of the thread (made once; asking again gives the same one). */
+  thatTurn(turnId: string): Promise<ThatView>
+  /** Adds a turn's words and a chip back to it to a note, or to a new note. */
+  addToNote(turnId: string, noteId?: string): Promise<ItemView>
   /** A *that.* the agent made while answering, to show with the others. */
   onThat(listener: (that: ThatView) => void): () => void
 }
@@ -65,4 +69,6 @@ export const agentChannels = {
   proposals: 'agent:proposals',
   decide: 'agent:decide',
   proposal: 'agent:proposal',
+  thatTurn: 'agent:that-turn',
+  addToNote: 'agent:add-to-note',
 } as const
