@@ -2,7 +2,7 @@
 // apart from documents.ts so the desk can ask without loading the readers.
 
 /** Files read as reading documents (see documents.ts), by extension. */
-export const DOCUMENT_EXTENSIONS = ['.epub', '.md', '.markdown']
+export const DOCUMENT_EXTENSIONS = ['.epub', '.docx', '.pptx', '.md', '.markdown']
 
 /** A file name's extension, lower-cased, with its dot: ".md". */
 export function extensionOf(name: string): string {
@@ -14,7 +14,7 @@ export function isDocumentFile(name: string): boolean {
   return DOCUMENT_EXTENSIONS.includes(extensionOf(name))
 }
 
-const FORMATS: Record<string, string> = { '.pdf': 'PDF', '.epub': 'EPUB', '.md': 'Markdown', '.markdown': 'Markdown' }
+const FORMATS: Record<string, string> = { '.pdf': 'PDF', '.epub': 'EPUB', '.docx': 'Word', '.pptx': 'PowerPoint', '.md': 'Markdown', '.markdown': 'Markdown' }
 
 /** What a stored file's format is called: "PDF", "Markdown". */
 export function formatLabel(name: string): string {

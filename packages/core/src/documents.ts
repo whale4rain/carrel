@@ -1,14 +1,15 @@
 import { Lexer, type Token, type Tokens } from 'marked'
 import { extensionOf } from './document-files.js'
 import { readEpub } from './epub.js'
+import { readPowerPoint, readWord } from './office.js'
 import { safeHref } from './safe-href.js'
 
 export { DOCUMENT_EXTENSIONS, extensionOf, formatLabel, isDocumentFile } from './document-files.js'
 export { safeHref } from './safe-href.js'
 
 /**
- * Sources read as text rather than as pages: Markdown first, then EPUB, Word
- * and PowerPoint. Each becomes a reading document of sections (chapters, or
+ * Sources read as text rather than as pages: Markdown, EPUB, Word and
+ * PowerPoint. Each becomes a reading document of sections (chapters, or
  * the parts between its main headings, or slides). A section plays the part a
  * page plays in a PDF: *that.*s, bookmarks, the place last read, search and the
  * agent's reading all go by section number, starting at 1.
@@ -49,6 +50,8 @@ export async function readDocument(bytes: Uint8Array, name: string, title: strin
   const extension = extensionOf(name)
   if (extension === '.md' || extension === '.markdown') return readMarkdown(new TextDecoder().decode(bytes), title)
   if (extension === '.epub') return readEpub(bytes, title)
+  if (extension === '.docx') return readWord(bytes, title, sectionsOf)
+  if (extension === '.pptx') return readPowerPoint(bytes)
   throw new Error(`Carrel can't read ${extension || 'that kind of'} files as text yet.`)
 }
 

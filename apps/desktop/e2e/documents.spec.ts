@@ -1,12 +1,13 @@
 // Files read as text. A Markdown file: its sections in Contents, a jump by
 // section number, a bookmark, a that. on its words, and search finding them.
-// An EPUB: its chapters as sections, named by the book's contents.
+// An EPUB: its chapters as sections, named by the book's contents. Word and
+// PowerPoint files: headings and slides as sections, speaker notes kept.
 // Run `pnpm build` first.
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { tinyEpub } from '../scripts/tiny-epub.mjs'
+import { tinyDocx, tinyEpub, tinyPptx } from '../scripts/tiny-documents.mjs'
 import { mod, quit, start } from './app.js'
 
 let home: string
@@ -129,6 +130,38 @@ test('read an EPUB by chapters', async () => {
   await contents.getByRole('button', { name: /Reading/ }).click()
   await expect(sheet.getByLabel('Go to section')).toHaveValue('3')
   await expect(sheet.locator('.doc-section[data-page="3"] p')).toHaveText('Books are the treasured wealth of the world.')
+  await quit(app)
+  await rm(own, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+})
+
+test('read Word and PowerPoint files as text', async () => {
+  const own = await mkdtemp(join(tmpdir(), 'carrel-e2e-'))
+  await writeFile(
+    join(own, 'Syllabus.docx'),
+    tinyDocx([{ heading: 'Week one' }, { text: 'Scarcity and choice.' }, { heading: 'Week two' }, { text: 'Supply and demand.' }]),
+  )
+  await writeFile(
+    join(own, 'Lecture.pptx'),
+    tinyPptx([
+      { title: 'Opportunity cost', bullets: ['What you give up', 'The next best thing'], notes: 'Start with a story.' },
+      { title: 'Marginal thinking', bullets: ['One more unit'] },
+    ]),
+  )
+  const { app, page } = await start(own, ['Syllabus.docx', 'Lecture.pptx'])
+  await page.getByLabel('Project name').fill('Economics')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+  await page.locator('.add-menu button', { hasText: 'Book or paper' }).click()
+  const sheets = page.locator('.sheet[data-kind="paper"]')
+  await expect(sheets).toHaveCount(2)
+  const word = sheets.filter({ hasText: 'Syllabus' })
+  await expect(word.locator('.doc-section h2')).toHaveText(['Week one', 'Week two'])
+  const slides = sheets.filter({ hasText: 'Lecture' })
+  await expect(slides.locator('.doc-section')).toHaveCount(2)
+  await expect(slides.locator('.doc-section[data-page="1"] li')).toHaveText(['What you give up', 'The next best thing'])
+  await expect(slides.locator('.doc-section[data-page="1"] blockquote')).toContainText('Start with a story.')
+  await slides.getByRole('button', { name: 'Contents' }).click()
+  await expect(slides.getByRole('navigation', { name: 'Contents' }).locator('ul').last().locator('li button')).toHaveText(['Opportunity cost1', 'Marginal thinking2'])
   await quit(app)
   await rm(own, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })

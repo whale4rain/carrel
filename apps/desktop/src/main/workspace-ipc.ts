@@ -43,9 +43,9 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
       const stand = process.env.CARREL_CHOOSE_FILES
       if (stand) return stand.split(delimiter)
       const chosen = await dialog.showOpenDialog({
-        title: 'Add books and papers',
+        title: 'Add books, papers and documents',
         properties: ['openFile', 'multiSelections'],
-        filters: [{ name: 'Books and papers', extensions: STORED_EXTENSIONS.map((extension) => extension.slice(1)) }],
+        filters: [{ name: 'Books, papers and documents', extensions: STORED_EXTENSIONS.map((extension) => extension.slice(1)) }],
       })
       return chosen.canceled ? [] : chosen.filePaths
     },

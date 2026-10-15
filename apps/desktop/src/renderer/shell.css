@@ -873,6 +873,18 @@ kbd {
   font: var(--text-label);
 }
 
+.add-menu button:has(small) {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  height: 44px;
+}
+
+.add-menu button small {
+  color: var(--ink-muted);
+  font: var(--text-caption);
+}
+
 .add-menu button:hover {
   background: var(--paper-2);
 }
