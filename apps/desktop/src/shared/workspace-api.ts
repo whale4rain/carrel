@@ -5,7 +5,7 @@ import type { ItemKind, NoteDoc, ReadingPosition, Selector, Sheet, SheetChange, 
 export type { ItemKind, NoteDoc, ReadingPosition, Selector, Sheet, SheetChange, Viewport }
 
 /** What can sit on a sheet: a source, or a note. */
-export type ViewKind = ItemKind | 'note'
+export type ViewKind = ItemKind | 'note' | 'kit'
 
 /** A source or a note in the open project, as the renderer sees it. */
 export interface ItemView {
@@ -26,9 +26,21 @@ export interface ItemView {
   file?: { name: string; size: number }
   /** Books and papers: pages kept to come back to, in page order. */
   bookmarks?: Array<{ page: number; label: string }>
+  /** A kit's sheet: which kit and sheet, where its page is served, and its size at 100%. */
+  kit?: { name: string; title: string; sheet: string; url: string; size: { w: number; h: number } }
   /** Who added it, and when. */
   createdBy?: 'user' | 'agent'
   createdAt?: string
+}
+
+/** A learning kit installed on this computer. */
+export interface KitView {
+  name: string
+  title: string
+  description: string
+  sheets: Array<{ id: string; title: string }>
+  /** Whether the open project uses it already. */
+  added: boolean
 }
 
 /** A note, with its text as the editor's document. */
@@ -167,6 +179,10 @@ export interface WorkspaceApi {
   thats(): Promise<ThatView[]>
   /** A *that.*'s snapshot image (PNG), if it has one. */
   thatImage(id: string): Promise<Uint8Array | null>
+  /** The learning kits installed on this computer. */
+  kits(): Promise<KitView[]>
+  /** Adds a kit to the open project; its sheets, to lay on the desk. */
+  addKit(name: string): Promise<ItemView[]>
 }
 
 /** The desk's web pages, drawn by main over their sheets. */
@@ -233,6 +249,8 @@ export const workspaceChannels = {
   makeThat: 'workspace:make-that',
   thats: 'workspace:thats',
   thatImage: 'workspace:that-image',
+  kits: 'workspace:kits',
+  addKit: 'workspace:add-kit',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */

@@ -40,6 +40,8 @@ const workspace: WorkspaceApi = {
   makeThat: (request) => call(workspaceChannels.makeThat, request),
   thats: () => call(workspaceChannels.thats),
   thatImage: (id) => call(workspaceChannels.thatImage, id),
+  kits: () => call(workspaceChannels.kits),
+  addKit: (name) => call(workspaceChannels.addKit, name),
 }
 
 function listen<T>(channel: string, listener: (payload: T) => void): () => void {

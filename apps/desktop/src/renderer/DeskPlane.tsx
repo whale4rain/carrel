@@ -48,7 +48,8 @@ import { DeskNav } from './DeskNav.js'
 import { PdfView, type Focus } from './PdfView.js'
 import { DocView } from './DocView.js'
 import { NoteView } from './NoteView.js'
-import { citesLine, KIND_LABEL, linkIn, SHEET_FOR, sourceLine } from './sources.js'
+import { citesLine, kindLabel, linkIn, sheetFor, sourceLine } from './sources.js'
+import { KitView } from './KitView.js'
 import { pdfSelection } from './that.js'
 import { DESK_COMMAND, frame } from './platform.js'
 import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
@@ -343,7 +344,7 @@ export function DeskPlane({
     const origin = at ?? { x: Math.round(shown.x + 48 / view.zoom), y: Math.round(shown.y + 48 / view.zoom) }
     let next = current
     for (const item of added) {
-      const size = SHEET_FOR[item?.kind ?? 'blank']
+      const size = sheetFor(item)
       const spot = placeNew(next, origin)
       const sheet: Sheet = { id: crypto.randomUUID(), itemId: item?.id ?? null, ...spot, ...size, z: Math.max(0, ...next.map((s) => s.z)) + 1 }
       next = [...next, sheet]
@@ -376,6 +377,18 @@ export function DeskPlane({
       (note) => {
         onItemsAdded([note])
         showItem(note, true)
+        setError(undefined)
+      },
+      (reason: unknown) => setError(message(reason)),
+    )
+  }
+  // A kit's sheet: the kit joins the project first; a sheet already on the desk comes forward.
+  const addKit = (kit: string, sheetId: string): void => {
+    api.addKit(kit).then(
+      (sheets) => {
+        onItemsAdded(sheets)
+        const chosen = sheets.find((sheet) => sheet.kit?.sheet === sheetId)
+        if (chosen) showItem(chosen, false)
         setError(undefined)
       },
       (reason: unknown) => setError(message(reason)),
@@ -740,7 +753,7 @@ export function DeskPlane({
     const sheet = latest.current.find((candidate) => candidate.itemId === item.id)
     if (sheet) bringForward(sheet)
     else {
-      const size = SHEET_FOR[item.kind]
+      const size = sheetFor(item)
       const middle = toDesk(view, { x: screen.w / 2, y: screen.h / 2 })
       addSheets([item], { x: Math.round(middle.x - (size.w * size.scale) / 2), y: Math.round(middle.y - (size.h * size.scale) / 2) })
     }
@@ -1024,7 +1037,7 @@ export function DeskPlane({
                     enterFocus(sheet.id)
                   }}
                 >
-                  {item && <span className="sheet-kind">{KIND_LABEL[item.kind]}</span>}
+                  {item && <span className="sheet-kind">{kindLabel(item)}</span>}
                   <span className="sheet-title">{title}</span>
                   {item && citedBy.has(item.id) && (
                     <span className="cited-by" onPointerDown={(event) => event.stopPropagation()}>
@@ -1166,6 +1179,11 @@ export function DeskPlane({
                       )
                     }
                   />
+                ) : item?.kit ? (
+                  <KitView
+                    item={{ ...item, kit: item.kit }}
+                    onActivate={() => setSelected(new Set([sheet.id]))}
+                  />
                 ) : embedded(item) ? (
                   <VideoView
                     sheet={sheet.id}
@@ -1284,7 +1302,7 @@ export function DeskPlane({
           <button type="button" title={withShortcut(frame, 'Take off this desk; it stays in the library', 'remove')} onClick={removeSelected}>
             Remove
           </button>
-          {chosen.length === 1 && chosen[0]?.itemId != null && items.get(chosen[0].itemId)?.kind !== 'note' && !chosen[0].folded && (
+          {chosen.length === 1 && chosen[0]?.itemId != null && !['note', 'kit'].includes(items.get(chosen[0].itemId)?.kind ?? '') && !chosen[0].folded && (
             // Pressing it mustn't clear the text selection it points at.
             <button type="button" className="that" title={withShortcut(frame, 'Point at the selected words, the moment or the region', 'that')} onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
               that.
@@ -1317,7 +1335,7 @@ export function DeskPlane({
                       }}
                       onClick={() => enterFocus(sheet.id)}
                     >
-                      <span className="sheet-kind">{item ? KIND_LABEL[item.kind] : 'Sheet'}</span>
+                      <span className="sheet-kind">{item ? kindLabel(item) : 'Sheet'}</span>
                       <span className="focus-card-title">{item?.title ?? (sheet.itemId === null ? 'Blank sheet' : 'Missing source')}</span>
                     </button>
                     <button
@@ -1353,6 +1371,7 @@ export function DeskPlane({
           onAddNote={addNote}
           onAddFiles={addFiles}
           onAddLink={addLink}
+          onAddKit={addKit}
         />
       )}
       <ThatTray thats={tray} items={items} lost={lost} onOpen={openThat} onRemove={(that) => setOffTray((known) => new Set(known).add(that.id))} />

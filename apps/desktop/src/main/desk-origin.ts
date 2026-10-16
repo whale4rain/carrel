@@ -11,9 +11,14 @@ import { pathToFileURL } from 'node:url'
 export const DESK_HOST = 'desk.carrel.app'
 export const DESK_ORIGIN = `https://${DESK_HOST}`
 
-/** Serves the built renderer at DESK_ORIGIN from `root`. Call once, when the app is ready. */
-export function serveDesk(root: string): void {
+/**
+ * Serves the built renderer at DESK_ORIGIN from `root`, and kits' pages
+ * through `kits` (it answers for their hosts). Call once, when the app is ready.
+ */
+export function serveDesk(root: string, kits?: (request: Request) => Promise<Response> | undefined): void {
   protocol.handle('https', (request) => {
+    const kit = kits?.(request)
+    if (kit) return kit
     const url = new URL(request.url)
     if (url.hostname !== DESK_HOST) return net.fetch(request, { bypassCustomProtocolHandlers: true })
     const path = normalize(join(root, decodeURIComponent(url.pathname)))

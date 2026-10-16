@@ -63,3 +63,4 @@ export { HIT_END, HIT_START, matchOf, SearchIndex, type Searchable, type SearchH
 export { PROJECT_THREAD, Threads, totalCost, type NewTurn, type SideThread, type Turn, type TurnCost, type TurnStep } from './threads.js'
 export { isProposal, Proposals, type Proposal, type ProposalChange, type ProposalState } from './proposals.js'
 export { DOCUMENT_EXTENSIONS, formatLabel, isDocumentFile, readDocument, sectionTexts, type DocBlock, type DocInline, type DocSection, type ReadingDocument } from './documents.js'
+export { isMissing, readJson, writeJson } from './files.js'

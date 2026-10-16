@@ -1,5 +1,6 @@
 import { bounds, toDesk, type Rect, type View } from '@carrel/desk'
 import { useRef, useState, type CSSProperties, type PointerEvent as ReactPointerEvent } from 'react'
+import type { KitView } from '../shared/workspace-api.js'
 import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
 import { HandIcon, MapIcon } from './icons.js'
 import { frame } from './platform.js'
@@ -39,8 +40,11 @@ export function DeskNav(props: {
   onAddNote: () => void
   onAddFiles: () => void
   onAddLink: (url: string) => void
+  /** Lays a kit's sheet on the desk, adding the kit to the project first if it isn't yet. */
+  onAddKit: (kit: string, sheet: string) => void
 }) {
-  const [adding, setAdding] = useState<'menu' | 'link'>()
+  const [adding, setAdding] = useState<'menu' | 'link' | 'kits'>()
+  const [kits, setKits] = useState<KitView[]>()
   const [link, setLink] = useState('')
   const [showMap, setShowMap] = useState(mapShown)
   // Only a drag that starts on the map moves the view; a resize passing over it does not.
@@ -161,12 +165,57 @@ export function DeskNav(props: {
             type="button"
             role="menuitem"
             onClick={() => {
+              setAdding('kits')
+              window.carrel.workspace.kits().then(setKits, () => setKits([]))
+            }}
+          >
+            Learning kit…
+          </button>
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
               setAdding(undefined)
               props.onAddSheet()
             }}
           >
             Blank sheet
           </button>
+        </div>
+      )}
+      {adding === 'kits' && (
+        <div
+          className="add-menu add-kits"
+          role="menu"
+          aria-label="Learning kits"
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setAdding(undefined)
+          }}
+        >
+          {kits === undefined && <p className="add-note">Looking for kits…</p>}
+          {kits?.length === 0 && <p className="add-note">No learning kits are installed.</p>}
+          {kits?.map((kit) => (
+            <div key={kit.name} className="add-kit" role="group" aria-label={kit.title}>
+              <p className="add-kit-title">
+                {kit.title}
+                {kit.added && <small> · in this project</small>}
+              </p>
+              {kit.description && <p className="add-note">{kit.description}</p>}
+              {kit.sheets.map((sheet) => (
+                <button
+                  key={sheet.id}
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setAdding(undefined)
+                    props.onAddKit(kit.name, sheet.id)
+                  }}
+                >
+                  {sheet.title}
+                </button>
+              ))}
+            </div>
+          ))}
         </div>
       )}
       {adding === 'link' && (

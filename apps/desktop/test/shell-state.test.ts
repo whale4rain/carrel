@@ -3,6 +3,7 @@ import { mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { KitShelf } from '@carrel/kit-host'
 import { ShellController } from '../src/main/shell-state.js'
 
 let home: string
@@ -269,5 +270,23 @@ describe('turns of the project thread through the shell', () => {
     expect(sideThat.itemId).toBe('thread:side-1')
     expect(await shell.thatText('Learn economics', sideThat.id)).toMatchObject({ source: 'Coffee' })
     shell.close()
+  })
+
+  it('adds a learning kit to the project, and lists its sheets with the items', async () => {
+    const shell = new ShellController(new Workspace(carrelRoots(home)), { kits: new KitShelf([join(import.meta.dirname, '../../../kits')]) })
+    await shell.createProject('Spanish')
+    expect((await shell.kits()).find((kit) => kit.name === 'language')).toMatchObject({ title: 'Language', added: false, sheets: [{ id: 'stages', title: 'Stages' }] })
+    const sheets = await shell.addKit('language')
+    expect(sheets).toEqual([
+      {
+        id: 'kit:language:stages',
+        kind: 'kit',
+        title: 'Stages',
+        kit: { name: 'language', title: 'Language', sheet: 'stages', url: 'https://language.kit.carrel.app/sheets/stages.html?sheet=stages', size: { w: 420, h: 640 } },
+      },
+    ])
+    expect((await shell.kits()).find((kit) => kit.name === 'language')?.added).toBe(true)
+    expect((await shell.items()).filter((item) => item.kind === 'kit')).toEqual(sheets)
+    await expect(shell.addKit('nothing')).rejects.toThrow('no kit called "nothing"')
   })
 })
