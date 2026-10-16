@@ -23,6 +23,7 @@ const workspace: WorkspaceApi = {
   mentions: (id) => call(workspaceChannels.mentions, id),
   linkMention: (from, to) => call(workspaceChannels.linkMention, from, to),
   pinNote: (id, pinned) => call(workspaceChannels.pinNote, id, pinned),
+  setProperty: (id, key, value) => call(workspaceChannels.setProperty, id, key, value),
   dailyNote: () => call(workspaceChannels.dailyNote),
   noteFolders: () => call(workspaceChannels.noteFolders),
   createFolder: (path) => call(workspaceChannels.createFolder, path),

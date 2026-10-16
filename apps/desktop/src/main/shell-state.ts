@@ -5,6 +5,7 @@ import {
   fromMarkdown,
   isDocumentFile,
   isNoteDoc,
+  isPropertyValue,
   readDocument,
   sectionTexts,
   Library,
@@ -225,6 +226,12 @@ export class ShellController {
 
   async mentions(id: string): Promise<{ linked: Mention[]; unlinked: Mention[] }> {
     return this.notes.mentions(await this.openFolder(), id)
+  }
+
+  async setProperty(id: string, key: string, value: unknown): Promise<ItemView> {
+    if (value !== null && !isPropertyValue(value)) throw new Error('That is not a property value.')
+    const folder = await this.openFolder()
+    return noteItem(await this.notes.setProperty(folder, id, key, value), await this.citedItems(folder))
   }
 
   async pinNote(id: string, pinned: boolean): Promise<ItemView> {
@@ -611,7 +618,7 @@ function kitSheets(kit: KitManifest): ItemView[] {
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {
   // Turns of a thread are not sources.
   const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) && !threadOf(sources.get(that)!) ? [sources.get(that)!] : [])))]
-  return { id: note.id, kind: 'note', title: note.title, folder: note.folder, name: note.name, links: note.links, pinned: note.pinned, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
+  return { id: note.id, kind: 'note', title: note.title, folder: note.folder, name: note.name, links: note.links, pinned: note.pinned, properties: note.properties, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
 }
 
 function noteView(note: NoteFile): NoteView {

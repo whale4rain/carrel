@@ -257,6 +257,7 @@ export function App() {
               onOpenThat={(id) => void openThat(id)}
               onOpenItem={openItem}
               onPutOnDesk={() => showOnDesk({ itemId: note.id, nonce: Date.now() })}
+              onProperty={async (key, value) => addItems([await api.setProperty(note.id, key, value)])}
               onPin={(pinned) => void api.pinNote(note.id, pinned).then((saved) => addItems([saved]))}
               onOpenLink={(target) => void openLink(target)}
               onLinked={(linked) => {

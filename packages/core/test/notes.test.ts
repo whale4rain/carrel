@@ -128,6 +128,25 @@ describe('Notes', () => {
   })
 })
 
+describe('note properties', () => {
+  it('keeps properties in the header and reads tags from them', async () => {
+    const note = await notes.create('Learn economics', words('Elasticity #micro'))
+    await notes.setProperty('Learn economics', note.id, 'status', 'Learning')
+    await notes.setProperty('Learn economics', note.id, 'next review', '2026-10-21')
+    const tagged = await notes.setProperty('Learn economics', note.id, 'tags', ['exam', 'micro'])
+    expect(tagged.tags).toEqual(['micro', 'exam'])
+    const file = await readFile(join(dir(), 'Elasticity micro.md'), 'utf8')
+    expect(file).toContain('status: Learning\nnext review: 2026-10-21\ntags:\n  - exam\n  - micro\n---')
+    // Saving the text keeps them.
+    await notes.save('Learn economics', note.id, words('Elasticity #micro, again'))
+    const read = await notes.read('Learn economics', note.id)
+    expect(read.properties).toEqual({ status: 'Learning', 'next review': '2026-10-21', tags: ['exam', 'micro'] })
+    await notes.setProperty('Learn economics', note.id, 'status', null)
+    expect((await notes.read('Learn economics', note.id)).properties).not.toHaveProperty('status')
+    await expect(notes.setProperty('Learn economics', note.id, 'title', 'x')).rejects.toThrow('kept by Carrel')
+  })
+})
+
 describe('pinned and daily notes', () => {
   it('pins a note in its header', async () => {
     const note = await notes.create('Learn economics', words('Exam plan'))

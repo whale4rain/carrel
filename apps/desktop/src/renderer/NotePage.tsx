@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
-import type { ItemView, MentionView, NoteDoc } from '../shared/workspace-api.js'
+import type { ItemView, MentionView, NoteDoc, PropertyValue } from '../shared/workspace-api.js'
+import { NoteProperties } from './NoteProperties.js'
 import { NoteView } from './NoteView.js'
 
 const api = window.carrel.workspace
@@ -21,6 +22,8 @@ interface Props {
   onOpenLink: (target: string) => void
   /** A mention was made a link, in the note given. */
   onLinked: (note: ItemView) => void
+  /** Sets one of the note's properties, or takes it away (`null`). */
+  onProperty: (key: string, value: PropertyValue | null) => Promise<void>
 }
 
 interface Heading {
@@ -34,7 +37,7 @@ interface Heading {
  * with the note's outline and the sources it cites. Nothing here needs a
  * desk; Put on desk lays the note beside your sources.
  */
-export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, onPutOnDesk, onPin, onOpenLink, onLinked }: Props) {
+export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, onPutOnDesk, onPin, onOpenLink, onLinked, onProperty }: Props) {
   const [headings, setHeadings] = useState<Heading[]>([])
   const notes = [...items.values()].filter((item) => item.kind === 'note')
   // Who links here and who names it without a link, asked again whenever a note changes.
@@ -86,6 +89,7 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
           onOpenThat={onOpenThat}
           onOpenLink={onOpenLink}
           onDoc={(doc) => setHeadings(headingsOf(doc))}
+          underTitle={<NoteProperties properties={note.properties ?? {}} onSet={onProperty} />}
         />
       </div>
       <aside className="note-margin" aria-label="Margin">
