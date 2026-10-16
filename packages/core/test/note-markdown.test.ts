@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { citedThats, fromMarkdown, isNoteDoc, plainText, tagsOf, toMarkdown, type NoteDoc } from '../src/index.js'
+import { citedThats, fromMarkdown, isNoteDoc, linksOf, plainText, tagsOf, toMarkdown, type NoteDoc } from '../src/index.js'
 
 const doc: NoteDoc = {
   type: 'doc',
@@ -98,5 +98,31 @@ describe('tags', () => {
   it('finds #tags anywhere in the text, once each', () => {
     const tagged = fromMarkdown('# Elasticity #micro\n\nSee #Elasticity and #exam-prep, not a#b or # alone.\n\n- also (#micro)\n')
     expect(tagsOf(tagged)).toEqual(['micro', 'elasticity', 'exam-prep'])
+  })
+})
+
+describe('links between notes', () => {
+  it('reads and writes [[links]] as Obsidian does', () => {
+    const read = fromMarkdown('See [[Price ceilings]] and [[Elasticity#Rule of thumb|the rule]], not \\[\\[this\\]\\].')
+    expect(read.content[0]).toEqual({
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'See ' },
+        { type: 'noteLink', attrs: { target: 'Price ceilings', label: '' } },
+        { type: 'text', text: ' and ' },
+        { type: 'noteLink', attrs: { target: 'Elasticity#Rule of thumb', label: 'the rule' } },
+        { type: 'text', text: ', not [[this]].' },
+      ],
+    })
+    expect(toMarkdown(read)).toBe('See [[Price ceilings]] and [[Elasticity#Rule of thumb|the rule]], not \\[\\[this\\]\\].\n')
+    expect(plainText(read)).toBe('See Price ceilings and the rule, not [[this]].')
+    expect(linksOf(fromMarkdown('[[A]] [[a]] [[B#x]] [[ ]]'))).toEqual(['A', 'B'])
+  })
+
+  it('checks links from the renderer', () => {
+    const link = (target: string): NoteDoc => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'noteLink', attrs: { target, label: '' } }] }] })
+    expect(isNoteDoc(link('Elasticity'))).toBe(true)
+    expect(isNoteDoc(link('a]]b'))).toBe(false)
+    expect(isNoteDoc(link(''))).toBe(false)
   })
 })

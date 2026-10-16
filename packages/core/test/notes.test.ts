@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { carrelRoots, cleanFolder, fileName, Notes, Workspace, type NoteDoc } from '../src/index.js'
+import { carrelRoots, cleanFolder, fileName, fromMarkdown, Notes, Workspace, type NoteDoc } from '../src/index.js'
 
 let home: string
 let workspace: Workspace
@@ -125,6 +125,32 @@ describe('Notes', () => {
     await rm(join(dir(), 'Wanderer.md'))
     await writeFile(join(dir(), 'Elsewhere', 'Wanderer.md'), text)
     expect((await notes.read('Learn economics', note.id)).folder).toBe('Elsewhere')
+  })
+})
+
+describe('links between notes', () => {
+  const linking = (text: string): NoteDoc => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'See ' }, { type: 'noteLink', attrs: { target: text, label: '' } }] }] })
+
+  it('finds linked and unlinked mentions, and links one', async () => {
+    const target = await notes.create('Learn economics', words('Elasticity'))
+    const linker = await notes.create('Learn economics', linking('Elasticity'))
+    const mentioner = await notes.create('Learn economics', fromMarkdown('Mentions elasticity here, and `elasticity` in code'))
+    await notes.create('Learn economics', words('Inelasticity is not a mention'))
+    expect(linker.links).toEqual(['Elasticity'])
+    const found = await notes.mentions('Learn economics', target.id)
+    expect(found.linked.map((mention) => mention.id)).toEqual([linker.id])
+    expect(found.linked[0]!.snippet).toBe('See Elasticity')
+    expect(found.unlinked).toEqual([{ id: mentioner.id, title: 'Mentions elasticity here, and elasticity in code', folder: '', snippet: 'Mentions elasticity here, and elasticity in code' }])
+    const linked = await notes.linkMention('Learn economics', mentioner.id, target.id)
+    expect(linked.doc.content[0]).toMatchObject({ content: [{ text: 'Mentions ' }, { type: 'noteLink', attrs: { target: 'Elasticity', label: 'elasticity' } }, { text: ' here, and ' }, { text: 'elasticity', marks: [{ type: 'code' }] }, { text: ' in code' }] })
+    expect((await notes.mentions('Learn economics', target.id)).unlinked).toEqual([])
+  })
+
+  it('points links at a note when it is renamed', async () => {
+    const target = await notes.create('Learn economics', words('Elasticity'))
+    const linker = await notes.create('Learn economics', linking('elasticity#Rule'))
+    await notes.save('Learn economics', target.id, words('Price elasticity'))
+    expect((await notes.read('Learn economics', linker.id)).doc.content[0]).toMatchObject({ content: [{ text: 'See ' }, { type: 'noteLink', attrs: { target: 'Price elasticity#Rule' } }] })
   })
 })
 

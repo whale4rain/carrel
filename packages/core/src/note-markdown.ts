@@ -2,8 +2,10 @@
  * Notes are Markdown files, so they stay readable outside Carrel. The editor
  * works on a document tree (ProseMirror's JSON shape); these turn one into the
  * other. Only what the editor offers is kept: headings, paragraphs, lists,
- * quotes, line breaks, bold, italic, code, and *that.* chips, which are
- * written as links: `[p.42](that:<anchor id>)`.
+ * quotes, line breaks, bold, italic, code, *that.* chips, which are
+ * written as links: `[p.42](that:<anchor id>)`, and links to other notes,
+ * written the way Obsidian writes them: `[[Elasticity]]` or
+ * `[[Elasticity|what it shows]]`.
  */
 
 export interface NoteMark {
@@ -14,6 +16,8 @@ export type NoteInline =
   | { type: 'text'; text: string; marks?: NoteMark[] }
   | { type: 'hardBreak' }
   | { type: 'that'; attrs: { id: string; label: string } }
+  /** A link to another note, by its title or file name; `label` is shown instead when set. */
+  | { type: 'noteLink'; attrs: { target: string; label: string } }
 
 export type NoteBlock =
   | { type: 'paragraph'; content?: NoteInline[] }
@@ -88,7 +92,7 @@ function inline(content: readonly NoteInline[], indent: string): string {
   for (const node of content) {
     if (node.type !== 'text') {
       close(0)
-      out += node.type === 'hardBreak' ? `\\\n${indent}` : `[${escape(node.attrs.label || 'that.')}](${THAT_SCHEME}${node.attrs.id})`
+      out += node.type === 'hardBreak' ? `\\\n${indent}` : node.type === 'noteLink' ? linkMarkdown(node.attrs) : `[${escape(node.attrs.label || 'that.')}](${THAT_SCHEME}${node.attrs.id})`
       lineStart = node.type === 'hardBreak'
       continue
     }
@@ -108,6 +112,13 @@ function inline(content: readonly NoteInline[], indent: string): string {
   open = []
   return out
 }
+
+function linkMarkdown({ target, label }: { target: string; label: string }): string {
+  return `[[${target}${label && label !== target ? `|${label}` : ''}]]`
+}
+
+/** What a [[link]] may hold: no brackets, bars or line breaks. */
+const LINK = /^\[\[([^[\]|\n]+?)(?:\|([^[\]\n]+?))?\]\]/
 
 function escape(text: string): string {
   return text.replace(/[\\*_`[\]]/g, '\\$&')
@@ -246,6 +257,13 @@ export function parseInline(source: string): NoteInline[] {
       }
     }
     if (char === '[') {
+      const link = LINK.exec(source.slice(i))
+      if (link) {
+        flush()
+        out.push({ type: 'noteLink', attrs: { target: link[1]!.trim(), label: link[2]?.trim() ?? '' } })
+        i += link[0].length
+        continue
+      }
       const chip = /^\[((?:\\.|[^\]\\])*)\]\(that:([\w-]+)\)/.exec(source.slice(i))
       if (chip) {
         flush()
@@ -302,7 +320,7 @@ export function plainText(doc: NoteDoc): string {
   const lines: string[] = []
   const walk = (block: NoteBlock): void => {
     if (block.type === 'paragraph' || block.type === 'heading') {
-      lines.push((block.content ?? []).map((node) => (node.type === 'text' ? node.text : node.type === 'that' ? node.attrs.label : '\n')).join(''))
+      lines.push((block.content ?? []).map((node) => (node.type === 'text' ? node.text : node.type === 'that' ? node.attrs.label : node.type === 'noteLink' ? linkText(node.attrs) : '\n')).join(''))
     } else if (block.type === 'blockquote') {
       block.content.forEach(walk)
     } else {
@@ -313,20 +331,47 @@ export function plainText(doc: NoteDoc): string {
   return lines.join('\n')
 }
 
+/** What a [[link]] shows: its label, or the note it points to. */
+export function linkText(attrs: { target: string; label: string }): string {
+  return attrs.label || attrs.target
+}
+
+/** Every inline node of a note, in order, with the block it sits in. */
+export function* inlines(doc: NoteDoc): Generator<{ node: NoteInline; block: NoteBlock & { content?: NoteInline[] } }> {
+  function* walk(block: NoteBlock): Generator<{ node: NoteInline; block: NoteBlock & { content?: NoteInline[] } }> {
+    if (block.type === 'paragraph' || block.type === 'heading') {
+      for (const node of block.content ?? []) yield { node, block }
+    } else if (block.type === 'blockquote') {
+      for (const inner of block.content) yield* walk(inner)
+    } else {
+      for (const item of block.content) for (const inner of item.content) yield* walk(inner)
+    }
+  }
+  for (const block of doc.content) yield* walk(block)
+}
+
 /** The *that.*s a note cites, in order, each once. */
 export function citedThats(doc: NoteDoc): string[] {
   const ids: string[] = []
-  const walk = (block: NoteBlock): void => {
-    if (block.type === 'paragraph' || block.type === 'heading') {
-      for (const node of block.content ?? []) if (node.type === 'that' && !ids.includes(node.attrs.id)) ids.push(node.attrs.id)
-    } else if (block.type === 'blockquote') {
-      block.content.forEach(walk)
-    } else {
-      block.content.forEach((item) => item.content.forEach(walk))
-    }
-  }
-  doc.content.forEach(walk)
+  for (const { node } of inlines(doc)) if (node.type === 'that' && !ids.includes(node.attrs.id)) ids.push(node.attrs.id)
   return ids
+}
+
+/** The notes a note links to, by name as written (without any #heading), each once regardless of case. */
+export function linksOf(doc: NoteDoc): string[] {
+  const names: string[] = []
+  for (const { node } of inlines(doc)) {
+    if (node.type !== 'noteLink') continue
+    const name = linkName(node.attrs.target)
+    if (name && !names.some((known) => known.toLowerCase() === name.toLowerCase())) names.push(name)
+  }
+  return names
+}
+
+/** The note a link's target names: "Elasticity#Rule of thumb" is "Elasticity". */
+export function linkName(target: string): string {
+  const hash = target.indexOf('#')
+  return (hash >= 0 ? target.slice(0, hash) : target).trim()
 }
 
 /** A #tag: a hash after a space or the start of a line, then a letter or digit. */
@@ -377,6 +422,10 @@ function isInline(value: unknown): boolean {
   if (typeof value !== 'object' || value === null) return false
   const node = value as Record<string, unknown>
   if (node.type === 'hardBreak') return true
+  if (node.type === 'noteLink') {
+    const attrs = node.attrs as Record<string, unknown> | undefined
+    return typeof attrs?.target === 'string' && /^[^[\]|\n]+$/.test(attrs.target) && typeof attrs.label === 'string' && !/[[\]\n]/.test(attrs.label)
+  }
   if (node.type === 'that') {
     const attrs = node.attrs as Record<string, unknown> | undefined
     return typeof attrs?.id === 'string' && /^[\w-]+$/.test(attrs.id) && typeof attrs.label === 'string'

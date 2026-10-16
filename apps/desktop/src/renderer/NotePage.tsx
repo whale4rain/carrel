@@ -1,6 +1,8 @@
-import { useState } from 'react'
-import type { ItemView, NoteDoc } from '../shared/workspace-api.js'
+import { useEffect, useState } from 'react'
+import type { ItemView, MentionView, NoteDoc } from '../shared/workspace-api.js'
 import { NoteView } from './NoteView.js'
+
+const api = window.carrel.workspace
 
 interface Props {
   note: ItemView
@@ -9,10 +11,14 @@ interface Props {
   write: boolean
   onSaved: (item: ItemView) => void
   onOpenThat: (id: string) => void
-  /** Opens a source on the desk. */
+  /** Opens a source on the desk, or a note on its page. */
   onOpenItem: (id: string) => void
   /** Lays this note on the open desk. */
   onPutOnDesk: () => void
+  /** A [[link]] was clicked. */
+  onOpenLink: (target: string) => void
+  /** A mention was made a link, in the note given. */
+  onLinked: (note: ItemView) => void
 }
 
 interface Heading {
@@ -26,8 +32,22 @@ interface Heading {
  * with the note's outline and the sources it cites. Nothing here needs a
  * desk; Put on desk lays the note beside your sources.
  */
-export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, onPutOnDesk }: Props) {
+export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, onPutOnDesk, onOpenLink, onLinked }: Props) {
   const [headings, setHeadings] = useState<Heading[]>([])
+  const notes = [...items.values()].filter((item) => item.kind === 'note')
+  // Who links here and who names it without a link, asked again whenever a note changes.
+  const [mentions, setMentions] = useState<{ linked: MentionView[]; unlinked: MentionView[] }>()
+  const changed = notes.map((other) => `${other.id}:${other.updatedAt ?? ''}`).join()
+  useEffect(() => {
+    let current = true
+    void api.mentions(note.id).then(
+      (found) => current && setMentions(found),
+      () => current && setMentions(undefined),
+    )
+    return () => {
+      current = false
+    }
+  }, [note.id, changed])
   const folders = note.folder ? note.folder.split('/') : []
   const cited = (note.cites ?? []).flatMap((id) => {
     const item = items.get(id)
@@ -51,7 +71,17 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
             Put on desk
           </button>
         </header>
-        <NoteView key={note.id} item={note} write={write} cites={undefined} onSaved={onSaved} onOpenThat={onOpenThat} onDoc={(doc) => setHeadings(headingsOf(doc))} />
+        <NoteView
+          key={note.id}
+          item={note}
+          write={write}
+          cites={undefined}
+          notes={notes}
+          onSaved={onSaved}
+          onOpenThat={onOpenThat}
+          onOpenLink={onOpenLink}
+          onDoc={(doc) => setHeadings(headingsOf(doc))}
+        />
       </div>
       <aside className="note-margin" aria-label="Margin">
         {headings.length > 1 && (
@@ -62,6 +92,42 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
                 <li key={index} data-level={heading.level}>
                   <button type="button" onClick={() => goTo(index)}>
                     {heading.text}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+        <section aria-label="Linked here">
+          <h2>
+            Linked here <span className="count">{mentions?.linked.length ?? 0}</span>
+          </h2>
+          {mentions && mentions.linked.length === 0 && <p className="note-margin-empty">Type [[ in another note to link to this one.</p>}
+          <ul className="note-mentions">
+            {mentions?.linked.map((mention) => (
+              <li key={mention.id}>
+                <button type="button" onClick={() => onOpenItem(mention.id)}>
+                  <b>{mention.title}</b>
+                  <span>{mention.snippet}</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+        {mentions && mentions.unlinked.length > 0 && (
+          <section aria-label="Mentioned, not linked">
+            <h2>
+              Mentioned, not linked <span className="count">{mentions.unlinked.length}</span>
+            </h2>
+            <ul className="note-mentions">
+              {mentions.unlinked.map((mention) => (
+                <li key={mention.id} className="unlinked">
+                  <span>
+                    <b>{mention.title}</b>
+                    <span>{mention.snippet}</span>
+                  </span>
+                  <button type="button" className="outline-button small" onClick={() => void api.linkMention(mention.id, note.id).then(onLinked)}>
+                    Link
                   </button>
                 </li>
               ))}

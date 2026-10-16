@@ -117,6 +117,7 @@ export function DeskPlane({
   onPointed,
   onContext,
   onAsk,
+  onOpenLink,
 }: {
   deskId: string
   name: string
@@ -131,6 +132,8 @@ export function DeskPlane({
   onContext?: (context: { name: string; items: string[]; selected: string[] }) => void
   /** Something right-clicked to ask the agent about, with the *that.* made of it. */
   onAsk?: (ask: AgentAsk, that?: ThatView) => void
+  /** A [[link]] in a note was clicked. */
+  onOpenLink?: (target: string) => void
 }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [loaded, setLoaded] = useState(false)
@@ -759,6 +762,8 @@ export function DeskPlane({
     }
     if (write) setWriting(item.id)
   }
+  // The project's notes, which [[ offers in a note.
+  const notesList = [...items.values()].filter((item) => item.kind === 'note')
   // The notes that cite each source, and the source whose list is open.
   const citedBy = new Map<string, ItemView[]>()
   for (const note of items.values()) for (const source of note.cites ?? []) citedBy.set(source, [...(citedBy.get(source) ?? []), note])
@@ -1132,6 +1137,8 @@ export function DeskPlane({
                     write={writing === item.id}
                     onSaved={(saved) => onItemsAdded([saved])}
                     cites={citesLine(item.cites, items)}
+                    notes={notesList}
+                    onOpenLink={onOpenLink}
                     onOpenThat={(id) => {
                       const that = thats.find((known) => known.id === id)
                       if (that) openThat(that)
