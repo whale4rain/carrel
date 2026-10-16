@@ -16,6 +16,10 @@ export interface ItemView {
   updatedAt?: string
   /** Notes: the folder it is filed in ("" for none, "a/b" when nested). */
   folder?: string
+  /** Notes: its file's name without ".md", which [[links]] may use instead of its title. */
+  name?: string
+  /** Notes: the notes it links to, by name as written. */
+  links?: string[]
   /** Notes: its #tags, lower-cased. */
   tags?: string[]
   /** Notes: the items its *that.* chips point into. */
@@ -49,6 +53,14 @@ export interface NoteView {
   title: string
   doc: NoteDoc
   updatedAt: string
+}
+
+/** A note that links to or names another, with the words around it. */
+export interface MentionView {
+  id: string
+  title: string
+  folder: string
+  snippet: string
 }
 
 /** A *that.*: where it points, as its chip shows it. */
@@ -137,8 +149,12 @@ export interface WorkspaceApi {
   saveViewport(id: string, viewport: Viewport): Promise<DeskView>
   /** The open project's sources and notes. */
   items(): Promise<ItemView[]>
-  /** Starts an empty note in the project, in a folder if given. */
-  createNote(folder?: string): Promise<ItemView>
+  /** Starts an empty note in the project, in a folder if given, with a title if given. */
+  createNote(folder?: string, title?: string): Promise<ItemView>
+  /** The notes that link to a note, and those that name it without a link. */
+  mentions(id: string): Promise<{ linked: MentionView[]; unlinked: MentionView[] }>
+  /** Turns the first place note `from` names note `to` into a [[link]]. */
+  linkMention(from: string, to: string): Promise<ItemView>
   /** The project's note folders, empty ones too ("a", "a/b"). */
   noteFolders(): Promise<string[]>
   /** Makes a note folder; returns its path as kept. */
@@ -233,6 +249,8 @@ export const workspaceChannels = {
   createFolder: 'workspace:create-folder',
   renameFolder: 'workspace:rename-folder',
   moveNote: 'workspace:move-note',
+  mentions: 'workspace:mentions',
+  linkMention: 'workspace:link-mention',
   note: 'workspace:note',
   saveNote: 'workspace:save-note',
   search: 'workspace:search',

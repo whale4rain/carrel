@@ -5,7 +5,7 @@ import type { ItemView, SearchHitView, ShellState, ThatView } from '../shared/wo
 import { Welcome } from './Desk.js'
 import { AgentPanel, NEW_SIDE } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
-import { NOTE_CHANGED } from './NoteView.js'
+import { linkName, NOTE_CHANGED, resolveLink } from './NoteView.js'
 import { Library, type Shelf } from './Library.js'
 import { NotePage } from './NotePage.js'
 import { SearchPalette } from './SearchPalette.js'
@@ -147,7 +147,31 @@ export function App() {
     if (items.get(id)?.kind === 'note') openPage(id)
     else showOnDesk({ itemId: id, nonce: Date.now() })
   }
-  const addItems = (added: ItemView[]): void => setItems((known) => new Map([...known, ...added.map((item) => [item.id, item] as const)]))
+  // A [[link]] opens the note it names, or makes it when there is none yet.
+  const openLink = async (target: string): Promise<void> => {
+    const found = resolveLink(target, items.values())
+    if (found) return openPage(found.id)
+    const made = await api.createNote('', linkName(target))
+    addItems([made])
+    openPage(made.id, true)
+  }
+  const itemsRef = useRef(items)
+  itemsRef.current = items
+  const addItems = (added: ItemView[]): void => {
+    // A renamed note had its links pointed at its new name in main: notes open elsewhere read theirs again.
+    for (const item of added) {
+      const before = itemsRef.current.get(item.id)
+      if (item.kind !== 'note' || !before?.name || before.name === item.name) continue
+      const old = before.name.toLowerCase()
+      const linking = [...itemsRef.current.values()].filter((other) => other.id !== item.id && other.links?.some((link) => link.toLowerCase() === old))
+      if (linking.length === 0) continue
+      void api.items().then((list) => {
+        setItems(new Map(list.map((known) => [known.id, known])))
+        for (const other of linking) window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: other.id }))
+      })
+    }
+    setItems((known) => new Map([...known, ...added.map((item) => [item.id, item] as const)]))
+  }
 
   // A web page can rename its item once it loads.
   useEffect(() => window.carrel.web.onItem((item) => setItems((known) => new Map(known).set(item.id, item))), [])
@@ -218,6 +242,11 @@ export function App() {
               onOpenThat={(id) => void openThat(id)}
               onOpenItem={openItem}
               onPutOnDesk={() => showOnDesk({ itemId: note.id, nonce: Date.now() })}
+              onOpenLink={(target) => void openLink(target)}
+              onLinked={(linked) => {
+                addItems([linked])
+                window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: linked.id }))
+              }}
             />
           ) : open && desk ? <DeskPlane
               key={desk.id}
@@ -229,6 +258,7 @@ export function App() {
               onPointed={(that) => setPointing((now) => [...now.filter((other) => other.id !== that.id), that])}
               onContext={(context) => (deskContext.current = context)}
               onAsk={askAgent}
+              onOpenLink={(target) => void openLink(target)}
             /> : <Welcome onCreate={actions.createProject} />}
           {talking && open && (
             <AgentPanel

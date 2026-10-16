@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { isMissing } from './files.js'
-import { citedThats, fromMarkdown, plainText, tagsOf, toMarkdown, type NoteDoc } from './note-markdown.js'
+import { citedThats, fromMarkdown, inlines, linkName, linksOf, linkText, plainText, tagsOf, toMarkdown, type NoteBlock, type NoteDoc, type NoteInline } from './note-markdown.js'
 import type { Actor, Workspace } from './workspace.js'
 
 /**
@@ -21,6 +21,8 @@ export interface NoteSummary {
   title: string
   /** The folder it is filed in, under notes/ ("" for none; "a/b" when nested). */
   folder: string
+  /** Its file's name without ".md": usually its title, "Elasticity 2" when two share one. */
+  name: string
   createdBy: Actor
   createdAt: string
   updatedAt: string
@@ -28,6 +30,17 @@ export interface NoteSummary {
   tags: string[]
   /** The *that.*s it cites, by anchor id. */
   cites: string[]
+  /** The notes it links to with [[links]], by name as written. */
+  links: string[]
+}
+
+/** Another note that links to a note, or mentions it without a link. */
+export interface Mention {
+  id: string
+  title: string
+  folder: string
+  /** The words around the link or mention. */
+  snippet: string
 }
 
 export interface NoteFile extends NoteSummary {
@@ -94,8 +107,8 @@ export class Notes {
     const place = cleanFolder(at)
     const stamp = this.now().toISOString()
     const title = titleOf(doc)
-    const note: NoteFile = { id: randomUUID(), title, folder: place, tags: tagsOf(doc), cites: citedThats(doc), createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
     const relative = await this.freeName(folder, place, fileName(title))
+    const note: NoteFile = { id: randomUUID(), title, folder: place, name: nameOf(relative), tags: tagsOf(doc), cites: citedThats(doc), links: linksOf(doc), createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
     await this.write(folder, relative, note, [])
     await this.workspace.event(folder, actor, 'note.added', { id: note.id, path: relative })
     return note
@@ -105,11 +118,13 @@ export class Notes {
   async save(folder: string, id: string, doc: NoteDoc, actor: Actor = 'user'): Promise<NoteFile> {
     const { note: before, extra } = await this.parsed(folder, id)
     if (toMarkdown(before.doc) === toMarkdown(doc)) return before
-    const note: NoteFile = { ...before, doc, title: titleOf(doc), tags: tagsOf(doc), cites: citedThats(doc), updatedAt: this.now().toISOString() }
     let relative = this.index(folder).get(id)!
-    if (note.title !== before.title) relative = await this.moveFile(folder, id, before.folder, fileName(note.title))
+    if (titleOf(doc) !== before.title) relative = await this.moveFile(folder, id, before.folder, fileName(titleOf(doc)))
+    const note: NoteFile = { ...before, doc, title: titleOf(doc), name: nameOf(relative), tags: tagsOf(doc), cites: citedThats(doc), links: linksOf(doc), updatedAt: this.now().toISOString() }
     await this.write(folder, relative, note, extra)
     await this.workspace.event(folder, actor, 'note.edited', { id })
+    // Links to its old name follow it, as Obsidian's do; an untitled note had no name worth keeping.
+    if (note.name !== before.name && before.title !== UNTITLED) await this.retarget(folder, id, [before.name, before.title], note.name, actor)
     return note
   }
 
@@ -119,9 +134,10 @@ export class Notes {
     const { note } = await this.parsed(folder, id)
     if (note.folder === place) return note
     const from = this.index(folder).get(id)!
-    const relative = await this.moveFile(folder, id, place, basename(from).slice(0, -3))
+    const relative = await this.moveFile(folder, id, place, note.name)
     await this.workspace.event(folder, actor, 'note.moved', { id, from, to: relative })
-    return { ...note, folder: place }
+    if (nameOf(relative) !== note.name) await this.retarget(folder, id, [note.name], nameOf(relative), actor)
+    return { ...note, folder: place, name: nameOf(relative) }
   }
 
   /** Makes a folder under notes/ (and any folders above it). */
@@ -147,6 +163,65 @@ export class Notes {
     this.paths.delete(folder)
     await this.workspace.event(folder, actor, 'folder.renamed', { from: source, to: target })
     return target
+  }
+
+  /**
+   * The notes that link to a note, and those that name it in their text
+   * without a link (Obsidian's linked and unlinked mentions), newest first.
+   */
+  async mentions(folder: string, id: string): Promise<{ linked: Mention[]; unlinked: Mention[] }> {
+    const { note } = await this.parsed(folder, id)
+    const names = namesOf(note)
+    const linked: Mention[] = []
+    const unlinked: Mention[] = []
+    const others = (await this.scan(folder)).map(({ note: other }) => other).filter((other) => other.id !== id)
+    for (const other of others.sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))) {
+      const link = [...inlines(other.doc)].find(({ node }) => node.type === 'noteLink' && names.includes(linkName(node.attrs.target).toLowerCase()))
+      if (link) {
+        linked.push({ id: other.id, title: other.title, folder: other.folder, snippet: snippet(blockText(link.block), linkText((link.node as Extract<NoteInline, { type: 'noteLink' }>).attrs)) })
+        continue
+      }
+      const found = mentionIn(other.doc, names)
+      if (found) unlinked.push({ id: other.id, title: other.title, folder: other.folder, snippet: snippet(blockText(found.block), found.words) })
+    }
+    return { linked, unlinked }
+  }
+
+  /** Turns the first place `from` names note `to` into a [[link]] to it. */
+  async linkMention(folder: string, from: string, to: string, actor: Actor = 'user'): Promise<NoteFile> {
+    const { note: target } = await this.parsed(folder, to)
+    const { note } = await this.parsed(folder, from)
+    const doc = structuredClone(note.doc)
+    const found = mentionIn(doc, namesOf(target))
+    if (!found) return note
+    const { block, index, start, words } = found
+    const text = block.content![index] as Extract<NoteInline, { type: 'text' }>
+    const pieces: NoteInline[] = [
+      ...(start > 0 ? [{ ...text, text: text.text.slice(0, start) }] : []),
+      { type: 'noteLink', attrs: { target: target.name, label: words === target.name ? '' : words } },
+      ...(start + words.length < text.text.length ? [{ ...text, text: text.text.slice(start + words.length) }] : []),
+    ]
+    block.content!.splice(index, 1, ...pieces)
+    return this.save(folder, from, doc, actor)
+  }
+
+  /** Points links to a renamed note at its new name, in every other note. */
+  private async retarget(folder: string, id: string, olds: string[], next: string, actor: Actor): Promise<void> {
+    const names = olds.map((old) => old.toLowerCase())
+    for (const { note, extra } of await this.scan(folder)) {
+      if (note.id === id) continue
+      const doc = structuredClone(note.doc)
+      let changed = false
+      for (const { node } of inlines(doc)) {
+        if (node.type !== 'noteLink' || !names.includes(linkName(node.attrs.target).toLowerCase())) continue
+        const hash = node.attrs.target.indexOf('#')
+        node.attrs.target = next + (hash >= 0 ? node.attrs.target.slice(hash) : '')
+        changed = true
+      }
+      if (!changed) continue
+      await this.write(folder, this.index(folder).get(note.id)!, { ...note, doc, links: linksOf(doc), updatedAt: this.now().toISOString() }, extra)
+      await this.workspace.event(folder, actor, 'note.edited', { id: note.id, links: next })
+    }
   }
 
   /** A note's file read again, finding it anew if it was moved outside Carrel. */
@@ -220,8 +295,10 @@ export class Notes {
         id: header.id ?? '',
         title: titleOf(doc),
         folder: place,
+        name: nameOf(relative),
         tags: tagsOf(doc),
         cites: citedThats(doc),
+        links: linksOf(doc),
         createdBy: header.createdBy === 'agent' ? 'agent' : 'user',
         createdAt: header.created ?? stamp,
         updatedAt: header.updated ?? header.created ?? stamp,
@@ -290,7 +367,7 @@ export class Notes {
 }
 
 export function summaryOf(note: NoteFile): NoteSummary {
-  return { id: note.id, title: note.title, folder: note.folder, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt, tags: note.tags, cites: note.cites }
+  return { id: note.id, title: note.title, folder: note.folder, name: note.name, links: note.links, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt, tags: note.tags, cites: note.cites }
 }
 
 /** The first line of a note, or "Untitled note". */
@@ -370,6 +447,41 @@ function headerEntries(text: string): Array<{ key?: string; text: string }> {
 
 function basename(relative: string): string {
   return relative.slice(relative.lastIndexOf('/') + 1)
+}
+
+/** A note file's name without ".md". */
+function nameOf(relative: string): string {
+  return basename(relative).replace(/\.md$/i, '')
+}
+
+/** What other notes may call a note, lower-cased: its file name and its title. */
+function namesOf(note: NoteSummary): string[] {
+  return [...new Set([note.name, note.title].map((name) => name.toLowerCase()))]
+}
+
+/** The first place a note's text names one of `names` as whole words, outside code. */
+function mentionIn(doc: NoteDoc, names: readonly string[]): { block: NoteBlock & { content?: NoteInline[] }; index: number; start: number; words: string } | undefined {
+  const patterns = names.filter((name) => name.length >= 3).map((name) => new RegExp(`(?<![\\p{L}\\p{N}])${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?![\\p{L}\\p{N}])`, 'iu'))
+  for (const { node, block } of inlines(doc)) {
+    if (node.type !== 'text' || node.marks?.some((mark) => mark.type === 'code')) continue
+    for (const pattern of patterns) {
+      const match = pattern.exec(node.text)
+      if (match) return { block, index: block.content!.indexOf(node), start: match.index, words: match[0] }
+    }
+  }
+  return undefined
+}
+
+function blockText(block: NoteBlock & { content?: NoteInline[] }): string {
+  return (block.content ?? []).map((node) => (node.type === 'text' ? node.text : node.type === 'that' ? node.attrs.label : node.type === 'noteLink' ? linkText(node.attrs) : ' ')).join('')
+}
+
+/** About 120 characters of `text` around `words`. */
+function snippet(text: string, words: string): string {
+  const at = Math.max(0, text.toLowerCase().indexOf(words.toLowerCase()))
+  const start = Math.max(0, at - 50)
+  const end = Math.min(text.length, at + words.length + 70)
+  return `${start > 0 ? '…' : ''}${text.slice(start, end).trim()}${end < text.length ? '…' : ''}`
 }
 
 /** Folders and files other apps keep for themselves: .obsidian, .trash, .DS_Store. */

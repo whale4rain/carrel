@@ -28,6 +28,8 @@ import {
   type DeskFile,
   type ItemFile,
   type NoteFile,
+  type Mention,
+  type NoteDoc,
   type NoteSummary,
   type OpenProject,
   type Proposal,
@@ -179,8 +181,18 @@ export class ShellController {
     })
   }
 
-  async createNote(folder = ''): Promise<ItemView> {
-    return noteItem(await this.notes.create(await this.openFolder(), undefined, 'user', folder), new Map())
+  async createNote(folder = '', title?: string): Promise<ItemView> {
+    const doc: NoteDoc | undefined = title ? { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: title }] }] } : undefined
+    return noteItem(await this.notes.create(await this.openFolder(), doc, 'user', folder), new Map())
+  }
+
+  async mentions(id: string): Promise<{ linked: Mention[]; unlinked: Mention[] }> {
+    return this.notes.mentions(await this.openFolder(), id)
+  }
+
+  async linkMention(from: string, to: string): Promise<ItemView> {
+    const folder = await this.openFolder()
+    return noteItem(await this.notes.linkMention(folder, from, to), await this.citedItems(folder))
   }
 
   async noteFolders(): Promise<string[]> {
@@ -552,7 +564,7 @@ function kitSheets(kit: KitManifest): ItemView[] {
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {
   // Turns of a thread are not sources.
   const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) && !threadOf(sources.get(that)!) ? [sources.get(that)!] : [])))]
-  return { id: note.id, kind: 'note', title: note.title, folder: note.folder, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
+  return { id: note.id, kind: 'note', title: note.title, folder: note.folder, name: note.name, links: note.links, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
 }
 
 function noteView(note: NoteFile): NoteView {
