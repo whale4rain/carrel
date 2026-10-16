@@ -43,7 +43,7 @@ import {
   type Workspace,
 } from '@carrel/core'
 import type { ItemText, ThatText } from '@carrel/agent'
-import { kitOrigin, ProjectKits, type KitManifest, type KitShelf } from '@carrel/kit-host'
+import { askLines, KitHost, kitOrigin, ProjectKits, unanswered, type KitManifest, type KitShelf } from '@carrel/kit-host'
 import type { ProposalView } from '../shared/agent-api.js'
 import type { DeskView, ItemView, KitView, NoteView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 
@@ -65,6 +65,7 @@ export class ShellController {
   private readonly readPages: PageReader | undefined
   private readonly kitShelf: KitShelf | undefined
   private readonly projectKits: ProjectKits
+  private readonly kitHost: KitHost | undefined
   /** PDFs being read for search, by item. */
   private readonly reading = new Map<string, Promise<void>>()
 
@@ -79,6 +80,18 @@ export class ShellController {
     this.readPages = options.readPages
     this.kitShelf = options.kits
     this.projectKits = new ProjectKits(workspace)
+    this.kitHost =
+      options.kits &&
+      new KitHost(workspace, options.kits, {
+        notes: async (folder) => Promise.all((await this.notes.list(folder)).map(async (note) => ({ id: note.id, title: note.title, text: (await this.readItem(folder, note.id)).text }))),
+        sources: async (folder) => (await this.library.list(folder)).map((item) => ({ id: item.id, kind: item.kind, title: item.title })),
+        thats: async (folder) => {
+          const titles = new Map((await this.library.list(folder)).map((item) => [item.id, item.title]))
+          return (await this.anchors.list(folder))
+            .filter((anchor) => titles.has(anchor.itemId))
+            .map((anchor) => ({ id: anchor.id, label: anchor.label, ...(anchor.snapshot.text ? { text: anchor.snapshot.text } : {}), source: titles.get(anchor.itemId)! }))
+        },
+      })
   }
 
   async state(): Promise<ShellState> {
@@ -153,23 +166,38 @@ export class ShellController {
   async kits(): Promise<KitView[]> {
     if (!this.kitShelf) return []
     const { open } = await this.state()
-    const used = new Set(open ? (await this.projectKits.list(open.project)).map((kit) => kit.name) : [])
+    const used = new Map(open ? (await this.projectKits.list(open.project)).map((kit) => [kit.name, kit]) : [])
     return (await this.kitShelf.list()).kits.map((kit) => ({
       name: kit.name,
       title: kit.title,
       description: kit.description,
       sheets: kit.sheets.map((sheet) => ({ id: sheet.id, title: sheet.title })),
       added: used.has(kit.name),
+      asks: askLines(unanswered(kit, used.get(kit.name))),
     }))
   }
 
-  /** Adds a kit to the open project (once); returns its sheets, ready for the desk. */
-  async addKit(name: string): Promise<ItemView[]> {
+  /**
+   * Adds a kit to the open project (once); returns its sheets, ready for the
+   * desk. A kit that asks for more than its own store needs `allow`: the
+   * person saw what it asks and said yes.
+   */
+  async addKit(name: string, allow = false): Promise<ItemView[]> {
     const folder = await this.openFolder()
     const kit = await this.kitShelf?.get(name)
     if (!kit) throw new Error(`There is no kit called "${name}" on this computer.`)
+    const known = (await this.projectKits.list(folder)).find((used) => used.name === name)
+    const asks = askLines(unanswered(kit, known))
+    if (asks.length > 0 && !allow) throw new Error(`The ${kit.title} kit asks to: ${asks.join('; ')}. Allow it to add it.`)
     await this.projectKits.add(folder, kit)
+    if (asks.length > 0) await this.projectKits.allow(folder, kit)
     return kitSheets(kit)
+  }
+
+  /** A call from a kit's page through its bridge, checked against its manifest and what was allowed. */
+  async kitCall(name: string, method: string, args: unknown[]): Promise<unknown> {
+    if (!this.kitHost) throw new Error('Kits are not available.')
+    return this.kitHost.call(await this.openFolder(), name, method, args)
   }
 
   private async kitItems(folder: string): Promise<ItemView[]> {

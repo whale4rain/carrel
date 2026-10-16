@@ -67,7 +67,8 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     thats: () => controller.thats(),
     thatImage: (id) => controller.thatImage(text(id)),
     kits: () => controller.kits(),
-    addKit: (name) => controller.addKit(text(name)),
+    addKit: (name, allow) => controller.addKit(text(name), allow === true),
+    kitCall: (name, method, args) => controller.kitCall(text(name), text(method), Array.isArray(args) ? args.slice(0, 8) : []),
     sourceTitle: async (id, title) => (await controller.pageTitle(text(id), text(title).slice(0, 300))) ?? null,
   }
   for (const [name, run] of Object.entries(api)) handle(workspaceChannels[name as keyof WorkspaceApi], run)

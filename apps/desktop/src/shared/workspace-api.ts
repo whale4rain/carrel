@@ -45,6 +45,8 @@ export interface KitView {
   sheets: Array<{ id: string; title: string }>
   /** Whether the open project uses it already. */
   added: boolean
+  /** What it asks for beyond its own store that the person hasn't allowed yet, in words. */
+  asks: string[]
 }
 
 /** A note, with its text as the editor's document. */
@@ -197,8 +199,10 @@ export interface WorkspaceApi {
   thatImage(id: string): Promise<Uint8Array | null>
   /** The learning kits installed on this computer. */
   kits(): Promise<KitView[]>
-  /** Adds a kit to the open project; its sheets, to lay on the desk. */
-  addKit(name: string): Promise<ItemView[]>
+  /** Adds a kit to the open project; its sheets, to lay on the desk. `allow` says yes to what it asks. */
+  addKit(name: string, allow?: boolean): Promise<ItemView[]>
+  /** A kit page's call through its bridge: `kit.store.get(...)` is method "store.get". */
+  kitCall(name: string, method: string, args: unknown[]): Promise<unknown>
 }
 
 /** The desk's web pages, drawn by main over their sheets. */
@@ -269,6 +273,7 @@ export const workspaceChannels = {
   thatImage: 'workspace:that-image',
   kits: 'workspace:kits',
   addKit: 'workspace:add-kit',
+  kitCall: 'workspace:kit-call',
 } as const satisfies Record<keyof WorkspaceApi, string>
 
 /** Replies over IPC carry the error message instead of throwing, so it reaches the renderer intact. */
