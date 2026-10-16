@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Review</title>
+    <link rel="stylesheet" href="language.css" />
+    <style>
+      .card { border: 1px solid var(--rule); border-radius: var(--radius-sheet); padding: var(--space-6) var(--space-4); margin: var(--space-4) 0; text-align: center; min-height: 120px; display: grid; align-content: center; gap: var(--space-3); }
+      .card .word { font: var(--text-title); }
+      .card .meaning { font: var(--text-reading); }
+      .grades { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); }
+      .grades button { height: 40px; }
+    </style>
+  </head>
+  <body>
+    <h1>Review</h1>
+    <p class="lead" id="count" role="status">…</p>
+    <div id="card" class="card" hidden>
+      <p class="word" id="word"></p>
+      <p class="meaning" id="meaning" hidden></p>
+      <p class="from caption" id="source"></p>
+    </div>
+    <div id="actions"></div>
+    <script type="module">
+      import { dueCards, remember } from './language.js'
+
+      const GRADES = [
+        ['again', 'Again'],
+        ['hard', 'Hard'],
+        ['good', 'Good'],
+        ['easy', 'Easy'],
+      ]
+      let current = null
+      let busy = false
+
+      async function draw() {
+        if (busy) return
+        const cards = await kit.store.query('cards')
+        const queue = dueCards(cards)
+        const count = document.getElementById('count')
+        const box = document.getElementById('card')
+        const actions = document.getElementById('actions')
+        current = queue[0] ?? null
+        if (!current) {
+          count.textContent = cards.length === 0 ? 'Add words to your deck, and they come here to review.' : 'Nothing due. Come back later.'
+          box.hidden = true
+          actions.replaceChildren()
+          return
+        }
+        count.textContent = queue.length === 1 ? '1 card to review' : `${queue.length} cards to review`
+        box.hidden = false
+        document.getElementById('word').textContent = current.value.front
+        const meaning = document.getElementById('meaning')
+        meaning.hidden = true
+        meaning.textContent = current.value.back || '(no meaning written)'
+        const that = current.value.that
+        document.getElementById('source').textContent = that ? `${that.source}${that.label ? ', ' + that.label : ''}` : ''
+        const show = document.createElement('button')
+        show.className = 'ink'
+        show.textContent = 'Show meaning'
+        show.addEventListener('click', reveal)
+        actions.replaceChildren(show)
+        show.focus()
+      }
+
+      function reveal() {
+        document.getElementById('meaning').hidden = false
+        const grades = document.createElement('div')
+        grades.className = 'grades'
+        grades.setAttribute('aria-label', 'How did it go?')
+        for (const [grade, label] of GRADES) {
+          const button = document.createElement('button')
+          button.textContent = label
+          if (grade === 'good') button.className = 'ink'
+          button.addEventListener('click', () => answer(grade))
+          grades.append(button)
+        }
+        document.getElementById('actions').replaceChildren(grades)
+        grades.querySelector('.ink').focus()
+      }
+
+      async function answer(grade) {
+        if (!current || busy) return
+        busy = true
+        try {
+          const srs = await kit.srs.schedule(current.value.srs, grade)
+          await kit.store.set('cards', current.id, { ...current.value, srs })
+          await remember(kit, grade)
+        } finally {
+          busy = false
+        }
+        draw()
+      }
+
+      // Keys while the page has the keyboard: Space shows, 1 to 4 answer.
+      document.addEventListener('keydown', (event) => {
+        if (!current) return
+        const hidden = document.getElementById('meaning').hidden
+        if (event.key === ' ' && hidden) {
+          event.preventDefault()
+          reveal()
+        } else if (['1', '2', '3', '4'].includes(event.key) && !hidden) {
+          answer(GRADES[Number(event.key) - 1][0])
+        }
+      })
+      kit.store.onChange(draw)
+      draw()
+    </script>
+  </body>
+</html>

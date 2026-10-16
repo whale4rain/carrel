@@ -27,7 +27,7 @@ const cards = parseManifest({
   sheets: [{ id: 'deck', file: 'deck.html' }],
   store: { words: { schemaVersion: 1 } },
   reads: ['thats', 'notes'],
-  needs: ['speak'],
+  needs: ['speak', 'srs.schedule'],
 })
 
 describe('KitStore', () => {
@@ -80,7 +80,7 @@ describe('permissions', () => {
   it('says what a kit asks for and remembers what was allowed', async () => {
     const kits = new ProjectKits(workspace, now)
     await kits.add(folder, cards)
-    expect(askLines(unanswered(cards, (await kits.list(folder))[0]))).toEqual(['Read your that.s and the words they point at', 'Read your notes in this project', 'Read words aloud'])
+    expect(askLines(unanswered(cards, (await kits.list(folder))[0]))).toEqual(['Read your that.s and the words they point at', 'Read your notes in this project', 'Read words aloud', 'Schedule reviews'])
     await kits.allow(folder, cards)
     expect(unanswered(cards, (await kits.list(folder))[0])).toEqual({ reads: [], net: [], needs: [] })
     // A new version that asks for more asks again, for the new part only.
@@ -129,5 +129,8 @@ describe('KitHost', () => {
     expect(await kits.call(folder, 'cards', 'read', ['thats'])).toEqual({ from: 'thats', items: [{ id: 't1', label: 'p.3', text: 'hola', source: 'Gramática' }] })
     expect(await kits.call(folder, 'cards', 'read', ['notes'])).toEqual({ from: 'notes', items: [{ id: 'n1', title: 'Verbs', text: '# Verbs' }] })
     await expect(kits.call(folder, 'cards', 'speak', ['hola'])).rejects.toThrow("isn't ready yet")
+    expect(await kits.call(folder, 'cards', 'srs.schedule', [null, 'good'])).toMatchObject({ interval: 1, reps: 1 })
+    await expect(kits.call(folder, 'cards', 'srs.schedule', [null, 'perfect'])).rejects.toThrow('again, hard, good or easy')
+    await expect(kits.call(folder, 'cards', 'srs.schedule', [{ due: 'soon' }, 'good'])).rejects.toThrow('due as a time')
   })
 })

@@ -16,4 +16,9 @@ export default tseslint.config(
     files: ['apps/desktop/src/renderer/**/*.{ts,tsx}', 'spikes/*/app/renderer.ts'],
     languageOptions: { globals: globals.browser },
   },
+  {
+    // Kit pages run in the browser, with the host bridge as `kit`.
+    files: ['kits/*/sheets/**/*.js'],
+    languageOptions: { globals: { ...globals.browser, kit: 'readonly' } },
+  },
 )

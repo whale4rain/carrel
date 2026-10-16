@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Vocabulary</title>
+    <link rel="stylesheet" href="language.css" />
+    <style>
+      .form { display: grid; gap: var(--space-3); margin-top: var(--space-4); }
+      .from { font: var(--text-caption); color: var(--ink-muted); }
+      .front { font: var(--text-label); }
+      .back { color: var(--ink-muted); }
+      .when { white-space: nowrap; }
+    </style>
+  </head>
+  <body>
+    <h1>Vocabulary</h1>
+    <p class="lead">Your own words, from what you read and watch.</p>
+
+    <div id="add" class="form">
+      <label>Word or phrase<input id="front" name="front" autocomplete="off" required /></label>
+      <label>Meaning<input id="back" name="back" autocomplete="off" placeholder="In your own words" /></label>
+      <p id="linked" class="from" hidden></p>
+      <div class="row"><button type="button" id="save" class="ink">Add to deck</button><span id="said" class="note" role="status"></span></div>
+    </div>
+
+    <h2>From your <em>that.</em>s</h2>
+    <ul id="thats" class="plain list" aria-label="That.s to add"></ul>
+
+    <h2 id="deck-title">In the deck</h2>
+    <ul id="cards" class="plain list" aria-label="Cards"></ul>
+
+    <script type="module">
+      import { cardId, dueLabel, newCard, wordThats } from './language.js'
+
+      // Kit pages can't submit forms (the sandbox has no forms), so the button and Enter add the card.
+      const front = document.getElementById('front')
+      const back = document.getElementById('back')
+      const linked = document.getElementById('linked')
+      const said = document.getElementById('said')
+      let from = null
+
+      function pick(that) {
+        from = that
+        front.value = that.text.trim()
+        linked.hidden = false
+        linked.textContent = `From ${that.source}${that.label ? ', ' + that.label : ''}`
+        back.focus()
+      }
+
+      async function add() {
+        const words = front.value.trim()
+        if (!words) return
+        const id = cardId(words)
+        const known = await kit.store.get('cards', id)
+        if (known) {
+          said.textContent = `"${known.front}" is in the deck already.`
+          return
+        }
+        await kit.store.set('cards', id, newCard(words, back.value, from))
+        said.textContent = `Added "${words}".`
+        front.value = ''
+        back.value = ''
+        from = null
+        linked.hidden = true
+        front.focus()
+      }
+      document.getElementById('save').addEventListener('click', add)
+      for (const field of [front, back]) {
+        field.addEventListener('keydown', (event) => {
+          if (event.key === 'Enter') add()
+        })
+      }
+
+      async function draw() {
+        const cards = await kit.store.query('cards')
+        let thats = []
+        try {
+          thats = (await kit.read('thats')).items
+        } catch {
+          thats = []
+        }
+        const offered = wordThats(thats, cards).slice(-8).reverse()
+        const thatList = document.getElementById('thats')
+        if (offered.length === 0) {
+          thatList.innerHTML = '<li class="empty">Point at a word with <em>that.</em> as you read, and it shows here.</li>'
+        } else {
+          thatList.replaceChildren(
+            ...offered.map((that) => {
+              const item = document.createElement('li')
+              item.innerHTML = '<span class="grow"><span class="that"></span> <span class="from"></span></span><button type="button">Use</button>'
+              item.querySelector('.that').textContent = that.text.trim()
+              item.querySelector('.from').textContent = `${that.source}${that.label ? ', ' + that.label : ''}`
+              item.querySelector('button').setAttribute('aria-label', `Use "${that.text.trim()}"`)
+              item.querySelector('button').addEventListener('click', () => pick(that))
+              return item
+            }),
+          )
+        }
+
+        document.getElementById('deck-title').textContent = cards.length === 0 ? 'In the deck' : `In the deck (${cards.length})`
+        const cardList = document.getElementById('cards')
+        if (cards.length === 0) {
+          cardList.innerHTML = '<li class="empty">No cards yet.</li>'
+          return
+        }
+        cardList.replaceChildren(
+          ...[...cards].reverse().map((card) => {
+            const item = document.createElement('li')
+            item.innerHTML = '<span class="grow"><span class="front"></span> <span class="back"></span></span><span class="position when"></span><button type="button" class="quiet">Remove</button>'
+            item.querySelector('.front').textContent = card.value.front
+            item.querySelector('.back').textContent = card.value.back ? `· ${card.value.back}` : ''
+            item.querySelector('.when').textContent = dueLabel(card.value)
+            const remove = item.querySelector('button')
+            remove.setAttribute('aria-label', `Remove "${card.value.front}"`)
+            remove.addEventListener('click', async () => {
+              await kit.store.delete('cards', card.id)
+              said.replaceChildren(`Removed "${card.value.front}". `)
+              const undo = document.createElement('button')
+              undo.type = 'button'
+              undo.className = 'quiet'
+              undo.textContent = 'Undo'
+              undo.addEventListener('click', async () => {
+                await kit.store.restore('cards', card.id)
+                said.textContent = ''
+              })
+              said.append(undo)
+            })
+            return item
+          }),
+        )
+      }
+      kit.store.onChange(draw)
+      window.addEventListener('focus', draw)
+      draw()
+    </script>
+  </body>
+</html>

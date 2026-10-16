@@ -1,0 +1,54 @@
+/* The language kit's sheets, in Margin: ink for your words, pencil for the agent's, yellow only for that. */
+html, body { margin: 0; }
+body {
+  background: var(--paper);
+  color: var(--ink);
+  font: var(--text-body);
+  padding: var(--space-6);
+  box-sizing: border-box;
+  min-height: 100vh;
+}
+h1 { font: var(--text-title); margin: 0 0 var(--space-1); }
+h2 { font: var(--text-heading); margin: var(--space-6) 0 var(--space-2); }
+p { margin: 0; }
+.lead { color: var(--ink-muted); margin-bottom: var(--space-4); }
+.muted { color: var(--ink-muted); }
+.agent { font: var(--text-marginalia); color: var(--pencil); }
+.position { font: var(--text-position); color: var(--ink-muted); }
+.caption { font: var(--text-caption); color: var(--ink-muted); }
+.that { background: var(--highlight); color: var(--ink); border-radius: var(--radius-mark); padding: 0 2px; }
+ul.plain { list-style: none; margin: 0; padding: 0; }
+button {
+  font: var(--text-label);
+  color: var(--ink);
+  background: transparent;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  height: 32px;
+  padding: 0 var(--space-3);
+  cursor: pointer;
+}
+button:hover { background: var(--paper-2); }
+button:disabled { opacity: 0.4; cursor: default; }
+button.ink { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+button.quiet { border-color: transparent; color: var(--ink-muted); padding: 0 var(--space-2); }
+input {
+  font: var(--text-body);
+  color: var(--ink);
+  background: var(--paper);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  height: 36px;
+  padding: 0 var(--space-3);
+  box-sizing: border-box;
+  width: 100%;
+}
+input:focus, button:focus-visible { outline: 2px solid var(--pencil); outline-offset: 1px; }
+label { display: grid; gap: var(--space-1); font: var(--text-label); }
+.row { display: flex; gap: var(--space-2); align-items: center; }
+.grow { flex: 1; min-width: 0; }
+.list > li { display: flex; gap: var(--space-3); align-items: center; padding: var(--space-2) 0; border-top: 1px solid var(--rule); }
+.list > li:first-child { border-top: none; }
+.empty { color: var(--ink-muted); padding: var(--space-2) 0; }
+.note { color: var(--ink-muted); font: var(--text-caption); margin-top: var(--space-2); min-height: 16px; }
+html { scrollbar-width: thin; }
