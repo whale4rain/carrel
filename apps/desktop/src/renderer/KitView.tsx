@@ -1,6 +1,10 @@
 import { useEffect, useRef } from 'react'
 import type { ItemView } from '../shared/workspace-api.js'
 
+/** Told to every sheet of a kit when one of them changes its store. */
+const STORE_CHANGED = 'carrel:kit-store-changed'
+const WRITES = new Set(['store.set', 'store.delete', 'store.restore'])
+
 /**
  * A learning kit's sheet: its page in an iframe sandboxed with scripts only,
  * served from the kit's own origin with Margin's tokens put in. The page
@@ -32,13 +36,25 @@ export function KitView({ item, onActivate }: { item: ItemView & { kit: NonNulla
       const call = event.data as { carrelKit?: unknown; id?: unknown; method?: unknown; args?: unknown }
       if (call?.carrelKit !== 1 || typeof call.id !== 'number' || typeof call.method !== 'string') return
       const answer = (reply: { value: unknown } | { error: string }): void => page.postMessage({ carrelKit: 1, id: call.id, ...reply }, '*')
-      window.carrel.workspace.kitCall(item.kit.name, call.method, Array.isArray(call.args) ? call.args : []).then(
-        (value) => answer({ value }),
+      const args = Array.isArray(call.args) ? call.args : []
+      window.carrel.workspace.kitCall(item.kit.name, call.method, args).then(
+        (value) => {
+          answer({ value })
+          if (WRITES.has(call.method as string)) window.dispatchEvent(new CustomEvent(STORE_CHANGED, { detail: { kit: item.kit.name, collection: args[0] } }))
+        },
         (reason: unknown) => answer({ error: reason instanceof Error ? reason.message : String(reason) }),
       )
     }
+    const onChanged = (event: Event): void => {
+      const { kit, collection } = (event as CustomEvent<{ kit: string; collection: unknown }>).detail
+      if (kit === item.kit.name) frame.current?.contentWindow?.postMessage({ carrelKit: 1, event: 'store.changed', collection }, '*')
+    }
     window.addEventListener('message', onMessage)
-    return () => window.removeEventListener('message', onMessage)
+    window.addEventListener(STORE_CHANGED, onChanged)
+    return () => {
+      window.removeEventListener('message', onMessage)
+      window.removeEventListener(STORE_CHANGED, onChanged)
+    }
   }, [item.kit.name])
 
   return (

@@ -2,5 +2,6 @@ export { isKitPath, KIT_NEEDS, parseManifest, type KitManifest, type KitNeed, ty
 export { KitShelf } from './shelf.js'
 export { askLines, asksNothing, asksOf, ProjectKits, unanswered, type KitAsks, type ProjectKit } from './project-kits.js'
 export { KitStore, MAX_DOC_BYTES, MAX_DOCS, type StoreDoc } from './store.js'
+export { GRADES, newReview, schedule, type Grade, type ReviewState } from './srs.js'
 export { KitHost, type ProjectReaders, type ReadResult } from './host.js'
 export { KIT_DOMAIN, kitOfHost, kitOrigin, kitPolicy, kitScript, MARGIN_PATH, withMargin } from './sandbox.js'

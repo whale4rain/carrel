@@ -1,3 +1,4 @@
+import { isGrade, reviewState, schedule } from './srs.js'
 import { KitStore } from './store.js'
 import { ProjectKits, unanswered } from './project-kits.js'
 import type { KitShelf } from './shelf.js'
@@ -35,6 +36,7 @@ export class KitHost {
     private readonly workspace: Workspace,
     private readonly shelf: KitShelf,
     private readonly readers: ProjectReaders,
+    private readonly now: () => Date = () => new Date(),
   ) {
     this.kits = new ProjectKits(workspace)
   }
@@ -81,6 +83,10 @@ export class KitHost {
         if (need) {
           if (!manifest.needs.includes(need)) throw new Error(`This kit's manifest doesn't ask for ${need}.`)
           if (unanswered(manifest, kit).needs.includes(need)) throw new Error(`You haven't allowed this kit to use ${need} yet.`)
+          if (method === 'srs.schedule') {
+            if (!isGrade(b)) throw new Error('A review ends in again, hard, good or easy.')
+            return schedule(reviewState(a), b, this.now())
+          }
           throw new Error(`kit.${method} isn't ready yet in this version of Carrel.`)
         }
         throw new Error(`There is no kit.${method}.`)

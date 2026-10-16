@@ -5,7 +5,7 @@ import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Frame, type Page } from '@playwright/test'
-import { quit, start } from './app.js'
+import { mod, quit, start } from './app.js'
 
 let home: string
 
@@ -17,10 +17,11 @@ test.afterAll(async () => {
   await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
 
-async function kitFrame(page: Page, kit = 'language'): Promise<Frame> {
+async function kitFrame(page: Page, kit = 'language', sheet?: string): Promise<Frame> {
   const origin = `https://${kit}.kit.carrel.app/`
-  await expect.poll(() => page.frames().some((frame) => frame.url().startsWith(origin))).toBe(true)
-  return page.frames().find((frame) => frame.url().startsWith(origin))!
+  const mine = (frame: Frame): boolean => frame.url().startsWith(origin) && (sheet === undefined || frame.url().endsWith(`sheet=${sheet}`))
+  await expect.poll(() => page.frames().some(mine)).toBe(true)
+  return page.frames().find(mine)!
 }
 
 test('lay a learning kit on the desk, in its sandbox', async () => {
@@ -32,6 +33,10 @@ test('lay a learning kit on the desk, in its sandbox', async () => {
   const kits = page.getByRole('menu', { name: 'Learning kits' })
   await expect(kits.getByRole('group', { name: 'Language' })).toContainText('three stages')
   await kits.getByRole('menuitem', { name: 'Stages' }).click()
+  // It asks once, the first time.
+  const asking = page.getByRole('dialog', { name: 'Allow Language' })
+  await expect(asking.locator('li')).toHaveText(['Read your that.s and the words they point at', 'Schedule reviews'])
+  await asking.getByRole('button', { name: 'Allow' }).click()
 
   const sheet = page.locator('.sheet[data-kind="kit"]')
   await expect(sheet.locator('.sheet-kind')).toHaveText('Language')
@@ -155,6 +160,72 @@ test('a kit keeps its own store, and asks before it reads the project', async ()
   await quit(app)
   const again = await start(own)
   await expect((await kitFrame(again.page, 'counter')).locator('#n')).toHaveText('2')
+  await quit(again.app)
+  await rm(own, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+})
+
+// The milestone: a learner builds a deck from their own that.s, reviews it,
+// and moves themselves from Beginner on to Intermediate.
+test('build a deck from that.s, review it, and move on a stage', async () => {
+  const own = await mkdtemp(join(tmpdir(), 'carrel-e2e-'))
+  await writeFile(join(own, 'Lectura.md'), '# Lectura\n\nEn la cocina hay **la mesa** y dos sillas.\n')
+  const { app, page } = await start(own, ['Lectura.md'])
+  await page.getByLabel('Project name').fill('Spanish')
+  await page.getByRole('button', { name: 'Create project' }).click()
+  await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+  await page.locator('.add-menu button', { hasText: 'Book or paper' }).click()
+  const reading = page.locator('.sheet[data-kind="paper"]')
+  await reading.locator('.doc-section strong').evaluate((element) => getSelection()?.selectAllChildren(element))
+  await page.keyboard.press(`${mod}+Period`)
+  await expect(page.locator('.that-tray .that-chip')).toHaveCount(1)
+  await page.evaluate(() => getSelection()?.removeAllRanges())
+
+  const addSheet = async (name: string): Promise<void> => {
+    await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+    await page.locator('.add-menu button', { hasText: 'Learning kit' }).click()
+    await page.getByRole('menu', { name: 'Learning kits' }).getByRole('menuitem', { name }).click()
+  }
+  await addSheet('Vocabulary')
+  await page.getByRole('dialog', { name: 'Allow Language' }).getByRole('button', { name: 'Allow' }).click()
+
+  // The that. waits in the deck; one click puts its words in, the learner adds the meaning.
+  const deck = await kitFrame(page, 'language', 'deck')
+  await expect(deck.locator('#thats .that')).toHaveText(['la mesa'])
+  await expect(deck.locator('#thats .from')).toHaveText(['Lectura, §1'])
+  await deck.getByRole('button', { name: 'Use "la mesa"' }).click()
+  await expect(deck.locator('#front')).toHaveValue('la mesa')
+  await deck.locator('#back').fill('the table')
+  await deck.getByRole('button', { name: 'Add to deck' }).click()
+  await expect(deck.locator('#cards .front')).toHaveText(['la mesa'])
+  await expect(deck.locator('#thats .that')).toHaveCount(0)
+
+  // Review: the new card, its meaning, Good; then nothing is due.
+  await addSheet('Review')
+  const review = await kitFrame(page, 'language', 'review')
+  await expect(review.locator('#count')).toHaveText('1 card to review')
+  await expect(review.locator('#word')).toHaveText('la mesa')
+  await expect(review.locator('#source')).toHaveText('Lectura, §1')
+  await review.getByRole('button', { name: 'Show meaning' }).click()
+  await expect(review.locator('#meaning')).toHaveText('the table')
+  await review.getByRole('button', { name: 'Good' }).click()
+  await expect(review.locator('#count')).toHaveText('Nothing due. Come back later.')
+  // The deck hears of the review: the card is due tomorrow.
+  await expect(deck.locator('#cards .when')).toHaveText(['tomorrow'])
+
+  // Stages: the numbers, and only the learner moves on.
+  await addSheet('Stages')
+  const stages = await kitFrame(page, 'language', 'stages')
+  await expect(stages.locator('[aria-current="step"] h2')).toHaveText('Beginner')
+  await expect(stages.getByLabel('Your numbers')).toContainText('1in the deck')
+  await stages.getByRole('button', { name: 'Move to Intermediate' }).click()
+  await expect(stages.locator('[aria-current="step"] h2')).toHaveText('Intermediate')
+
+  await page.waitForTimeout(800)
+  await page.evaluate(() => window.carrel.workspace.state())
+  await quit(app)
+  const again = await start(own, ['Lectura.md'])
+  await expect((await kitFrame(again.page, 'language', 'stages')).locator('[aria-current="step"] h2')).toHaveText('Intermediate')
+  await expect((await kitFrame(again.page, 'language', 'deck')).locator('#cards .back')).toHaveText(['· the table'])
   await quit(again.app)
   await rm(own, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })

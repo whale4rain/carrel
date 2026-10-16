@@ -275,16 +275,23 @@ describe('turns of the project thread through the shell', () => {
   it('adds a learning kit to the project, and lists its sheets with the items', async () => {
     const shell = new ShellController(new Workspace(carrelRoots(home)), { kits: new KitShelf([join(import.meta.dirname, '../../../kits')]) })
     await shell.createProject('Spanish')
-    expect((await shell.kits()).find((kit) => kit.name === 'language')).toMatchObject({ title: 'Language', added: false, sheets: [{ id: 'stages', title: 'Stages' }] })
-    const sheets = await shell.addKit('language')
-    expect(sheets).toEqual([
-      {
-        id: 'kit:language:stages',
-        kind: 'kit',
-        title: 'Stages',
-        kit: { name: 'language', title: 'Language', sheet: 'stages', url: 'https://language.kit.carrel.app/sheets/stages.html?sheet=stages', size: { w: 420, h: 640 } },
-      },
-    ])
+    expect((await shell.kits()).find((kit) => kit.name === 'language')).toMatchObject({
+      title: 'Language',
+      added: false,
+      sheets: [{ id: 'stages', title: 'Stages' }, { id: 'deck', title: 'Vocabulary' }, { id: 'review', title: 'Review' }],
+      asks: ['Read your that.s and the words they point at', 'Schedule reviews'],
+    })
+    // It asks first.
+    await expect(shell.addKit('language')).rejects.toThrow('Allow it to add it')
+    const sheets = await shell.addKit('language', true)
+    expect(sheets[0]).toEqual({
+      id: 'kit:language:stages',
+      kind: 'kit',
+      title: 'Stages',
+      kit: { name: 'language', title: 'Language', sheet: 'stages', url: 'https://language.kit.carrel.app/sheets/stages.html?sheet=stages', size: { w: 420, h: 640 } },
+    })
+    expect(sheets.map((sheet) => sheet.id)).toEqual(['kit:language:stages', 'kit:language:deck', 'kit:language:review'])
+    expect((await shell.kits()).find((kit) => kit.name === 'language')?.asks).toEqual([])
     expect((await shell.kits()).find((kit) => kit.name === 'language')?.added).toBe(true)
     expect((await shell.items()).filter((item) => item.kind === 'kit')).toEqual(sheets)
     await expect(shell.addKit('nothing')).rejects.toThrow('no kit called "nothing"')

@@ -22,13 +22,13 @@ export function kitResponder(shelf: KitShelf, marginDir: string): (request: Requ
 }
 
 async function respond(shelf: KitShelf, marginDir: string, kit: string, path: string): Promise<Response> {
-  const headers = { 'content-security-policy': kitPolicy(kit), 'x-content-type-options': 'nosniff' }
+  // A sandboxed page's origin is opaque, so module scripts and fonts, which load in CORS mode, need this.
+  const headers = { 'content-security-policy': kitPolicy(kit), 'x-content-type-options': 'nosniff', 'access-control-allow-origin': '*' }
   if (path === `${MARGIN_PATH}kit.js`) return new Response(kitScript(DESK_ORIGIN), { headers: { ...headers, 'content-type': 'text/javascript; charset=utf-8' } })
   if (path.startsWith(MARGIN_PATH)) {
     const file = normalize(join(marginDir, path.slice(MARGIN_PATH.length)))
     if (!file.startsWith(marginDir.endsWith(sep) ? marginDir : marginDir + sep)) return notFound(kit)
-    // Fonts load in CORS mode, and a sandboxed page's origin is opaque.
-    return withHeaders(await net.fetch(pathToFileURL(file).href), { ...headers, 'access-control-allow-origin': '*' })
+    return withHeaders(await net.fetch(pathToFileURL(file).href), headers)
   }
   const file = await shelf.file(kit, path)
   if (!file) return notFound(kit)

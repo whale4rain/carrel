@@ -3,56 +3,81 @@
   <head>
     <meta charset="utf-8" />
     <title>Stages</title>
+    <link rel="stylesheet" href="language.css" />
     <style>
-      html, body { margin: 0; height: 100%; }
-      body {
-        background: var(--paper);
-        color: var(--ink);
-        font: var(--text-body);
-        padding: var(--space-6);
-        box-sizing: border-box;
-      }
-      h1 { font: var(--text-title); margin: 0 0 var(--space-1); }
-      .lead { color: var(--ink-muted); margin: 0 0 var(--space-6); }
       ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
-      li {
-        border: 1px solid var(--rule);
-        border-radius: var(--radius-sheet);
-        padding: var(--space-3) var(--space-4);
-      }
-      li[aria-current='step'] { border-color: var(--ink); }
-      .step { font: var(--text-position); color: var(--ink-muted); }
-      h2 { font: var(--text-heading); margin: var(--space-1) 0; }
-      p { margin: 0; }
-      .here { font: var(--text-label); color: var(--ink); float: right; }
-      .agent { font: var(--text-marginalia); color: var(--pencil); margin-top: var(--space-2); }
-      footer { margin-top: var(--space-6); font: var(--text-caption); color: var(--ink-muted); }
+      li.stage { border: 1px solid var(--rule); border-radius: var(--radius-sheet); padding: var(--space-3) var(--space-4); }
+      li.stage[aria-current='step'] { border-color: var(--ink); }
+      li.stage h2 { margin: var(--space-1) 0; }
+      .here { font: var(--text-label); float: right; }
+      .agent { margin-top: var(--space-2); }
+      .numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--space-2); margin: var(--space-3) 0; }
+      .numbers div { display: grid; gap: 2px; }
+      .numbers strong { font: var(--text-heading); }
+      .move { margin-top: var(--space-3); }
+      footer { margin-top: var(--space-6); }
     </style>
   </head>
   <body>
     <h1>Language</h1>
     <p class="lead">Three stages. You decide when to move on.</p>
-    <ol>
-      <li aria-current="step">
-        <span class="here">You are here</span>
-        <span class="step">1 / 3</span>
-        <h2>Beginner</h2>
-        <p>A short lesson each day, and a speaking drill.</p>
-        <p class="agent">The agent teaches, one small step at a time.</p>
-      </li>
-      <li>
-        <span class="step">2 / 3</span>
-        <h2>Intermediate</h2>
-        <p>A vocabulary deck built from your own <em>that.</em>s, and graded readers.</p>
-        <p class="agent">The agent coaches: what to review, what to read next.</p>
-      </li>
-      <li>
-        <span class="step">3 / 3</span>
-        <h2>Advanced</h2>
-        <p>Mock tests against a target, and native material.</p>
-        <p class="agent">The agent examines and edits.</p>
-      </li>
-    </ol>
-    <footer>Only you move the stage; the agent may suggest it.</footer>
+    <ol id="stages"></ol>
+    <footer class="caption">Only you move the stage; the agent may suggest it.</footer>
+    <script type="module">
+      import { STAGES, moveTo, numbers, stageOf } from './language.js'
+
+      const list = document.getElementById('stages')
+      async function draw() {
+        const here = await stageOf(kit)
+        const cards = await kit.store.query('cards')
+        const reviews = ((await kit.store.get('progress', 'reviews')) ?? { reviews: [] }).reviews
+        const counts = numbers(cards, reviews)
+        const at = STAGES.indexOf(here)
+        list.replaceChildren(
+          ...STAGES.map((stage, i) => {
+            const item = document.createElement('li')
+            item.className = 'stage'
+            if (stage === here) item.setAttribute('aria-current', 'step')
+            item.innerHTML = `${stage === here ? '<span class="here">You are here</span>' : ''}<span class="position">${i + 1} / 3</span><h2></h2><p class="does"></p><p class="agent"></p>`
+            item.querySelector('h2').textContent = stage.title
+            item.querySelector('.does').textContent = stage.does
+            item.querySelector('.agent').textContent = stage.agent
+            if (stage === here) {
+              const box = document.createElement('div')
+              box.innerHTML = `<div class="numbers" aria-label="Your numbers">
+                <div><strong>${counts.cards}</strong><span class="caption">in the deck</span></div>
+                <div><strong>${counts.due}</strong><span class="caption">due now</span></div>
+                <div><strong>${counts.week}</strong><span class="caption">reviews this week</span></div>
+                <div><strong>${counts.retention === null ? '–' : counts.retention + '%'}</strong><span class="caption">remembered</span></div>
+              </div><p class="caption"></p>`
+              box.querySelector('p').textContent = stage.next
+              item.append(box)
+              const next = STAGES[at + 1]
+              const back = STAGES[at - 1]
+              const actions = document.createElement('div')
+              actions.className = 'row move'
+              if (next) {
+                const button = document.createElement('button')
+                button.className = 'ink'
+                button.textContent = `Move to ${next.title}`
+                button.addEventListener('click', () => moveTo(kit, next.id).then(draw))
+                actions.append(button)
+              }
+              if (back) {
+                const button = document.createElement('button')
+                button.className = 'quiet'
+                button.textContent = `Back to ${back.title}`
+                button.addEventListener('click', () => moveTo(kit, back.id).then(draw))
+                actions.append(button)
+              }
+              item.append(actions)
+            }
+            return item
+          }),
+        )
+      }
+      kit.store.onChange(draw)
+      draw()
+    </script>
   </body>
 </html>

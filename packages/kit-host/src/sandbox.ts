@@ -65,6 +65,7 @@ export function kitScript(deskOrigin: string): string {
   const desk = ${JSON.stringify(deskOrigin)}
   const sheet = new URLSearchParams(location.search).get('sheet') || ''
   const waiting = new Map()
+  const changes = new Set()
   let last = 0
   const call = (method, ...args) =>
     new Promise((resolve, reject) => {
@@ -75,7 +76,18 @@ export function kitScript(deskOrigin: string): string {
   addEventListener('message', (event) => {
     if (event.source !== parent || event.origin !== desk) return
     const data = event.data
-    if (!data || data.carrelKit !== 1 || !waiting.has(data.id)) return
+    if (!data || data.carrelKit !== 1) return
+    if (data.event === 'store.changed') {
+      for (const listener of changes) {
+        try {
+          listener(data.collection)
+        } catch (error) {
+          console.error(error)
+        }
+      }
+      return
+    }
+    if (!waiting.has(data.id)) return
     const { resolve, reject } = waiting.get(data.id)
     waiting.delete(data.id)
     if ('error' in data) reject(new Error(data.error))
@@ -88,6 +100,11 @@ export function kitScript(deskOrigin: string): string {
     delete: (collection, id) => call('store.delete', collection, id),
     restore: (collection, id) => call('store.restore', collection, id),
     query: (collection, options) => call('store.query', collection, options),
+    /** Calls back when any sheet of this kit changes the store (with the collection's name); returns a stop function. */
+    onChange: (listener) => {
+      changes.add(listener)
+      return () => changes.delete(listener)
+    },
   })
   const kit = Object.freeze({
     sheet,
