@@ -3357,3 +3357,8 @@ kbd {
   padding: 0 8px;
   font: var(--text-caption);
 }
+
+.tree-row kbd {
+  color: var(--ink-muted);
+  font-size: 10px;
+}

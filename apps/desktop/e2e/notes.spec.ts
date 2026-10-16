@@ -7,7 +7,7 @@ import { mkdtemp, readdir, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { quit, start } from './app.js'
+import { mod, quit, start } from './app.js'
 
 let home: string
 
@@ -124,6 +124,46 @@ test('link notes with [[ and see who links back', async () => {
   await editor.locator('.note-link', { hasText: 'Tax incidence' }).click()
   await expect(page.locator('.topbar .desk-name')).toHaveText('Tax incidence')
   await expect(page.locator('[aria-label="Linked here"] li')).toHaveText([/Exam plan/])
+  await page.evaluate(() => window.carrel.workspace.state())
+  await quit(app)
+})
+
+test('open a note by name, pin it, and write today’s note', async () => {
+  const { app, page } = await start(home)
+  const pinned = page.locator('.sidebar [aria-label="Pinned"]')
+
+  // ⌘O / Ctrl+O finds a note by part of its name; Enter opens it on its page.
+  await page.keyboard.press(`${mod}+KeyO`)
+  const open = page.getByRole('dialog', { name: 'Open a note' })
+  await open.getByLabel('Note name').fill('plan')
+  await expect(open.getByRole('option').first()).toHaveText(/Exam plan/)
+  await page.keyboard.press('Enter')
+  await expect(open).toHaveCount(0)
+  await expect(page.locator('.topbar .desk-name')).toHaveText('Exam plan')
+
+  // A name no note has makes a new note with it.
+  await page.keyboard.press(`${mod}+KeyO`)
+  await open.getByLabel('Note name').fill('Opportunity cost')
+  await expect(open.getByRole('option').last()).toHaveText('+New note “Opportunity cost”')
+  await page.keyboard.press('Shift+Enter')
+  await expect(page.locator('.note-page .ProseMirror h1')).toHaveText('Opportunity cost')
+
+  // Pin keeps a note at the top of the sidebar.
+  await page.getByRole('button', { name: 'Pin', exact: true }).click()
+  await expect(pinned.locator('.row.note')).toHaveText(['Opportunity cost'])
+  await page.getByRole('button', { name: 'Unpin' }).click()
+  await expect(pinned.locator('.row.note')).toHaveCount(0)
+
+  // Today's note (⌘⇧D / Ctrl+Shift+D) is made once, in Daily, named by the date.
+  await page.keyboard.press(`${mod}+Shift+KeyD`)
+  const today = await page.evaluate(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  })
+  await expect(page.locator('.note-page .ProseMirror h1')).toHaveText(today)
+  await expect(page.locator('.note-page-path')).toContainText('Daily')
+  await pinned.getByRole('button', { name: /Today’s note/ }).click()
+  await expect(page.locator('.sidebar [aria-label="Notes"]').getByRole('group', { name: 'Daily' }).locator('.row.note')).toHaveText([today])
   await page.evaluate(() => window.carrel.workspace.state())
   await quit(app)
 })

@@ -37,6 +37,8 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     createNote: (folder, title) => controller.createNote(folder === undefined || folder === null ? '' : text(folder), title === undefined || title === null ? undefined : text(title).slice(0, 200)),
     mentions: (id) => controller.mentions(text(id)),
     linkMention: (from, to) => controller.linkMention(text(from), text(to)),
+    pinNote: (id, pinned) => controller.pinNote(text(id), pinned === true),
+    dailyNote: () => controller.dailyNote(),
     noteFolders: () => controller.noteFolders(),
     createFolder: (path) => controller.createFolder(text(path)),
     renameFolder: (from, to) => controller.renameFolder(text(from), text(to)),

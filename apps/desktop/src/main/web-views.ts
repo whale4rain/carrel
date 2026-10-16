@@ -171,7 +171,7 @@ export class WebViews {
         this.window.webContents.send('web:shortcut', input.key === '+' ? '=' : input.key)
         return
       }
-      if (input.type === 'keyDown' && mod && !input.shift && !input.alt && (input.key === 'k' || input.key === 'j' || input.key === '\\' || input.key === '/')) {
+      if (input.type === 'keyDown' && mod && !input.shift && !input.alt && (input.key === 'k' || input.key === 'j' || input.key === 'o' || input.key === '\\' || input.key === '/')) {
         event.preventDefault()
         this.window.webContents.send('web:shortcut', input.key)
         return

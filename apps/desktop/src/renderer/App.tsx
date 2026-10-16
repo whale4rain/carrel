@@ -8,6 +8,7 @@ import { DeskPlane, type ShowRequest } from './DeskPlane.js'
 import { linkName, NOTE_CHANGED, resolveLink } from './NoteView.js'
 import { Library, type Shelf } from './Library.js'
 import { NotePage } from './NotePage.js'
+import { QuickOpen } from './QuickOpen.js'
 import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
@@ -39,6 +40,9 @@ export function App() {
   const [threadId, setThreadId] = useState(PROJECT_THREAD)
   const [sides, setSides] = useState<SideThread[]>([])
   const [searching, setSearching] = useState(false)
+  const [opening, setOpening] = useState(false)
+  // The menu's and keys' Today's note, which needs the latest actions.
+  const dailyRef = useRef<() => void>(() => undefined)
   const [talking, setTalking] = useState(false)
   const [keys, setKeys] = useState(false)
   // The sidebar folds away (⌘\ / Ctrl+\); remembered on this computer.
@@ -77,9 +81,9 @@ export function App() {
   // the shortcuts, from anywhere, even while writing.
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
-      if (!(event.metaKey || event.ctrlKey) || event.shiftKey || event.altKey) return
+      if (!(event.metaKey || event.ctrlKey) || event.altKey) return
       const key = event.key.toLowerCase()
-      if (!run(key)) return
+      if (event.shiftKey ? !(key === 'd' && run('daily')) : !run(key)) return
       event.preventDefault()
     }
     // The same keys from a live web page, and the menu bar's commands.
@@ -88,6 +92,8 @@ export function App() {
       else if (key === 'j' || key === 'agent') setTalking((now) => !now)
       else if (key === '\\' || key === 'sidebar') setSidebar((now) => !now)
       else if (key === '/' || key === 'shortcuts') setKeys((now) => !now)
+      else if (key === 'o' || key === 'open-note') setOpening((now) => !now)
+      else if (key === 'daily') dailyRef.current()
       else return false
       return true
     }
@@ -191,6 +197,11 @@ export function App() {
       openPage(note.id, true)
     },
     openNote: (id) => openPage(id),
+    dailyNote: async () => {
+      const today = await api.dailyNote()
+      addItems([today])
+      openPage(today.id, true)
+    },
     createFolder: async (path) => {
       await api.createFolder(path)
       setFolders(await api.noteFolders())
@@ -211,6 +222,10 @@ export function App() {
       setThreadId(id)
       setTalking(true)
     },
+  }
+
+  dailyRef.current = () => {
+    if (state?.open) void actions.dailyNote()
   }
 
   const open = state?.open
@@ -242,6 +257,7 @@ export function App() {
               onOpenThat={(id) => void openThat(id)}
               onOpenItem={openItem}
               onPutOnDesk={() => showOnDesk({ itemId: note.id, nonce: Date.now() })}
+              onPin={(pinned) => void api.pinNote(note.id, pinned).then((saved) => addItems([saved]))}
               onOpenLink={(target) => void openLink(target)}
               onLinked={(linked) => {
                 addItems([linked])
@@ -308,6 +324,19 @@ export function App() {
             />
           )}
           {keys && <ShortcutSheet onClose={() => setKeys(false)} />}
+          {opening && open && (
+            <QuickOpen
+              items={items}
+              onOpen={(id, onDesk) => (onDesk ? showOnDesk({ itemId: id, nonce: Date.now() }) : openPage(id))}
+              onCreate={(title) =>
+                void api.createNote('', title).then((made) => {
+                  addItems([made])
+                  openPage(made.id, true)
+                })
+              }
+              onClose={() => setOpening(false)}
+            />
+          )}
           {searching && open && <SearchPalette items={items} onOpen={openHit} onClose={() => setSearching(false)} />}
         </>
       )}
