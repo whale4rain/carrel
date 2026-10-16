@@ -41,8 +41,9 @@ import {
   type Workspace,
 } from '@carrel/core'
 import type { ItemText, ThatText } from '@carrel/agent'
+import { kitOrigin, ProjectKits, type KitManifest, type KitShelf } from '@carrel/kit-host'
 import type { ProposalView } from '../shared/agent-api.js'
-import type { DeskView, ItemView, NoteView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
+import type { DeskView, ItemView, KitView, NoteView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 
 /** Reads each page's text from a stored PDF. */
 export type PageReader = (path: string) => Promise<string[]>
@@ -60,10 +61,12 @@ export class ShellController {
   private readonly threads: Threads
   private readonly index: SearchIndex
   private readonly readPages: PageReader | undefined
+  private readonly kitShelf: KitShelf | undefined
+  private readonly projectKits: ProjectKits
   /** PDFs being read for search, by item. */
   private readonly reading = new Map<string, Promise<void>>()
 
-  constructor(workspace: Workspace, options: { readPages?: PageReader } = {}) {
+  constructor(workspace: Workspace, options: { readPages?: PageReader; kits?: KitShelf } = {}) {
     this.workspace = workspace
     this.library = new Library(workspace)
     this.anchors = new Anchors(workspace)
@@ -72,6 +75,8 @@ export class ShellController {
     this.threads = new Threads(workspace)
     this.index = new SearchIndex(workspace)
     this.readPages = options.readPages
+    this.kitShelf = options.kits
+    this.projectKits = new ProjectKits(workspace)
   }
 
   async state(): Promise<ShellState> {
@@ -130,12 +135,48 @@ export class ShellController {
     return view(await this.workspace.saveViewport(await this.openFolder(), id, { x, y, zoom }))
   }
 
-  /** The project's sources, then its notes (most recently changed first). */
+  /** The project's sources, then its notes (most recently changed first), then its kits' sheets. */
   async items(): Promise<ItemView[]> {
     const { open } = await this.state()
     if (!open) return []
     const sources = await this.citedItems(open.project)
-    return [...(await this.library.list(open.project)).map(itemView), ...(await this.notes.list(open.project)).map((note) => noteItem(note, sources))]
+    return [
+      ...(await this.library.list(open.project)).map(itemView),
+      ...(await this.notes.list(open.project)).map((note) => noteItem(note, sources)),
+      ...(await this.kitItems(open.project)),
+    ]
+  }
+
+  /** The kits installed on this computer, and whether the open project uses each. */
+  async kits(): Promise<KitView[]> {
+    if (!this.kitShelf) return []
+    const { open } = await this.state()
+    const used = new Set(open ? (await this.projectKits.list(open.project)).map((kit) => kit.name) : [])
+    return (await this.kitShelf.list()).kits.map((kit) => ({
+      name: kit.name,
+      title: kit.title,
+      description: kit.description,
+      sheets: kit.sheets.map((sheet) => ({ id: sheet.id, title: sheet.title })),
+      added: used.has(kit.name),
+    }))
+  }
+
+  /** Adds a kit to the open project (once); returns its sheets, ready for the desk. */
+  async addKit(name: string): Promise<ItemView[]> {
+    const folder = await this.openFolder()
+    const kit = await this.kitShelf?.get(name)
+    if (!kit) throw new Error(`There is no kit called "${name}" on this computer.`)
+    await this.projectKits.add(folder, kit)
+    return kitSheets(kit)
+  }
+
+  private async kitItems(folder: string): Promise<ItemView[]> {
+    if (!this.kitShelf) return []
+    const installed = new Map((await this.kitShelf.list()).kits.map((kit) => [kit.name, kit]))
+    return (await this.projectKits.list(folder)).flatMap((kit) => {
+      const manifest = installed.get(kit.name)
+      return manifest ? kitSheets(manifest) : []
+    })
   }
 
   async createNote(): Promise<ItemView> {
@@ -479,6 +520,16 @@ function itemView(item: ItemFile): ItemView {
   if (item.source.storage === 'linked') return { ...base, url: item.source.url }
   const bookmarks = item.bookmarks?.map(({ page, label }) => ({ page, label }))
   return { ...base, file: { name: item.source.file, size: item.source.size }, ...(bookmarks ? { bookmarks } : {}) }
+}
+
+/** A kit's sheets as items: "kit:language:stages", each served from the kit's own origin. */
+function kitSheets(kit: KitManifest): ItemView[] {
+  return kit.sheets.map((sheet) => ({
+    id: `kit:${kit.name}:${sheet.id}`,
+    kind: 'kit',
+    title: sheet.title,
+    kit: { name: kit.name, title: kit.title, sheet: sheet.id, url: `${kitOrigin(kit.name)}/${sheet.file}?sheet=${encodeURIComponent(sheet.id)}`, size: sheet.size },
+  }))
 }
 
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {

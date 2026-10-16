@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Stages</title>
+    <style>
+      html, body { margin: 0; height: 100%; }
+      body {
+        background: var(--paper);
+        color: var(--ink);
+        font: var(--text-body);
+        padding: var(--space-6);
+        box-sizing: border-box;
+      }
+      h1 { font: var(--text-title); margin: 0 0 var(--space-1); }
+      .lead { color: var(--ink-muted); margin: 0 0 var(--space-6); }
+      ol { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--space-3); }
+      li {
+        border: 1px solid var(--rule);
+        border-radius: var(--radius-sheet);
+        padding: var(--space-3) var(--space-4);
+      }
+      li[aria-current='step'] { border-color: var(--ink); }
+      .step { font: var(--text-position); color: var(--ink-muted); }
+      h2 { font: var(--text-heading); margin: var(--space-1) 0; }
+      p { margin: 0; }
+      .here { font: var(--text-label); color: var(--ink); float: right; }
+      .agent { font: var(--text-marginalia); color: var(--pencil); margin-top: var(--space-2); }
+      footer { margin-top: var(--space-6); font: var(--text-caption); color: var(--ink-muted); }
+    </style>
+  </head>
+  <body>
+    <h1>Language</h1>
+    <p class="lead">Three stages. You decide when to move on.</p>
+    <ol>
+      <li aria-current="step">
+        <span class="here">You are here</span>
+        <span class="step">1 / 3</span>
+        <h2>Beginner</h2>
+        <p>A short lesson each day, and a speaking drill.</p>
+        <p class="agent">The agent teaches, one small step at a time.</p>
+      </li>
+      <li>
+        <span class="step">2 / 3</span>
+        <h2>Intermediate</h2>
+        <p>A vocabulary deck built from your own <em>that.</em>s, and graded readers.</p>
+        <p class="agent">The agent coaches: what to review, what to read next.</p>
+      </li>
+      <li>
+        <span class="step">3 / 3</span>
+        <h2>Advanced</h2>
+        <p>Mock tests against a target, and native material.</p>
+        <p class="agent">The agent examines and edits.</p>
+      </li>
+    </ol>
+    <footer>Only you move the stage; the agent may suggest it.</footer>
+  </body>
+</html>

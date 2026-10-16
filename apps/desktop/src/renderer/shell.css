@@ -2946,3 +2946,51 @@ kbd {
   text-decoration-color: var(--rule);
   text-underline-offset: 2px;
 }
+
+/* Learning kits in the add menu: each kit, then its sheets. */
+.add-kits {
+  width: 300px;
+  gap: var(--space-1);
+}
+
+.add-kit + .add-kit {
+  border-top: 1px solid var(--rule);
+  padding-top: var(--space-1);
+}
+
+.add-kit-title {
+  margin: var(--space-2) var(--space-3) 0;
+  font: var(--text-label);
+}
+
+.add-kit-title small {
+  color: var(--ink-muted);
+  font: var(--text-caption);
+}
+
+.add-note {
+  margin: 0 var(--space-3) var(--space-1);
+  color: var(--ink-muted);
+  font: var(--text-caption);
+}
+
+.add-kit button {
+  width: 100%;
+}
+
+/* A kit's page fills its sheet below the label row. */
+.kit-view {
+  position: relative;
+  height: calc(100% - 36px);
+  border-top: 1px solid var(--rule);
+  background: var(--paper);
+}
+
+.kit-view iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+  background: var(--paper);
+}
