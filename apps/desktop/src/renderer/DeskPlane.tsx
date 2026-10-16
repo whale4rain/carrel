@@ -372,8 +372,8 @@ export function DeskPlane({
   const addFiles = (): void => addSources(api.chooseFiles().then((paths) => (paths.length > 0 ? api.addFiles(paths) : [])))
   const addLink = (url: string, at?: { x: number; y: number }): void => addSources(api.addLink(url).then((item) => [item]), at)
   // A kit's sheet: the kit joins the project first; a sheet already on the desk comes forward.
-  const addKit = (kit: string, sheetId: string): void => {
-    api.addKit(kit).then(
+  const addKit = (kit: string, sheetId: string, allow: boolean): void => {
+    api.addKit(kit, allow).then(
       (sheets) => {
         onItemsAdded(sheets)
         const chosen = sheets.find((sheet) => sheet.kit?.sheet === sheetId)

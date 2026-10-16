@@ -39,11 +39,13 @@ export function DeskNav(props: {
   onAddSheet: () => void
   onAddFiles: () => void
   onAddLink: (url: string) => void
-  /** Lays a kit's sheet on the desk, adding the kit to the project first if it isn't yet. */
-  onAddKit: (kit: string, sheet: string) => void
+  /** Lays a kit's sheet on the desk, adding the kit to the project first if it isn't yet; `allow` says yes to what it asks. */
+  onAddKit: (kit: string, sheet: string, allow: boolean) => void
 }) {
-  const [adding, setAdding] = useState<'menu' | 'link' | 'kits'>()
+  const [adding, setAdding] = useState<'menu' | 'link' | 'kits' | 'allow'>()
   const [kits, setKits] = useState<KitView[]>()
+  /** The kit sheet waiting for the person to allow what its kit asks. */
+  const [asking, setAsking] = useState<{ kit: KitView; sheet: string }>()
   const [link, setLink] = useState('')
   const [showMap, setShowMap] = useState(mapShown)
   // Only a drag that starts on the map moves the view; a resize passing over it does not.
@@ -195,8 +197,13 @@ export function DeskNav(props: {
                   type="button"
                   role="menuitem"
                   onClick={() => {
+                    if (kit.asks.length > 0) {
+                      setAsking({ kit, sheet: sheet.id })
+                      setAdding('allow')
+                      return
+                    }
                     setAdding(undefined)
-                    props.onAddKit(kit.name, sheet.id)
+                    props.onAddKit(kit.name, sheet.id, false)
                   }}
                 >
                   {sheet.title}
@@ -204,6 +211,40 @@ export function DeskNav(props: {
               ))}
             </div>
           ))}
+        </div>
+      )}
+      {adding === 'allow' && asking && (
+        <div
+          className="add-menu kit-allow"
+          role="dialog"
+          aria-label={`Allow ${asking.kit.title}`}
+          onKeyDown={(event) => {
+            if (event.key === 'Escape') setAdding(undefined)
+          }}
+        >
+          <p className="add-kit-title">{asking.kit.title} asks to</p>
+          <ul>
+            {asking.kit.asks.map((ask) => (
+              <li key={ask}>{ask}</li>
+            ))}
+          </ul>
+          <p className="add-note">It keeps its own things in this project. Anything else it changes comes to you as a suggestion first, and it never deletes.</p>
+          <div className="kit-allow-actions">
+            <button type="button" onClick={() => setAdding(undefined)}>
+              Not now
+            </button>
+            <button
+              type="button"
+              className="ink-button"
+              autoFocus
+              onClick={() => {
+                setAdding(undefined)
+                props.onAddKit(asking.kit.name, asking.sheet, true)
+              }}
+            >
+              Allow
+            </button>
+          </div>
         </div>
       )}
       {adding === 'link' && (

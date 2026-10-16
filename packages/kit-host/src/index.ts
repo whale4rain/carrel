@@ -1,4 +1,6 @@
 export { isKitPath, KIT_NEEDS, parseManifest, type KitManifest, type KitNeed, type KitSheet } from './manifest.js'
 export { KitShelf } from './shelf.js'
-export { ProjectKits, type ProjectKit } from './project-kits.js'
-export { KIT_DOMAIN, KIT_SCRIPT, kitOfHost, kitOrigin, kitPolicy, MARGIN_PATH, withMargin } from './sandbox.js'
+export { askLines, asksNothing, asksOf, ProjectKits, unanswered, type KitAsks, type ProjectKit } from './project-kits.js'
+export { KitStore, MAX_DOC_BYTES, MAX_DOCS, type StoreDoc } from './store.js'
+export { KitHost, type ProjectReaders, type ReadResult } from './host.js'
+export { KIT_DOMAIN, kitOfHost, kitOrigin, kitPolicy, kitScript, MARGIN_PATH, withMargin } from './sandbox.js'

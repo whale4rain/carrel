@@ -8,7 +8,9 @@ import type { KitManifest } from './manifest.js'
  * sources and notes, where its store will live:
  *
  * ~/Carrel/<project>/kits/<kit>/
- *   kit.json   which kit, the version added, who added it and when
+ *   kit.json   which kit, the version added, who added it and when, and
+ *              what the person allowed it beyond its own store
+ *   store/     its store (see store.ts)
  */
 export interface ProjectKit {
   format: typeof FORMAT
@@ -16,6 +18,47 @@ export interface ProjectKit {
   version: number
   addedBy: Actor
   addedAt: string
+  /** What the person allowed, once, for this project. */
+  allowed?: KitAsks & { at: string }
+}
+
+/** What a kit asks for beyond its own store. */
+export interface KitAsks {
+  reads: string[]
+  net: string[]
+  needs: string[]
+}
+
+/** What the manifest asks for. */
+export function asksOf(manifest: KitManifest): KitAsks {
+  return { reads: manifest.reads, net: manifest.net, needs: manifest.needs }
+}
+
+/** What the manifest asks for that the person hasn't allowed yet (empty lists when nothing is). */
+export function unanswered(manifest: KitManifest, kit: ProjectKit | undefined): KitAsks {
+  const allowed = kit?.allowed
+  const missing = (asked: string[], given: string[] | undefined): string[] => asked.filter((ask) => !given?.includes(ask))
+  return { reads: missing(manifest.reads, allowed?.reads), net: missing(manifest.net, allowed?.net), needs: missing(manifest.needs, allowed?.needs) }
+}
+
+export function asksNothing(asks: KitAsks): boolean {
+  return asks.reads.length === 0 && asks.net.length === 0 && asks.needs.length === 0
+}
+
+/** What each ask means, in words a person approves. */
+export function askLines(asks: KitAsks): string[] {
+  const reads: Record<string, string> = { notes: 'Read your notes in this project', sources: 'See the titles of your sources', thats: 'Read your that.s and the words they point at' }
+  const needs: Record<string, string> = {
+    'that.receive': 'Receive that.s you send it',
+    'agent.ask': 'Ask the agent questions (each one shows in the thread)',
+    'srs.schedule': 'Schedule reviews',
+    speak: 'Read words aloud',
+  }
+  return [
+    ...asks.reads.map((read) => reads[read] ?? `Read the store of the ${read.slice('kit:'.length)} kit`),
+    ...asks.needs.map((need) => needs[need] ?? need),
+    ...asks.net.map((host) => `Fetch from ${host}`),
+  ]
 }
 
 export class ProjectKits {
@@ -49,6 +92,16 @@ export class ProjectKits {
     await writeJson(join(this.dir(folder), manifest.name, 'kit.json'), kit)
     await this.workspace.event(folder, actor, 'kit.added', { name: kit.name, version: kit.version })
     return kit
+  }
+
+  /** Records that the person allowed what the kit asks for now. */
+  async allow(folder: string, manifest: KitManifest): Promise<ProjectKit> {
+    const kit = (await this.list(folder)).find((known) => known.name === manifest.name)
+    if (!kit) throw new Error(`The ${manifest.title} kit isn't in this project.`)
+    const allowed: ProjectKit = { ...kit, version: manifest.version, allowed: { ...asksOf(manifest), at: this.now().toISOString() } }
+    await writeJson(join(this.dir(folder), manifest.name, 'kit.json'), allowed)
+    await this.workspace.event(folder, 'user', 'kit.allowed', { name: kit.name, version: manifest.version, ...asksOf(manifest) })
+    return allowed
   }
 
   private dir(folder: string): string {
