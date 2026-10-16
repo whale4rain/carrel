@@ -1,8 +1,9 @@
-import { KIT_SCRIPT, kitOfHost, kitOrigin, kitPolicy, MARGIN_PATH, withMargin, type KitShelf } from '@carrel/kit-host'
+import { kitOfHost, kitOrigin, kitPolicy, kitScript, MARGIN_PATH, withMargin, type KitShelf } from '@carrel/kit-host'
 import { net, type Session } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { join, normalize, sep } from 'node:path'
 import { pathToFileURL } from 'node:url'
+import { DESK_ORIGIN } from './desk-origin.js'
 
 /**
  * Serves each kit at its own origin, https://<kit>.kit.carrel.app: its pages
@@ -22,7 +23,7 @@ export function kitResponder(shelf: KitShelf, marginDir: string): (request: Requ
 
 async function respond(shelf: KitShelf, marginDir: string, kit: string, path: string): Promise<Response> {
   const headers = { 'content-security-policy': kitPolicy(kit), 'x-content-type-options': 'nosniff' }
-  if (path === `${MARGIN_PATH}kit.js`) return new Response(KIT_SCRIPT, { headers: { ...headers, 'content-type': 'text/javascript; charset=utf-8' } })
+  if (path === `${MARGIN_PATH}kit.js`) return new Response(kitScript(DESK_ORIGIN), { headers: { ...headers, 'content-type': 'text/javascript; charset=utf-8' } })
   if (path.startsWith(MARGIN_PATH)) {
     const file = normalize(join(marginDir, path.slice(MARGIN_PATH.length)))
     if (!file.startsWith(marginDir.endsWith(sep) ? marginDir : marginDir + sep)) return notFound(kit)

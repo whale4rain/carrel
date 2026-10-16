@@ -1,7 +1,7 @@
 // A learning kit's sheet on the desk: added from the add menu, drawn in
 // Margin inside a sandbox that can't reach the network or Carrel, and back
 // after a restart. Run `pnpm build` first.
-import { mkdtemp, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Frame, type Page } from '@playwright/test'
@@ -17,9 +17,10 @@ test.afterAll(async () => {
   await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
 
-async function kitFrame(page: Page): Promise<Frame> {
-  await expect.poll(() => page.frames().some((frame) => frame.url().startsWith('https://language.kit.carrel.app/'))).toBe(true)
-  return page.frames().find((frame) => frame.url().startsWith('https://language.kit.carrel.app/'))!
+async function kitFrame(page: Page, kit = 'language'): Promise<Frame> {
+  const origin = `https://${kit}.kit.carrel.app/`
+  await expect.poll(() => page.frames().some((frame) => frame.url().startsWith(origin))).toBe(true)
+  return page.frames().find((frame) => frame.url().startsWith(origin))!
 }
 
 test('lay a learning kit on the desk, in its sandbox', async () => {
@@ -86,4 +87,74 @@ test('lay a learning kit on the desk, in its sandbox', async () => {
   await expect(again.page.locator('.sheet[data-kind="kit"] .sheet-title')).toHaveText('Stages')
   await expect((await kitFrame(again.page)).locator('h1')).toHaveText('Language')
   await quit(again.app)
+})
+
+// A kit made on this computer, in ~/.carrel/kits: a counter kept in its store.
+const COUNTER = `<!doctype html>
+<html><head><style>body { background: var(--paper); color: var(--ink); font: var(--text-body); padding: var(--space-4); }</style></head>
+<body>
+  <p>Clicked <output id="n">…</output> times.</p>
+  <button id="add">Count</button>
+  <script>
+    const show = async () => {
+      document.getElementById('n').textContent = String((await kit.store.get('counts', 'clicks')) ?? 0)
+    }
+    document.getElementById('add').addEventListener('click', async () => {
+      await kit.store.set('counts', 'clicks', ((await kit.store.get('counts', 'clicks')) ?? 0) + 1)
+      await show()
+    })
+    show()
+  </script>
+</body></html>`
+
+test('a kit keeps its own store, and asks before it reads the project', async () => {
+  const own = await mkdtemp(join(tmpdir(), 'carrel-e2e-'))
+  const folder = join(own, '.carrel', 'kits', 'counter')
+  await mkdir(folder, { recursive: true })
+  await writeFile(
+    join(folder, 'kit.json'),
+    JSON.stringify({ name: 'counter', title: 'Counter', description: 'Counts.', sheets: [{ id: 'count', title: 'Count', file: 'count.html', size: { w: 320, h: 240 } }], store: { counts: { schemaVersion: 1 } }, reads: ['thats'] }),
+  )
+  await writeFile(join(folder, 'count.html'), COUNTER)
+  const { app, page } = await start(own)
+  await page.getByLabel('Project name').fill('Counting')
+  await page.getByRole('button', { name: 'Create project' }).click()
+
+  // It asks first; "Not now" adds nothing.
+  const pick = async (): Promise<void> => {
+    await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+    await page.locator('.add-menu button', { hasText: 'Learning kit' }).click()
+    await page.getByRole('menu', { name: 'Learning kits' }).getByRole('menuitem', { name: 'Count' }).click()
+  }
+  await pick()
+  const asking = page.getByRole('dialog', { name: 'Allow Counter' })
+  await expect(asking.locator('li')).toHaveText(['Read your that.s and the words they point at'])
+  await asking.getByRole('button', { name: 'Not now' }).click()
+  await expect(page.locator('.sheet[data-kind="kit"]')).toHaveCount(0)
+  await pick()
+  await asking.getByRole('button', { name: 'Allow' }).click()
+
+  const frame = await kitFrame(page, 'counter')
+  await expect(frame.locator('#n')).toHaveText('0')
+  await frame.locator('#add').click()
+  await frame.locator('#add').click()
+  await expect(frame.locator('#n')).toHaveText('2')
+
+  // What it was allowed works; anything else is refused in plain words.
+  expect(await frame.evaluate(() => (window as unknown as { kit: { read: (what: string) => Promise<unknown> } }).kit.read('thats'))).toEqual({ from: 'thats', items: [] })
+  expect(await frame.evaluate(() => (window as unknown as { kit: { read: (what: string) => Promise<unknown> } }).kit.read('notes').catch((error: Error) => error.message))).toBe(`This kit's manifest doesn't ask to read "notes".`)
+  expect(
+    await frame.evaluate(() =>
+      (window as unknown as { kit: { store: { set: (c: string, id: string, v: unknown) => Promise<unknown> } } }).kit.store.set('notes', 'x', 1).catch((error: Error) => error.message),
+    ),
+  ).toBe('This kit has no "notes" collection in its manifest.')
+
+  // Its store is with the project, and the count is there after a restart.
+  await page.waitForTimeout(800)
+  await page.evaluate(() => window.carrel.workspace.state())
+  await quit(app)
+  const again = await start(own)
+  await expect((await kitFrame(again.page, 'counter')).locator('#n')).toHaveText('2')
+  await quit(again.app)
+  await rm(own, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
