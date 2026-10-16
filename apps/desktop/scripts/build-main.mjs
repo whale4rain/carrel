@@ -29,3 +29,5 @@ await Promise.all([
     outfile: fileURLToPath(new URL('../out/preload.cjs', import.meta.url)),
   }),
 ])
+
+await import('./build-kit-assets.mjs')

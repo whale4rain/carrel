@@ -9,6 +9,13 @@ export const SHEET_FOR: Record<ViewKind | 'blank', { w: number; h: number; scale
   web_page: { w: 960, h: 680, scale: 0.6 },
   video: { w: 640, h: 400, scale: 0.8 },
   note: { w: 420, h: 520, scale: 1 },
+  kit: { w: 420, h: 520, scale: 1 },
+}
+
+/** A new sheet's size for an item: a kit's sheet says its own. */
+export function sheetFor(item: ItemView | null | undefined): { w: number; h: number; scale: number } {
+  if (item?.kit) return { ...item.kit.size, scale: 1 }
+  return SHEET_FOR[item?.kind ?? 'blank']
 }
 
 export const KIND_LABEL: Record<ViewKind, string> = {
@@ -17,6 +24,12 @@ export const KIND_LABEL: Record<ViewKind, string> = {
   web_page: 'Web page',
   video: 'Video',
   note: 'Note',
+  kit: 'Kit',
+}
+
+/** What a sheet's label row calls its kind: "Book", or a kit's name. */
+export function kindLabel(item: ItemView): string {
+  return item.kit?.title ?? KIND_LABEL[item.kind]
 }
 
 /** "PDF · 1.2 MB", "Markdown · 4 KB", or the link's host. */
@@ -50,6 +63,7 @@ const NOUN: Record<ViewKind, string> = {
   web_page: 'web page',
   video: 'video',
   note: 'note',
+  kit: 'kit sheet',
 }
 
 /** What a note cites, in words: "Cites a paper and two videos." */

@@ -1,0 +1,14 @@
+{
+  "name": "language",
+  "title": "Language",
+  "description": "Learn a language in three stages: lessons, then a deck from your own reading, then tests and native material.",
+  "version": 1,
+  "sheets": [
+    { "id": "stages", "title": "Stages", "file": "sheets/stages.html", "size": { "w": 420, "h": 640 } }
+  ],
+  "store": {},
+  "scripts": [],
+  "reads": [],
+  "net": [],
+  "needs": []
+}

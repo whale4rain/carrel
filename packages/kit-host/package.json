@@ -1,0 +1,16 @@
+{
+  "name": "@carrel/kit-host",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Learning kits: manifests, the kits a project uses, and serving their sheets in a sandbox.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@carrel/core": "workspace:*"
+  }
+}

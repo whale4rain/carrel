@@ -1,12 +1,14 @@
 import { carrelRoots, Workspace } from '@carrel/core'
+import { KitShelf } from '@carrel/kit-host'
 import { isTheme, type Theme } from '@carrel/margin'
-import { app, BrowserWindow, ipcMain, nativeTheme, webContents, type WebContents } from 'electron'
+import { app, BrowserWindow, ipcMain, nativeTheme, session, webContents, type WebContents } from 'electron'
 import { writeFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { frameFor } from '../shared/frame.js'
 import { DESK_ORIGIN, deskUrl, serveDesk } from './desk-origin.js'
+import { keepKitsHome, kitResponder } from './kit-origin.js'
 import { pdfPages } from './pdf-text.js'
 import { ShellController } from './shell-state.js'
 import { titleBarOverlay, windowOptions } from './window-options.js'
@@ -37,7 +39,9 @@ const workspace = new Workspace(carrelRoots(process.env.CARREL_HOME ?? homedir()
 // It also keeps the browser's own data (remembered view choices, web sign-ins) there,
 // so a check starts clean and leaves nothing behind.
 if (process.env.CARREL_HOME) app.setPath('userData', join(workspace.roots.internal, 'electron'))
-const controller = new ShellController(workspace, { readPages: pdfPages })
+// Learning kits: the first-party ones built beside the app, then ones made on this computer.
+const kitShelf = new KitShelf([join(outDir, 'kits'), join(workspace.roots.internal, 'kits')])
+const controller = new ShellController(workspace, { readPages: pdfPages, kits: kitShelf })
 
 // Each window's web pages, by its renderer.
 const webViews = new Map<number, WebViews>()
@@ -593,7 +597,8 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
 app.whenReady().then(async () => {
   // A packaged Mac app shows the bundle's .icns; in development the dock would show Electron's.
   if (process.platform === 'darwin' && !app.isPackaged) app.dock?.setIcon(join(iconDir, 'icon-mac.png'))
-  serveDesk(fileURLToPath(new URL('renderer', import.meta.url)))
+  serveDesk(fileURLToPath(new URL('renderer', import.meta.url)), kitResponder(kitShelf, join(outDir, 'kit-margin')))
+  keepKitsHome(session.defaultSession)
   setAppMenu(process.platform)
   const settled = serveWorkspace(controller)
   const stopAgent = serveAgent(workspace, controller)
