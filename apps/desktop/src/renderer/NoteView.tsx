@@ -97,6 +97,7 @@ export function NoteView({
   onSaved,
   onOpenThat,
   cites,
+  onDoc,
 }: {
   item: ItemView
   write: boolean
@@ -105,6 +106,8 @@ export function NoteView({
   onSaved: (item: ItemView) => void
   /** A chip in the note was clicked: open the spot it points at. */
   onOpenThat: (id: string) => void
+  /** The note's text as it is now: once loaded, then after each change. */
+  onDoc?: (doc: NoteDoc) => void
 }) {
   const [error, setError] = useState<string>()
   // Edits count only once the note's own text is in.
@@ -116,6 +119,8 @@ export function NoteView({
   savedRef.current = onSaved
   const openRef = useRef(onOpenThat)
   openRef.current = onOpenThat
+  const docRef = useRef(onDoc)
+  docRef.current = onDoc
 
   const flush = (): void => {
     window.clearTimeout(timer.current)
@@ -159,6 +164,7 @@ export function NoteView({
     onUpdate: ({ editor: changed }) => {
       if (!ready.current) return
       pending.current = changed.getJSON() as NoteDoc
+      docRef.current?.(pending.current)
       window.clearTimeout(timer.current)
       timer.current = window.setTimeout(() => flushRef.current(), SAVE_AFTER)
     },
@@ -184,6 +190,7 @@ export function NoteView({
       editor.commands.setContent(note.doc.content.length > 0 ? (note.doc as JSONContent) : EMPTY, { emitUpdate: false })
       ready.current = true
       setLoaded(true)
+      docRef.current?.(editor.getJSON() as NoteDoc)
     })
     return () => {
       current = false

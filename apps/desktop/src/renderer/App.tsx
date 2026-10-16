@@ -7,6 +7,7 @@ import { AgentPanel, NEW_SIDE } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
 import { NOTE_CHANGED } from './NoteView.js'
 import { Library, type Shelf } from './Library.js'
+import { NotePage } from './NotePage.js'
 import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
@@ -21,6 +22,18 @@ export function App() {
   const [items, setItems] = useState<ReadonlyMap<string, ItemView>>(new Map())
   // What the sidebar or search asked the desk to show.
   const [show, setShow] = useState<ShowRequest>()
+  // The note open on its own page, in place of the desk; `write` puts the cursor in it.
+  const [page, setPage] = useState<{ note: string; write: boolean }>()
+  const [folders, setFolders] = useState<string[]>([])
+  const openPage = (note: string, write = false): void => {
+    setShow(undefined)
+    setPage({ note, write })
+  }
+  // Something to show on the desk brings the desk back.
+  const showOnDesk = (request: ShowRequest): void => {
+    setPage(undefined)
+    setShow(request)
+  }
   const [focusTurn, setFocusTurn] = useState<{ id: string; nonce: number }>()
   // The thread the panel shows, and the project's side threads.
   const [threadId, setThreadId] = useState(PROJECT_THREAD)
@@ -99,14 +112,14 @@ export function App() {
       setThreadId(that.itemId.slice('thread:'.length))
       setTalking(true)
       setFocusTurn({ id: turn.value.slice('turn='.length), nonce: Date.now() })
-    } else setShow({ itemId: that.itemId, nonce: Date.now(), that: that.id })
+    } else showOnDesk({ itemId: that.itemId, nonce: Date.now(), that: that.id })
   }
   const openHit = (hit: SearchHitView): void => {
     const nonce = Date.now()
     if (hit.kind === 'that' && hit.itemId?.startsWith('thread:')) void openThat(hit.id)
-    else if (hit.kind === 'that' && hit.itemId) setShow({ itemId: hit.itemId, nonce, that: hit.id })
-    else if (hit.kind === 'page' && hit.itemId && hit.page !== undefined) setShow({ itemId: hit.itemId, nonce, page: hit.page })
-    else setShow({ itemId: hit.id, nonce })
+    else if (hit.kind === 'that' && hit.itemId) showOnDesk({ itemId: hit.itemId, nonce, that: hit.id })
+    else if (hit.kind === 'page' && hit.itemId && hit.page !== undefined) showOnDesk({ itemId: hit.itemId, nonce, page: hit.page })
+    else openItem(hit.id)
   }
 
   useEffect(() => {
@@ -120,13 +133,20 @@ export function App() {
     let current = true
     setThreadId(PROJECT_THREAD)
     void window.carrel.agent.sides().then((list) => current && setSides(list))
+    setPage(undefined)
     void api.items().then((list) => {
       if (current) setItems(new Map(list.map((item) => [item.id, item])))
     })
+    void api.noteFolders().then((list) => current && setFolders(list))
     return () => {
       current = false
     }
   }, [project])
+  // A note opens on its own page; a source on the desk.
+  const openItem = (id: string): void => {
+    if (items.get(id)?.kind === 'note') openPage(id)
+    else showOnDesk({ itemId: id, nonce: Date.now() })
+  }
   const addItems = (added: ItemView[]): void => setItems((known) => new Map([...known, ...added.map((item) => [item.id, item] as const)]))
 
   // A web page can rename its item once it loads.
@@ -136,14 +156,30 @@ export function App() {
   const actions: WorkspaceActions = {
     openProject: async (name) => setState(await api.openProject(name)),
     createProject: async (name) => setState(await api.createProject(name)),
-    openDesk: async (id) => setState(await api.openDesk(id)),
-    createDesk: async (name) => setState(await api.createDesk(name)),
-    createNote: async () => {
-      const note = await api.createNote()
-      addItems([note])
-      setShow({ itemId: note.id, nonce: Date.now(), write: true })
+    openDesk: async (id) => {
+      setPage(undefined)
+      setState(await api.openDesk(id))
     },
-    openNote: (id) => setShow({ itemId: id, nonce: Date.now(), write: true }),
+    createDesk: async (name) => setState(await api.createDesk(name)),
+    createNote: async (folder) => {
+      const note = await api.createNote(folder)
+      addItems([note])
+      openPage(note.id, true)
+    },
+    openNote: (id) => openPage(id),
+    createFolder: async (path) => {
+      await api.createFolder(path)
+      setFolders(await api.noteFolders())
+    },
+    renameFolder: async (from, to) => {
+      await api.renameFolder(from, to)
+      const [list, inside] = await Promise.all([api.items(), api.noteFolders()])
+      setItems(new Map(list.map((item) => [item.id, item])))
+      setFolders(inside)
+    },
+    moveNote: async (id, folder) => {
+      addItems([await api.moveNote(id, folder)])
+    },
     search: () => setSearching(true),
     openLibrary: (shelf) => setLibrary(shelf),
     openShortcuts: () => setKeys(true),
@@ -155,6 +191,7 @@ export function App() {
 
   const open = state?.open
   const desk = open?.desks.find((entry) => entry.id === open.desk)
+  const note = page ? items.get(page.note) : undefined
 
   return (
     <div className="shell" data-carrel-shell={state ? '' : undefined} data-frame={frame} data-agent={talking && open ? '' : undefined} data-sidebar={sidebar ? undefined : 'hidden'}>
@@ -170,9 +207,19 @@ export function App() {
       )}
       {state && (
         <>
-          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} sides={sides} thread={talking ? threadId : undefined} />}
-          <TopBar frame={frame} project={open?.project} desk={desk?.name} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
-          {open && desk ? <DeskPlane
+          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} folders={folders} note={note?.id} sides={sides} thread={talking ? threadId : undefined} />}
+          <TopBar frame={frame} project={open?.project} desk={note ? note.title : desk?.name} place={note ? 'note' : 'desk'} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
+          {open && note ? (
+            <NotePage
+              note={note}
+              items={items}
+              write={page?.write === true}
+              onSaved={(saved) => addItems([saved])}
+              onOpenThat={(id) => void openThat(id)}
+              onOpenItem={openItem}
+              onPutOnDesk={() => showOnDesk({ itemId: note.id, nonce: Date.now() })}
+            />
+          ) : open && desk ? <DeskPlane
               key={desk.id}
               deskId={desk.id}
               name={desk.name}
@@ -198,7 +245,7 @@ export function App() {
               onUnpoint={(id) => setPointing((now) => now.filter((that) => that.id !== id))}
               onAsked={() => setPointing([])}
               onOpenThat={(id) => void openThat(id)}
-              onOpenItem={(id) => setShow({ itemId: id, nonce: Date.now() })}
+              onOpenItem={openItem}
               onAccepted={(item) => {
                 addItems([item])
                 // The desk stays as you left it; an open note shows what was added.
@@ -208,12 +255,12 @@ export function App() {
               prompt={prompt}
               onAddToNote={async (turnId, thread) => {
                 // The note selected on the desk, or a new one laid on the desk.
-                const selected = deskContext.current?.selected.find((id) => items.get(id)?.kind === 'note')
-                const note = await window.carrel.agent.addToNote(turnId, selected, thread)
-                addItems([note])
-                window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: note.id }))
-                if (!selected) setShow({ itemId: note.id, nonce: Date.now() })
-                return note
+                const selected = note?.id ?? deskContext.current?.selected.find((id) => items.get(id)?.kind === 'note')
+                const added = await window.carrel.agent.addToNote(turnId, selected, thread)
+                addItems([added])
+                window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: added.id }))
+                if (!selected) showOnDesk({ itemId: added.id, nonce: Date.now() })
+                return added
               }}
               onClose={() => setTalking(false)}
             />
@@ -225,7 +272,7 @@ export function App() {
               onDesk={new Set(deskContext.current?.items ?? [])}
               onOpen={(item) => {
                 setLibrary(undefined)
-                setShow({ itemId: item.id, nonce: Date.now() })
+                openItem(item.id)
               }}
               onClose={() => setLibrary(undefined)}
             />

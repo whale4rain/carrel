@@ -370,6 +370,17 @@ export function DeskPlane({
   }
   const addFiles = (): void => addSources(api.chooseFiles().then((paths) => (paths.length > 0 ? api.addFiles(paths) : [])))
   const addLink = (url: string, at?: { x: number; y: number }): void => addSources(api.addLink(url).then((item) => [item]), at)
+  // A new note laid on this desk, ready to write in.
+  const addNote = (): void => {
+    api.createNote().then(
+      (note) => {
+        onItemsAdded([note])
+        showItem(note, true)
+        setError(undefined)
+      },
+      (reason: unknown) => setError(message(reason)),
+    )
+  }
 
   // A link pasted anywhere but a field becomes a source.
   useEffect(() => {
@@ -1339,6 +1350,7 @@ export function DeskPlane({
           onFit={fit}
           onTidy={tidyUp}
           onAddSheet={addSheet}
+          onAddNote={addNote}
           onAddFiles={addFiles}
           onAddLink={addLink}
         />

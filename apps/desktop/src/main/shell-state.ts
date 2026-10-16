@@ -138,8 +138,25 @@ export class ShellController {
     return [...(await this.library.list(open.project)).map(itemView), ...(await this.notes.list(open.project)).map((note) => noteItem(note, sources))]
   }
 
-  async createNote(): Promise<ItemView> {
-    return noteItem(await this.notes.create(await this.openFolder()), new Map())
+  async createNote(folder = ''): Promise<ItemView> {
+    return noteItem(await this.notes.create(await this.openFolder(), undefined, 'user', folder), new Map())
+  }
+
+  async noteFolders(): Promise<string[]> {
+    return this.notes.folders(await this.openFolder())
+  }
+
+  async createFolder(path: string): Promise<string> {
+    return this.notes.createFolder(await this.openFolder(), path)
+  }
+
+  async renameFolder(from: string, to: string): Promise<string> {
+    return this.notes.renameFolder(await this.openFolder(), from, to)
+  }
+
+  async moveNote(id: string, to: string): Promise<ItemView> {
+    const folder = await this.openFolder()
+    return noteItem(await this.notes.move(folder, id, to), await this.citedItems(folder))
   }
 
   async note(id: string): Promise<NoteView> {
@@ -484,7 +501,7 @@ function itemView(item: ItemFile): ItemView {
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {
   // Turns of a thread are not sources.
   const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) && !threadOf(sources.get(that)!) ? [sources.get(that)!] : [])))]
-  return { id: note.id, kind: 'note', title: note.title, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
+  return { id: note.id, kind: 'note', title: note.title, folder: note.folder, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
 }
 
 function noteView(note: NoteFile): NoteView {

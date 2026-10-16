@@ -365,8 +365,9 @@ async function deskInteractions(
   if (!(await waitFor("window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.image && that.selectors.some((s) => s.value?.startsWith('xywh=percent:'))))"))) {
     return `the region was not kept: ${String(await page("document.querySelector('.desk-error')?.textContent ?? 'no message'"))}`
   }
-  // A note from the sidebar: it lands on the desk ready to write in, and saves itself.
-  await page("[...document.querySelectorAll('[aria-label=\"Notes\"] button')].find((b) => b.textContent === '+ New note')?.click()")
+  // A note from the desk's + Add: it lands on the desk ready to write in, and saves itself.
+  await page("[...document.querySelectorAll('.desk-tools button')].find((b) => b.textContent === '+ Add')?.click()")
+  await page("[...document.querySelectorAll('.add-menu [role=menuitem]')].find((b) => b.textContent.startsWith('Note'))?.click()")
   if (!(await waitFor("document.activeElement?.closest('.sheet[data-kind=\"note\"] .ProseMirror') != null"))) return 'a new note did not take the keyboard'
   window.webContents.insertText(NOTE_TITLE)
   // The line under the title is already there; put the caret in it (a sent Enter is unreliable on a Mac runner).
@@ -431,9 +432,9 @@ async function deskInteractions(
   if (!(await waitFor("document.querySelectorAll('.agent-me .that-chip').length >= 2 && document.querySelector('.agent-pointing') === null"))) {
     return 'the question did not keep the chips it pointed at'
   }
-  // Select the note from the sidebar, then the answer's chip selects the PDF again.
+  // Open the note from the sidebar on its own page, then the answer's chip brings the desk back with the PDF selected.
   await page(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].find((row) => row.textContent === '${NOTE_TITLE}').click()`)
-  if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"][data-selected]') !== null"))) return 'the sidebar did not bring the note forward'
+  if (!(await waitFor("document.querySelector('.note-page .ProseMirror h1') !== null"))) return 'the sidebar did not open the note on its page'
   await page("document.querySelector('.agent-text .that-chip').click()")
   if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null"))) return 'the chip in the answer did not open the PDF'
   // Asked for a note, the agent proposes one in pencil; nothing is written until Tab accepts it.
@@ -552,12 +553,13 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
       return fail('the sidebar did not list the note after a restart')
     }
-    // Its chip opens the PDF at the word it cites. The note is brought forward from the sidebar first,
-    // since other sheets on a small window can cover it.
+    // Its chip opens the PDF at the word it cites. The note is opened on its own page from the sidebar first,
+    // since other sheets on a small window can cover it on the desk.
     await page(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].find((row) => row.textContent === '${NOTE_TITLE}').click()`)
-    if (!(await waitFor("document.querySelector('.sheet[data-kind=\"note\"][data-selected]') !== null"))) return fail('the sidebar did not bring the note forward')
+    const onPage = "document.querySelector('.note-page .ProseMirror')"
+    if (!(await waitFor(`${onPage}?.querySelector('.note-chip') != null`))) return fail('the sidebar did not open the note on its page')
     await new Promise((resolve) => setTimeout(resolve, 300))
-    const at = await page<{ x: number; y: number }>(`(() => { const r = ${note}.querySelector('.note-chip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
+    const at = await page<{ x: number; y: number }>(`(() => { const r = ${onPage}.querySelector('.note-chip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
     for (const type of ['mouseDown', 'mouseUp'] as const) window.webContents.sendInputEvent({ type, x: at.x, y: at.y, button: 'left', clickCount: 1 })
     if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null && CSS.highlights.get('that-active')?.size === 1"))) {
       const hit = await page<string>(`(() => { const e = document.elementFromPoint(${at.x}, ${at.y}); return (e?.className ?? 'none') + ' in ' + (e?.closest('.sheet')?.getAttribute('data-kind') ?? 'no sheet') })()`)

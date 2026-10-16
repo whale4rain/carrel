@@ -36,6 +36,7 @@ export function DeskNav(props: {
   onFit: () => void
   onTidy: () => void
   onAddSheet: () => void
+  onAddNote: () => void
   onAddFiles: () => void
   onAddLink: (url: string) => void
 }) {
@@ -131,6 +132,17 @@ export function DeskNav(props: {
       </div>
       {adding === 'menu' && (
         <div className="add-menu" role="menu">
+          <button
+            type="button"
+            role="menuitem"
+            onClick={() => {
+              setAdding(undefined)
+              props.onAddNote()
+            }}
+          >
+            Note
+            <small>A new note on this desk</small>
+          </button>
           <button
             type="button"
             role="menuitem"

@@ -9,11 +9,13 @@ interface Props {
   onCancel?(): void
   /** `inline` sits in a sidebar row; `form` stands alone with an ink button. */
   variant: 'inline' | 'form'
+  /** The name it starts with, when renaming. */
+  initial?: string
 }
 
 /** A name, typed and confirmed with Enter (or the button); Esc cancels. */
-export function NameField({ label, placeholder, submit, onSubmit, onCancel, variant }: Props) {
-  const [name, setName] = useState('')
+export function NameField({ label, placeholder, submit, onSubmit, onCancel, variant, initial = '' }: Props) {
+  const [name, setName] = useState(initial)
   const [error, setError] = useState<string>()
   const [busy, setBusy] = useState(false)
 
@@ -45,7 +47,7 @@ export function NameField({ label, placeholder, submit, onSubmit, onCancel, vari
           if (event.key === 'Escape') onCancel?.()
         }}
         onBlur={() => {
-          if (variant === 'inline' && name.trim() === '') onCancel?.()
+          if (variant === 'inline' && (name.trim() === '' || name === initial)) onCancel?.()
         }}
       />
       {variant === 'form' && (

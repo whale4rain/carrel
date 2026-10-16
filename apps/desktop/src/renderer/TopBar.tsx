@@ -6,6 +6,8 @@ interface Props {
   frame: Frame
   project: string | undefined
   desk: string | undefined
+  /** What is open: a desk, or a note on its own page. */
+  place?: 'desk' | 'note'
   /** Whether the agent's thread is open beside the desk. */
   agentOpen: boolean
   onAgent: () => void
@@ -15,7 +17,7 @@ interface Props {
 }
 
 /** Where you are, and the agent one shortcut away. */
-export function TopBar({ frame, project, desk, agentOpen, onAgent, sidebarOpen, onSidebar }: Props) {
+export function TopBar({ frame, project, desk, place = 'desk', agentOpen, onAgent, sidebarOpen, onSidebar }: Props) {
   return (
     <header className="topbar">
       <button
@@ -32,7 +34,7 @@ export function TopBar({ frame, project, desk, agentOpen, onAgent, sidebarOpen, 
         <>
           <span className="crumb">{project} /</span>
           <h1 className="desk-name">{desk}</h1>
-          <span className="crumb">desk</span>
+          <span className="crumb">{place}</span>
         </>
       ) : (
         <h1 className="desk-name">Carrel</h1>
