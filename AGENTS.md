@@ -126,7 +126,8 @@ packages/core     Carrel data model and workspace files, on tnega
 packages/agent    The agent: each project's thread on tnega, Carrel's tools, the cost meter
 packages/desk     Desk engine: sheet geometry, snapping, selection (pure, no DOM)
 packages/margin   Margin tokens and components
-kits/             First-party learning kits (later)
+packages/kit-host Learning kits: manifests, the kits a project uses, the sandbox they run in
+kits/             First-party learning kits (each a folder with kit.json and its pages)
 ```
 
 tnega comes from npm as the `tnega` package; import its parts by subpath
