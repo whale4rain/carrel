@@ -1,8 +1,8 @@
 // What the renderer sees of projects and desks, and how it asks for changes.
 // Main owns the files; the renderer only gets summaries back.
-import type { ItemKind, NoteDoc, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
+import type { ItemKind, NoteDoc, NoteViewSpec, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
 
-export type { ItemKind, NoteDoc, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport }
+export type { ItemKind, NoteDoc, NoteViewSpec, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport }
 
 /** What can sit on a sheet: a source, or a note. */
 export type ViewKind = ItemKind | 'note' | 'kit'
@@ -159,6 +159,13 @@ export interface WorkspaceApi {
   createNote(folder?: string, title?: string): Promise<ItemView>
   /** The notes that link to a note, and those that name it without a link. */
   mentions(id: string): Promise<{ linked: MentionView[]; unlinked: MentionView[] }>
+  /** The project's saved views of notes. */
+  noteViews(): Promise<NoteViewSpec[]>
+  /** A new view showing every note. */
+  createView(name: string): Promise<NoteViewSpec>
+  /** Writes a view's name, filters, sort, columns or layout. */
+  saveView(view: NoteViewSpec): Promise<NoteViewSpec>
+  deleteView(id: string): Promise<void>
   /** Sets a note's property, or takes it away (`null`). */
   setProperty(id: string, key: string, value: PropertyValue | null): Promise<ItemView>
   /** Pins a note to the top of the sidebar, or lets it go. */
@@ -267,6 +274,10 @@ export const workspaceChannels = {
   linkMention: 'workspace:link-mention',
   pinNote: 'workspace:pin-note',
   setProperty: 'workspace:set-property',
+  noteViews: 'workspace:note-views',
+  createView: 'workspace:create-view',
+  saveView: 'workspace:save-view',
+  deleteView: 'workspace:delete-view',
   dailyNote: 'workspace:daily-note',
   note: 'workspace:note',
   saveNote: 'workspace:save-note',

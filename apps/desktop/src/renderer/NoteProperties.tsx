@@ -82,7 +82,7 @@ function kindOf(value: PropertyValue): Kind {
 }
 
 /** One value, edited the way its kind is: text and numbers on Enter or leaving, dates and checkboxes at once. */
-function PropertyField({ name, value, onChange }: { name: string; value: PropertyValue; onChange: (value: PropertyValue) => void }) {
+export function PropertyField({ name, value, onChange }: { name: string; value: PropertyValue; onChange: (value: PropertyValue) => void }) {
   const kind = kindOf(value)
   const commit = (raw: string): void => {
     if (kind === 'number') {

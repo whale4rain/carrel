@@ -1,9 +1,9 @@
 import { useState } from 'react'
 import type { Frame } from '../shared/frame.js'
 import { shortcutLabel } from '../shared/shortcuts.js'
-import type { ItemView, ShellState } from '../shared/workspace-api.js'
+import type { ItemView, NoteViewSpec, ShellState } from '../shared/workspace-api.js'
 import type { SideThread } from '../shared/agent-api.js'
-import { BookIcon, CalendarIcon, ChevronIcon, LinkIcon, PinIcon, SearchIcon, SparkIcon } from './icons.js'
+import { BookIcon, CalendarIcon, ChevronIcon, LinkIcon, PinIcon, SearchIcon, SparkIcon, TableIcon } from './icons.js'
 import { initials } from './initials.js'
 import type { Shelf } from './Library.js'
 import { NameField } from './NameField.js'
@@ -14,6 +14,9 @@ export interface WorkspaceActions extends NotesTreeActions {
   createProject(name: string): Promise<void>
   openDesk(id: string): Promise<void>
   createDesk(name: string): Promise<void>
+  /** Opens a saved view of notes in place of the desk. */
+  openView(id: string): void
+  createView(name: string): Promise<void>
   /** Opens today's note, made if it isn't there yet. */
   dailyNote(): Promise<void>
   /** Opens Search everything. */
@@ -35,6 +38,9 @@ interface Props {
   folders: readonly string[]
   /** The note open in the notes view, if one is. */
   note: string | undefined
+  /** The project's saved views of notes, and the one open. */
+  views: readonly NoteViewSpec[]
+  view: string | undefined
   /** The project's side threads, newest first. */
   sides: readonly SideThread[]
   /** The thread open in the panel, if it is open. */
@@ -42,12 +48,12 @@ interface Props {
 }
 
 /** One project, its desks, and the things the project owns. */
-export function Sidebar({ frame, state, actions, items, folders, note, sides, thread }: Props) {
+export function Sidebar({ frame, state, actions, items, folders, note, views, view, sides, thread }: Props) {
   const notes = items.filter((item) => item.kind === 'note').sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
   const count = (...kinds: Array<ItemView['kind']>): number => items.filter((item) => kinds.includes(item.kind)).length
   const open = state.open
   const [menu, setMenu] = useState(false)
-  const [naming, setNaming] = useState<'project' | 'desk'>()
+  const [naming, setNaming] = useState<'project' | 'desk' | 'view'>()
   // A tag picked under Notes: the tree shows only the notes with it.
   const [tag, setTag] = useState<string>()
   const tags = [...new Set(notes.flatMap((note) => note.tags ?? []))].sort()
@@ -119,7 +125,7 @@ export function Sidebar({ frame, state, actions, items, folders, note, sides, th
                 type="button"
                 key={desk.id}
                 className="row desk"
-                aria-current={desk.id === open.desk && note === undefined ? 'page' : undefined}
+                aria-current={desk.id === open.desk && note === undefined && view === undefined ? 'page' : undefined}
                 onClick={() => void actions.openDesk(desk.id)}
               >
                 {desk.id === open.desk && <span className="open-dot" aria-hidden />}
@@ -161,6 +167,33 @@ export function Sidebar({ frame, state, actions, items, folders, note, sides, th
               <span className="grow">Today’s note</span>
               <kbd>{shortcutLabel(frame, 'daily')}</kbd>
             </button>
+          </section>
+
+          <section className="group" aria-label="Views">
+            <h2>Views</h2>
+            {views.map((entry) => (
+              <button type="button" key={entry.id} className="row tree-row" aria-current={entry.id === view ? 'page' : undefined} onClick={() => actions.openView(entry.id)}>
+                <TableIcon />
+                <span className="grow">{entry.name}</span>
+              </button>
+            ))}
+            {naming === 'view' ? (
+              <NameField
+                variant="inline"
+                label="New view name"
+                placeholder="View name"
+                submit="Create"
+                onSubmit={async (name) => {
+                  await actions.createView(name)
+                  setNaming(undefined)
+                }}
+                onCancel={() => setNaming(undefined)}
+              />
+            ) : (
+              <button type="button" className="row desk muted" onClick={() => setNaming('view')}>
+                + New view
+              </button>
+            )}
           </section>
 
           <NotesTree notes={tag ? notes.filter((note) => note.tags?.includes(tag)) : notes} folders={tag ? [] : folders} current={note} actions={actions} />

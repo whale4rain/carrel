@@ -42,6 +42,8 @@ export {
   type TextPositionSelector,
   type TextQuoteSelector,
 } from './selectors.js'
+export { NoteViews, isViewSpec } from './views.js'
+export { applyView, DEFAULT_COLUMNS, fieldLabel, fieldsOf, FILTER_OPS, matches, NO_VALUE, NOTE_FIELDS, valueOf, type FilterOp, type NoteFilter, type NoteRow, type NoteViewSpec } from './view-rows.js'
 export { cleanPropertyName, formatProperty, isPropertyValue, parseProperty, propertyKind, type Properties, type PropertyKind, type PropertyValue } from './properties.js'
 export { cleanFolder, DAILY_FOLDER, fileName, Notes, splitHeader, summaryOf, titleOf, UNTITLED, type Mention, type NoteFile, type NoteSummary } from './notes.js'
 export {

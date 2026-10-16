@@ -7,7 +7,7 @@ interface Props {
   project: string | undefined
   desk: string | undefined
   /** What is open: a desk, or a note on its own page. */
-  place?: 'desk' | 'note'
+  place?: 'desk' | 'note' | 'view'
   /** Whether the agent's thread is open beside the desk. */
   agentOpen: boolean
   onAgent: () => void

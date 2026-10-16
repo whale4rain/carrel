@@ -9,7 +9,8 @@
     "./selectors": "./src/selectors.ts",
     "./note-markdown": "./src/note-markdown.ts",
     "./documents": "./src/documents.ts",
-    "./document-files": "./src/document-files.ts"
+    "./document-files": "./src/document-files.ts",
+    "./view-rows": "./src/view-rows.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"

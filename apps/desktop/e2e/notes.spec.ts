@@ -215,3 +215,53 @@ test('give a note properties under its title', async () => {
   await page.evaluate(() => window.carrel.workspace.state())
   await quit(app)
 })
+
+test('see notes in a saved view, as a table or as cards', async () => {
+  let { app, page } = await start(home)
+  const views = page.locator('.sidebar [aria-label="Views"]')
+  await views.getByRole('button', { name: '+ New view' }).click()
+  await page.getByLabel('New view name').fill('Studying')
+  await page.getByLabel('New view name').press('Enter')
+  const view = page.getByRole('main', { name: 'View: Studying' })
+  await expect(view.locator('.view-title', { hasText: 'Supply shocks' })).toHaveCount(1)
+
+  // Keep the notes whose status is Learning, and show their status.
+  await view.getByRole('button', { name: '+ Filter' }).click()
+  await view.getByLabel('Filter field').selectOption('property:status')
+  await view.getByLabel('Filter rule').selectOption('is')
+  await view.getByLabel('Filter value').fill('Learning')
+  await view.getByRole('button', { name: 'Add filter' }).click()
+  await expect(view.locator('.view-title')).toHaveText(['Supply shocks'])
+  await view.getByRole('button', { name: 'Fields' }).click()
+  await view.getByRole('dialog', { name: 'Fields shown' }).getByRole('checkbox', { name: 'status' }).check()
+  await view.getByRole('button', { name: 'Fields' }).click()
+  await expect(view.locator('th')).toHaveText(['Title', 'Folder', 'Tags', 'Edited ↓', 'status'])
+
+  // A new note made here gets what the filter asks for.
+  await view.getByRole('button', { name: '+ New note in this view' }).click()
+  await expect(page.locator('.note-page .ProseMirror')).toBeFocused()
+  await page.keyboard.type('Price floors')
+  const file = join(home, 'Carrel', 'Notes home', 'notes', 'Price floors.md')
+  await expect.poll(() => readFile(file, 'utf8').catch(() => '')).toContain('status: Learning')
+  await views.getByRole('button', { name: 'Studying' }).click()
+  await expect(view.locator('.view-title')).toHaveText(['Price floors', 'Supply shocks'])
+
+  // Change a status in its cell: the note leaves the view, and its file says so.
+  await view.getByLabel('status of Price floors').fill('Known')
+  await view.getByLabel('status of Price floors').press('Enter')
+  await expect(view.locator('.view-title')).toHaveText(['Supply shocks'])
+  await expect.poll(() => readFile(file, 'utf8')).toContain('status: Known')
+
+  // As cards, and still there after a restart.
+  await view.getByRole('button', { name: 'Cards' }).click()
+  await expect(view.locator('.view-card')).toHaveCount(1)
+  await page.evaluate(() => window.carrel.workspace.state())
+  await quit(app)
+  ;({ app, page } = await start(home))
+  await page.locator('.sidebar [aria-label="Views"]').getByRole('button', { name: 'Studying' }).click()
+  const again = page.getByRole('main', { name: 'View: Studying' })
+  await expect(again.locator('.view-card-title')).toHaveText(['Supply shocks'])
+  await expect(again.locator('.view-chip')).toContainText('status is Learning')
+  await page.evaluate(() => window.carrel.workspace.state())
+  await quit(app)
+})
