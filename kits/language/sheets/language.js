@@ -103,3 +103,18 @@ export function numbers(cards, reviews, now = new Date()) {
     retention: recent.length >= 10 ? Math.round((kept / recent.length) * 100) : null,
   }
 }
+
+/** The sentence around a *that.*'s words, from the words its quote kept on each side. */
+export function sentenceOf(around, words) {
+  if (!around) return ''
+  const sentences = around.split(/(?<=[.!?…])\s+/)
+  const found = sentences.find((sentence) => sentence.toLowerCase().includes(words.toLowerCase()))
+  return (found ?? around).trim()
+}
+
+/** What the kit asks the agent for a card's meaning: the words, and the sentence they came from, so it picks the right sense. */
+export function meaningQuestion(words, around) {
+  const sentence = sentenceOf(around, words)
+  const where = sentence && sentence !== words ? ` in this sentence: “${sentence}”` : ''
+  return `What does “${words}” mean${where}? Give a short meaning in English, a few words, as a dictionary would.`
+}

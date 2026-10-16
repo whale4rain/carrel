@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { carrelRoots, Workspace } from '@carrel/core'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { askLines, KitHost, KitShelf, KitStore, parseManifest, ProjectKits, unanswered, type ProjectReaders } from '../src/index.js'
+import { askLines, KitHost, KitShelf, MAX_ASK, KitStore, parseManifest, ProjectKits, unanswered, type ProjectReaders } from '../src/index.js'
 
 let home: string
 let workspace: Workspace
@@ -132,5 +132,26 @@ describe('KitHost', () => {
     expect(await kits.call(folder, 'cards', 'srs.schedule', [null, 'good'])).toMatchObject({ interval: 1, reps: 1 })
     await expect(kits.call(folder, 'cards', 'srs.schedule', [null, 'perfect'])).rejects.toThrow('again, hard, good or easy')
     await expect(kits.call(folder, 'cards', 'srs.schedule', [{ due: 'soon' }, 'good'])).rejects.toThrow('due as a time')
+  })
+
+  it("asks the agent for a kit, under the kit's name, once allowed", async () => {
+    const asked: string[][] = []
+    const root = join(home, 'kits')
+    const tutor = parseManifest({ name: 'tutor', title: 'Tutor', sheets: [{ id: 'ask', file: 'ask.html' }], needs: ['agent.ask'] })
+    await mkdir(join(root, 'tutor'), { recursive: true })
+    await writeFile(join(root, 'tutor', 'kit.json'), JSON.stringify(tutor))
+    const kits = new KitHost(workspace, new KitShelf([root]), {
+      ...readers,
+      ask: (where, kit, question) => (asked.push([where, kit, question]), Promise.resolve('the table')),
+    })
+    const projectKits = new ProjectKits(workspace)
+    await projectKits.add(folder, tutor)
+    await expect(kits.call(folder, 'tutor', 'agent.ask', ['What is la mesa?'])).rejects.toThrow("haven't allowed")
+    await projectKits.allow(folder, tutor)
+    expect(await kits.call(folder, 'tutor', 'agent.ask', ['  What is la mesa?  '])).toBe('the table')
+    expect(asked).toEqual([[folder, 'Tutor', 'What is la mesa?']])
+    await expect(kits.call(folder, 'tutor', 'agent.ask', ['   '])).rejects.toThrow('Ask the agent something first')
+    await expect(kits.call(folder, 'tutor', 'agent.ask', ['x'.repeat(MAX_ASK + 1)])).rejects.toThrow('at most')
+    await expect(kits.call(folder, 'tutor', 'agent.ask', [{ question: 'hi' }])).rejects.toThrow('as text')
   })
 })

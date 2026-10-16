@@ -17,8 +17,14 @@ import type { Workspace } from '@carrel/core'
 export interface ProjectReaders {
   notes(folder: string): Promise<Array<{ id: string; title: string; text: string }>>
   sources(folder: string): Promise<Array<{ id: string; kind: string; title: string }>>
-  thats(folder: string): Promise<Array<{ id: string; label: string; text?: string; source: string }>>
+  /** `around`: the words just before and after, so a kit can tell which sense a word has. */
+  thats(folder: string): Promise<Array<{ id: string; label: string; text?: string; around?: string; source: string }>>
+  /** Asks the agent for a kit (its title) and gives the answer; kept in the project thread. */
+  ask?(folder: string, kit: string, question: string): Promise<string>
 }
+
+/** Longest question a kit can ask the agent. */
+export const MAX_ASK = 2000
 
 /** What a kit reads from outside its store comes tagged with where it came from. */
 export interface ReadResult {
@@ -86,6 +92,12 @@ export class KitHost {
           if (method === 'srs.schedule') {
             if (!isGrade(b)) throw new Error('A review ends in again, hard, good or easy.')
             return schedule(reviewState(a), b, this.now())
+          }
+          if (method === 'agent.ask' && this.readers.ask) {
+            const question = text(a, 'the question').trim()
+            if (!question) throw new Error('Ask the agent something first.')
+            if (question.length > MAX_ASK) throw new Error(`A kit's question can be at most ${MAX_ASK} characters.`)
+            return this.readers.ask(folder, manifest.title, question)
           }
           throw new Error(`kit.${method} isn't ready yet in this version of Carrel.`)
         }

@@ -3247,3 +3247,11 @@ kbd {
   background: var(--ink);
   color: var(--paper);
 }
+
+/* A question a learning kit asked the agent for you. */
+.agent-kit {
+  display: block;
+  margin-bottom: 2px;
+  font: var(--text-label);
+  color: var(--ink-muted);
+}

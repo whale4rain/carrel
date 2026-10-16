@@ -82,6 +82,7 @@ const agent: AgentApi = {
   thatTurn: (turnId, thread) => call(agentChannels.thatTurn, turnId, thread),
   addToNote: (turnId, noteId, thread) => call(agentChannels.addToNote, turnId, noteId, thread),
   onProposal: (listener) => listen<ProposalView>(agentChannels.proposal, listener),
+  onTurns: (listener) => listen<void>(agentChannels.turns, listener),
 }
 
 // The typed bridge between renderer and main.

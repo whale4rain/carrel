@@ -158,6 +158,45 @@ describe('ProjectAgent', () => {
   })
 })
 
+describe('ProjectAgent.askForKit', () => {
+  it("answers a kit in one call with no tools, and keeps both turns under the kit's name with the cost", async () => {
+    const seen: Array<{ tools: number; messages: Array<{ role: string; content: string }> }> = []
+    const llm: LLMAdapter = {
+      complete: () => Promise.reject(new Error('Carrel streams')),
+      async *stream(messages, tools): AsyncIterable<LLMStreamEvent> {
+        seen.push({ tools: tools.length, messages: messages.map((message) => ({ role: message.role, content: message.content })) })
+        yield { type: 'message_start', id: 'k' }
+        for (const delta of [' the ', 'table ']) yield { type: 'message_delta', id: 'k', delta }
+        yield { type: 'message_stop', id: 'k', finishReason: 'stop', usage: { promptTokens: 40, completionTokens: 3 } }
+      },
+    }
+    const agent = new ProjectAgent({ workspace, model: () => llm, tools: () => [searchProjectTool(() => Promise.resolve(hits))] })
+    try {
+      const { question, answer } = await agent.askForKit('Learn economics', 'Language', 'What does “la mesa” mean?')
+      expect(question).toMatchObject({ by: 'user', kit: 'Language', text: 'What does “la mesa” mean?' })
+      expect(answer).toMatchObject({ by: 'agent', kit: 'Language', text: 'the table', cost: { calls: 1, promptTokens: 40, completionTokens: 3 } })
+      expect(answer.cost!.bytes).toBeGreaterThan(0)
+      expect(seen).toHaveLength(1)
+      expect(seen[0]!.tools).toBe(0)
+      expect(seen[0]!.messages.map((message) => message.role)).toEqual(['system', 'user'])
+      expect((await agent.turns('Learn economics')).map((turn) => turn.text)).toEqual(['What does “la mesa” mean?', 'the table'])
+    } finally {
+      await agent.dispose()
+    }
+  })
+
+  it('keeps a failed kit answer with the reason', async () => {
+    const agent = new ProjectAgent({ workspace, model: () => failing, tools: () => [] })
+    try {
+      const { answer } = await agent.askForKit('Learn economics', 'Language', 'Hello?')
+      expect(answer).toMatchObject({ kit: 'Language', text: '' })
+      expect(answer.error).toContain('401 no key')
+    } finally {
+      await agent.dispose()
+    }
+  })
+})
+
 describe('describeStep', () => {
   it('says what a step did', () => {
     expect(describeStep('search_project', { query: 'price' })).toBe('Searched for “price”')

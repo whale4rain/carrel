@@ -45,6 +45,8 @@ export interface Turn {
   /** Agent turns: what it did first. */
   steps?: TurnStep[]
   cost?: TurnCost
+  /** Turns a learning kit asked for the person: the kit's title. */
+  kit?: string
   /** Agent turns that failed: why. */
   error?: string
 }

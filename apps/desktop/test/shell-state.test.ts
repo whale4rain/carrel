@@ -279,7 +279,7 @@ describe('turns of the project thread through the shell', () => {
       title: 'Language',
       added: false,
       sheets: [{ id: 'stages', title: 'Stages' }, { id: 'deck', title: 'Vocabulary' }, { id: 'review', title: 'Review' }],
-      asks: ['Read your that.s and the words they point at', 'Schedule reviews'],
+      asks: ['Read your that.s and the words they point at', 'Schedule reviews', 'Ask the agent questions (each one shows in the thread)'],
     })
     // It asks first.
     await expect(shell.addKit('language')).rejects.toThrow('Allow it to add it')
@@ -295,5 +295,9 @@ describe('turns of the project thread through the shell', () => {
     expect((await shell.kits()).find((kit) => kit.name === 'language')?.added).toBe(true)
     expect((await shell.items()).filter((item) => item.kind === 'kit')).toEqual(sheets)
     await expect(shell.addKit('nothing')).rejects.toThrow('no kit called "nothing"')
+    // Its questions go to the agent once the agent is set up.
+    await expect(shell.kitCall('language', 'agent.ask', ['What does “la mesa” mean?'])).rejects.toThrow('not set up yet')
+    shell.askForKit = (_folder, kit, question) => Promise.resolve(`${kit}: ${question.length}`)
+    expect(await shell.kitCall('language', 'agent.ask', ['What does “la mesa” mean?'])).toBe('Language: 25')
   })
 })
