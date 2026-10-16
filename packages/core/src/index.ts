@@ -42,7 +42,7 @@ export {
   type TextPositionSelector,
   type TextQuoteSelector,
 } from './selectors.js'
-export { Notes, splitHeader, summaryOf, titleOf, UNTITLED, type NoteFile, type NoteSummary } from './notes.js'
+export { cleanFolder, fileName, Notes, splitHeader, summaryOf, titleOf, UNTITLED, type NoteFile, type NoteSummary } from './notes.js'
 export {
   citedThats,
   fromMarkdown,

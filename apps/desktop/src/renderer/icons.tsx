@@ -80,3 +80,9 @@ export const BookmarkIcon = ({ filled = false }: { filled?: boolean }) => (
     <path d="M6 3h12v18l-6-4-6 4z" />
   </svg>
 )
+
+export const FolderIcon = () => (
+  <svg {...line}>
+    <path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
+  </svg>
+)

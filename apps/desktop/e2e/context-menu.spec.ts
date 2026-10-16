@@ -64,7 +64,8 @@ test('right-click points at words and asks the agent about them', async () => {
   await panel.locator('.agent-input textarea').press('Escape').catch(() => undefined)
 
   // In a note: ask the agent to rewrite the selected words; you finish the question.
-  await page.locator('[aria-label="Notes"] button', { hasText: '+ New note' }).click()
+  await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+  await page.getByRole('menuitem', { name: /^Note/ }).click()
   const editor = page.locator('.sheet[data-kind="note"] .ProseMirror')
   await expect(editor).toBeFocused()
   await page.keyboard.type('Costs are what you give up.')

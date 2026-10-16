@@ -53,8 +53,9 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await expect(chip).toBeVisible()
 
   console.log('carrel e2e: that. made')
-  // A note from the sidebar, typed, with the chip dragged to the end of its text.
-  await page.locator('[aria-label="Notes"] button', { hasText: '+ New note' }).click()
+  // A note from the desk's + Add, typed, with the chip dragged to the end of its text.
+  await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+  await page.getByRole('menuitem', { name: /^Note/ }).click()
   const editor = page.locator('.sheet[data-kind="note"] .ProseMirror')
   await expect(editor).toBeFocused()
   await page.keyboard.type(NOTE_TITLE)
@@ -105,7 +106,8 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await expect(back.locator('.that-tray .that-chip', { hasText: 'p.1' })).toBeVisible()
   await expect(back.locator('[aria-label="Notes"] .row.note')).toHaveCount(2)
   await back.getByRole('button', { name: NOTE_TITLE, exact: true }).click()
-  const note = back.locator('.sheet[data-kind="note"][data-selected] .ProseMirror')
+  // From the sidebar, a note opens on its own page.
+  const note = back.locator('.note-page .ProseMirror')
   await expect(note.locator('h1')).toHaveText(NOTE_TITLE)
   await expect(note.locator('p')).toHaveText(`${NOTE_TEXT}p.1`)
   await expect(note.locator('.note-chip')).toHaveText('p.1')

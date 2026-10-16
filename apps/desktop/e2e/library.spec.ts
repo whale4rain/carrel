@@ -33,7 +33,8 @@ test('browse the library and put a source back on the desk', async () => {
   await expect(paper).toHaveCount(0)
 
   // A tagged note.
-  await page.locator('[aria-label="Notes"] button', { hasText: '+ New note' }).click()
+  await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
+  await page.getByRole('menuitem', { name: /^Note/ }).click()
   const editor = page.locator('.sheet[data-kind="note"] .ProseMirror')
   await expect(editor).toBeFocused()
   await page.keyboard.type('Costs')

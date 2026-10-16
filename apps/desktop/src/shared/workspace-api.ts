@@ -14,6 +14,8 @@ export interface ItemView {
   title: string
   /** Notes: when it last changed. */
   updatedAt?: string
+  /** Notes: the folder it is filed in ("" for none, "a/b" when nested). */
+  folder?: string
   /** Notes: its #tags, lower-cased. */
   tags?: string[]
   /** Notes: the items its *that.* chips point into. */
@@ -135,8 +137,16 @@ export interface WorkspaceApi {
   saveViewport(id: string, viewport: Viewport): Promise<DeskView>
   /** The open project's sources and notes. */
   items(): Promise<ItemView[]>
-  /** Starts an empty note in the project. */
-  createNote(): Promise<ItemView>
+  /** Starts an empty note in the project, in a folder if given. */
+  createNote(folder?: string): Promise<ItemView>
+  /** The project's note folders, empty ones too ("a", "a/b"). */
+  noteFolders(): Promise<string[]>
+  /** Makes a note folder; returns its path as kept. */
+  createFolder(path: string): Promise<string>
+  /** Renames or moves a note folder with its notes; returns its new path. */
+  renameFolder(from: string, to: string): Promise<string>
+  /** Files a note in another folder ("" for none). */
+  moveNote(id: string, folder: string): Promise<ItemView>
   /** A note's text. */
   note(id: string): Promise<NoteView>
   /** Writes a note's text; returns the note, retitled from its first line. */
@@ -219,6 +229,10 @@ export const workspaceChannels = {
   saveViewport: 'workspace:save-viewport',
   items: 'workspace:items',
   createNote: 'workspace:create-note',
+  noteFolders: 'workspace:note-folders',
+  createFolder: 'workspace:create-folder',
+  renameFolder: 'workspace:rename-folder',
+  moveNote: 'workspace:move-note',
   note: 'workspace:note',
   saveNote: 'workspace:save-note',
   search: 'workspace:search',
