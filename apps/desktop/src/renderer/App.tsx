@@ -1,13 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { PROJECT_THREAD, type SideThread } from '../shared/agent-api.js'
 import type { AgentAsk } from '../shared/menu.js'
-import type { ItemView, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
+import type { ItemView, NoteViewSpec, PropertyValue, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 import { Welcome } from './Desk.js'
 import { AgentPanel, NEW_SIDE } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
 import { linkName, NOTE_CHANGED, resolveLink } from './NoteView.js'
 import { Library, type Shelf } from './Library.js'
 import { NotePage } from './NotePage.js'
+import { NotesView } from './NotesView.js'
 import { QuickOpen } from './QuickOpen.js'
 import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
@@ -26,13 +27,18 @@ export function App() {
   // The note open on its own page, in place of the desk; `write` puts the cursor in it.
   const [page, setPage] = useState<{ note: string; write: boolean }>()
   const [folders, setFolders] = useState<string[]>([])
+  // The project's saved views of notes, and the one open in place of the desk.
+  const [views, setViews] = useState<NoteViewSpec[]>([])
+  const [viewId, setViewId] = useState<string>()
   const openPage = (note: string, write = false): void => {
     setShow(undefined)
+    setViewId(undefined)
     setPage({ note, write })
   }
   // Something to show on the desk brings the desk back.
   const showOnDesk = (request: ShowRequest): void => {
     setPage(undefined)
+    setViewId(undefined)
     setShow(request)
   }
   const [focusTurn, setFocusTurn] = useState<{ id: string; nonce: number }>()
@@ -140,6 +146,8 @@ export function App() {
     setThreadId(PROJECT_THREAD)
     void window.carrel.agent.sides().then((list) => current && setSides(list))
     setPage(undefined)
+    setViewId(undefined)
+    void api.noteViews().then((list) => current && setViews(list))
     void api.items().then((list) => {
       if (current) setItems(new Map(list.map((item) => [item.id, item])))
     })
@@ -188,6 +196,7 @@ export function App() {
     createProject: async (name) => setState(await api.createProject(name)),
     openDesk: async (id) => {
       setPage(undefined)
+      setViewId(undefined)
       setState(await api.openDesk(id))
     },
     createDesk: async (name) => setState(await api.createDesk(name)),
@@ -215,6 +224,16 @@ export function App() {
     moveNote: async (id, folder) => {
       addItems([await api.moveNote(id, folder)])
     },
+    openView: (id) => {
+      setPage(undefined)
+      setViewId(id)
+    },
+    createView: async (name) => {
+      const made = await api.createView(name)
+      setViews((known) => [...known, made])
+      setPage(undefined)
+      setViewId(made.id)
+    },
     search: () => setSearching(true),
     openLibrary: (shelf) => setLibrary(shelf),
     openShortcuts: () => setKeys(true),
@@ -231,6 +250,8 @@ export function App() {
   const open = state?.open
   const desk = open?.desks.find((entry) => entry.id === open.desk)
   const note = page ? items.get(page.note) : undefined
+  const view = note ? undefined : views.find((known) => known.id === viewId)
+  const setProperty = async (id: string, key: string, value: PropertyValue | null): Promise<void> => addItems([await api.setProperty(id, key, value)])
 
   return (
     <div className="shell" data-carrel-shell={state ? '' : undefined} data-frame={frame} data-agent={talking && open ? '' : undefined} data-sidebar={sidebar ? undefined : 'hidden'}>
@@ -246,8 +267,8 @@ export function App() {
       )}
       {state && (
         <>
-          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} folders={folders} note={note?.id} sides={sides} thread={talking ? threadId : undefined} />}
-          <TopBar frame={frame} project={open?.project} desk={note ? note.title : desk?.name} place={note ? 'note' : 'desk'} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
+          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} folders={folders} note={note?.id} views={views} view={view?.id} sides={sides} thread={talking ? threadId : undefined} />}
+          <TopBar frame={frame} project={open?.project} desk={note ? note.title : view ? view.name : desk?.name} place={note ? 'note' : view ? 'view' : 'desk'} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
           {open && note ? (
             <NotePage
               note={note}
@@ -257,13 +278,38 @@ export function App() {
               onOpenThat={(id) => void openThat(id)}
               onOpenItem={openItem}
               onPutOnDesk={() => showOnDesk({ itemId: note.id, nonce: Date.now() })}
-              onProperty={async (key, value) => addItems([await api.setProperty(note.id, key, value)])}
+              onProperty={(key, value) => setProperty(note.id, key, value)}
               onPin={(pinned) => void api.pinNote(note.id, pinned).then((saved) => addItems([saved]))}
               onOpenLink={(target) => void openLink(target)}
               onLinked={(linked) => {
                 addItems([linked])
                 window.dispatchEvent(new CustomEvent(NOTE_CHANGED, { detail: linked.id }))
               }}
+            />
+          ) : open && view ? (
+            <NotesView
+              key={view.id}
+              view={view}
+              items={items}
+              onSave={(next) => {
+                setViews((known) => known.map((other) => (other.id === next.id ? next : other)))
+                void api.saveView(next).then((saved) => setViews((known) => known.map((other) => (other.id === saved.id ? saved : other))))
+              }}
+              onDelete={() => {
+                void api.deleteView(view.id)
+                setViews((known) => known.filter((other) => other.id !== view.id))
+                setViewId(undefined)
+              }}
+              onOpenNote={(id) => openPage(id)}
+              onProperty={setProperty}
+              onCreateNote={(folder, properties) =>
+                void (async () => {
+                  let made = await api.createNote(folder)
+                  for (const [key, value] of Object.entries(properties)) made = await api.setProperty(made.id, key, value)
+                  addItems([made])
+                  openPage(made.id, true)
+                })()
+              }
             />
           ) : open && desk ? <DeskPlane
               key={desk.id}

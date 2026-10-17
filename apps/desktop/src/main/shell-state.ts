@@ -10,6 +10,7 @@ import {
   sectionTexts,
   Library,
   Notes,
+  NoteViews,
   plainText,
   Proposals,
   PROJECT_THREAD,
@@ -31,6 +32,7 @@ import {
   type NoteFile,
   type Mention,
   type NoteDoc,
+  type NoteViewSpec,
   type NoteSummary,
   type OpenProject,
   type Proposal,
@@ -60,6 +62,7 @@ export class ShellController {
   private readonly library: Library
   private readonly anchors: Anchors
   private readonly notes: Notes
+  private readonly views: NoteViews
   private readonly proposals: Proposals
   private readonly threads: Threads
   private readonly index: SearchIndex
@@ -77,6 +80,7 @@ export class ShellController {
     this.library = new Library(workspace)
     this.anchors = new Anchors(workspace)
     this.notes = new Notes(workspace)
+    this.views = new NoteViews(workspace)
     this.proposals = new Proposals(workspace)
     this.threads = new Threads(workspace)
     this.index = new SearchIndex(workspace)
@@ -226,6 +230,22 @@ export class ShellController {
 
   async mentions(id: string): Promise<{ linked: Mention[]; unlinked: Mention[] }> {
     return this.notes.mentions(await this.openFolder(), id)
+  }
+
+  async noteViews(): Promise<NoteViewSpec[]> {
+    return this.views.list(await this.openFolder())
+  }
+
+  async createView(name: string): Promise<NoteViewSpec> {
+    return this.views.create(await this.openFolder(), name)
+  }
+
+  async saveView(view: unknown): Promise<NoteViewSpec> {
+    return this.views.save(await this.openFolder(), view)
+  }
+
+  async deleteView(id: string): Promise<void> {
+    await this.views.remove(await this.openFolder(), id)
   }
 
   async setProperty(id: string, key: string, value: unknown): Promise<ItemView> {

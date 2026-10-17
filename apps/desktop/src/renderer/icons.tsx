@@ -100,3 +100,10 @@ export const CalendarIcon = () => (
     <path d="M3 10h18M8 3v4M16 3v4" />
   </svg>
 )
+
+export const TableIcon = () => (
+  <svg {...line}>
+    <rect x="3" y="4" width="18" height="16" rx="2" />
+    <path d="M3 10h18M3 15h18M10 10v10" />
+  </svg>
+)

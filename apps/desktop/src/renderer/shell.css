@@ -3527,3 +3527,252 @@ kbd {
   margin: 0;
   padding-left: 6px;
 }
+
+/* A saved view of notes: a table or cards, filtered and sorted, in place of the desk. */
+.notes-view {
+  grid-area: desk;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.notes-view-head,
+.notes-view-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-6) 0;
+}
+
+.notes-view-bar {
+  flex-wrap: wrap;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  font: var(--text-caption);
+}
+
+.notes-view-name {
+  flex: 1;
+  min-width: 0;
+  padding: 2px 4px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: var(--text-title);
+}
+
+.notes-view-name:focus {
+  outline: none;
+  border-color: var(--graphite);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  overflow: hidden;
+}
+
+.segmented button {
+  height: 26px;
+  padding: 0 var(--space-3);
+  border: none;
+  background: var(--paper);
+  color: var(--ink-muted);
+  font: var(--text-label);
+}
+
+.segmented button[aria-pressed='true'] {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.view-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 24px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--rule);
+  border-radius: 12px;
+  background: var(--paper-2);
+}
+
+.view-chip b {
+  font-weight: 600;
+}
+
+.view-chip button {
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+}
+
+.view-bar-button {
+  height: 24px;
+  padding: 0 8px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink-muted);
+  font: inherit;
+}
+
+.view-bar-button:hover {
+  border-color: var(--rule);
+  color: var(--ink);
+}
+
+.view-sort {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-muted);
+}
+
+.view-sort select,
+.view-pop select,
+.view-pop input:not([type='checkbox']) {
+  height: 26px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.view-pop-anchor {
+  position: relative;
+}
+
+.view-pop {
+  position: absolute;
+  top: 30px;
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 220px;
+  max-height: 320px;
+  overflow-y: auto;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-control);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet, 0 2px 0 rgb(0 0 0 / 8%));
+}
+
+.view-sort + .view-pop-anchor .view-pop {
+  left: auto;
+  right: 0;
+}
+
+.view-pop-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.notes-view-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 0 var(--space-6) var(--space-6);
+  scrollbar-width: thin;
+}
+
+.view-table {
+  width: 100%;
+  border-collapse: collapse;
+  font: var(--text-body);
+}
+
+.view-table th {
+  position: sticky;
+  top: 0;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+  text-align: left;
+}
+
+.view-table th button {
+  padding: var(--space-2) 6px;
+  border: none;
+  background: none;
+  color: var(--ink-muted);
+  font: var(--text-caption);
+}
+
+.view-table td {
+  height: 34px;
+  padding: 0 6px;
+  border-bottom: 1px solid var(--rule);
+  vertical-align: middle;
+}
+
+.view-table td .note-prop-value {
+  width: 100%;
+}
+
+.view-title,
+.view-card-title {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.view-title:hover,
+.view-card-title:hover {
+  text-decoration: underline;
+}
+
+.view-mono {
+  color: var(--ink-muted);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.view-cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: var(--space-3);
+  margin: var(--space-4) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.view-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3);
+  border: 1px solid var(--rule);
+  border-radius: 4px;
+  background: var(--paper);
+  box-shadow: 0 1px 0 var(--rule);
+}
+
+.view-card-field {
+  margin: 0;
+  font: var(--text-caption);
+}
+
+.view-card-field span {
+  color: var(--ink-muted);
+}
+
+.view-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--space-3);
+}
