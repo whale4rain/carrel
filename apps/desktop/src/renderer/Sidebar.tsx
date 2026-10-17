@@ -3,7 +3,7 @@ import type { Frame } from '../shared/frame.js'
 import { shortcutLabel } from '../shared/shortcuts.js'
 import type { ItemView, ShellState } from '../shared/workspace-api.js'
 import type { SideThread } from '../shared/agent-api.js'
-import { BookIcon, ChevronIcon, LinkIcon, SearchIcon, SparkIcon } from './icons.js'
+import { BookIcon, CalendarIcon, ChevronIcon, LinkIcon, PinIcon, SearchIcon, SparkIcon } from './icons.js'
 import { initials } from './initials.js'
 import type { Shelf } from './Library.js'
 import { NameField } from './NameField.js'
@@ -14,6 +14,8 @@ export interface WorkspaceActions extends NotesTreeActions {
   createProject(name: string): Promise<void>
   openDesk(id: string): Promise<void>
   createDesk(name: string): Promise<void>
+  /** Opens today's note, made if it isn't there yet. */
+  dailyNote(): Promise<void>
   /** Opens Search everything. */
   search(): void
   /** Opens the library at a shelf. */
@@ -141,6 +143,24 @@ export function Sidebar({ frame, state, actions, items, folders, note, sides, th
                 + New desk
               </button>
             )}
+          </section>
+
+          <section className="group" aria-label="Pinned">
+            <h2>Pinned</h2>
+            {notes
+              .filter((entry) => entry.pinned)
+              .sort((a, b) => a.title.localeCompare(b.title))
+              .map((entry) => (
+                <button type="button" key={entry.id} className="row note tree-row" aria-current={entry.id === note ? 'page' : undefined} onClick={() => actions.openNote(entry.id)}>
+                  <PinIcon />
+                  <span className="grow">{entry.title}</span>
+                </button>
+              ))}
+            <button type="button" className="row tree-row" onClick={() => void actions.dailyNote()}>
+              <CalendarIcon />
+              <span className="grow">Today’s note</span>
+              <kbd>{shortcutLabel(frame, 'daily')}</kbd>
+            </button>
           </section>
 
           <NotesTree notes={tag ? notes.filter((note) => note.tags?.includes(tag)) : notes} folders={tag ? [] : folders} current={note} actions={actions} />

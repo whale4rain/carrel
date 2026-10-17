@@ -32,6 +32,8 @@ export interface NoteSummary {
   cites: string[]
   /** The notes it links to with [[links]], by name as written. */
   links: string[]
+  /** Kept at the top of the sidebar. */
+  pinned: boolean
 }
 
 /** Another note that links to a note, or mentions it without a link. */
@@ -57,7 +59,10 @@ const TITLE = 120
 const FILE_NAME = 100
 
 /** Header keys Carrel writes itself; any others are kept as they were. */
-const OWN_KEYS = new Set(['id', 'title', 'created', 'updated', 'createdBy'])
+const OWN_KEYS = new Set(['id', 'title', 'created', 'updated', 'createdBy', 'pinned'])
+
+/** Where daily notes are filed, as Obsidian's daily notes are. */
+export const DAILY_FOLDER = 'Daily'
 
 /** Names of notes saved before they were named by title. */
 const ID_NAME = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -108,7 +113,7 @@ export class Notes {
     const stamp = this.now().toISOString()
     const title = titleOf(doc)
     const relative = await this.freeName(folder, place, fileName(title))
-    const note: NoteFile = { id: randomUUID(), title, folder: place, name: nameOf(relative), tags: tagsOf(doc), cites: citedThats(doc), links: linksOf(doc), createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
+    const note: NoteFile = { id: randomUUID(), title, folder: place, name: nameOf(relative), tags: tagsOf(doc), cites: citedThats(doc), links: linksOf(doc), pinned: false, createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
     await this.write(folder, relative, note, [])
     await this.workspace.event(folder, actor, 'note.added', { id: note.id, path: relative })
     return note
@@ -138,6 +143,28 @@ export class Notes {
     await this.workspace.event(folder, actor, 'note.moved', { id, from, to: relative })
     if (nameOf(relative) !== note.name) await this.retarget(folder, id, [note.name], nameOf(relative), actor)
     return { ...note, folder: place, name: nameOf(relative) }
+  }
+
+  /** Pins a note to the top of the sidebar, or lets it go. */
+  async pin(folder: string, id: string, pinned: boolean, actor: Actor = 'user'): Promise<NoteFile> {
+    const { note, extra } = await this.parsed(folder, id)
+    if (note.pinned === pinned) return note
+    const changed = { ...note, pinned }
+    await this.write(folder, this.index(folder).get(id)!, changed, extra)
+    await this.workspace.event(folder, actor, pinned ? 'note.pinned' : 'note.unpinned', { id })
+    return changed
+  }
+
+  /**
+   * Today's note, in the Daily folder, named by the date as Obsidian names
+   * daily notes ("2026-10-16"); made if it isn't there yet.
+   */
+  async daily(folder: string, actor: Actor = 'user'): Promise<NoteFile> {
+    const now = this.now()
+    const date = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+    const found = (await this.scan(folder)).find(({ note }) => note.folder === DAILY_FOLDER && note.name === date)
+    if (found) return found.note
+    return this.create(folder, { type: 'doc', content: [{ type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: date }] }, { type: 'paragraph' }] }, actor, DAILY_FOLDER)
   }
 
   /** Makes a folder under notes/ (and any folders above it). */
@@ -299,6 +326,7 @@ export class Notes {
         tags: tagsOf(doc),
         cites: citedThats(doc),
         links: linksOf(doc),
+        pinned: header.pinned === 'true',
         createdBy: header.createdBy === 'agent' ? 'agent' : 'user',
         createdAt: header.created ?? stamp,
         updatedAt: header.updated ?? header.created ?? stamp,
@@ -343,6 +371,7 @@ export class Notes {
       `created: ${note.createdAt}`,
       `updated: ${note.updatedAt}`,
       ...(note.createdBy === 'agent' ? ['createdBy: agent'] : []),
+      ...(note.pinned ? ['pinned: true'] : []),
       ...extra,
       '---',
       '',
@@ -367,7 +396,7 @@ export class Notes {
 }
 
 export function summaryOf(note: NoteFile): NoteSummary {
-  return { id: note.id, title: note.title, folder: note.folder, name: note.name, links: note.links, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt, tags: note.tags, cites: note.cites }
+  return { id: note.id, title: note.title, folder: note.folder, name: note.name, links: note.links, pinned: note.pinned, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt, tags: note.tags, cites: note.cites }
 }
 
 /** The first line of a note, or "Untitled note". */

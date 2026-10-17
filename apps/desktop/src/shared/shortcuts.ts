@@ -31,6 +31,8 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
     title: 'Anywhere',
     shortcuts: [
       { id: 'search', label: 'Search everything', keys: { mod: true, key: 'k' } },
+      { id: 'open-note', label: 'Open a note by name', keys: { mod: true, key: 'o' } },
+      { id: 'daily', label: 'Today’s note', keys: { mod: true, shift: true, key: 'd' } },
       { id: 'agent', label: 'Open or close the agent', keys: { mod: true, key: 'j' } },
       { id: 'sidebar', label: 'Show or hide the sidebar', keys: { mod: true, key: '\\' } },
       { id: 'shortcuts', label: 'Keyboard shortcuts', keys: { mod: true, key: '/' } },

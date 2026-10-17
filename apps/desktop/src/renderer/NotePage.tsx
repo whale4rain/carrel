@@ -15,6 +15,8 @@ interface Props {
   onOpenItem: (id: string) => void
   /** Lays this note on the open desk. */
   onPutOnDesk: () => void
+  /** Pins the note to the top of the sidebar, or lets it go. */
+  onPin: (pinned: boolean) => void
   /** A [[link]] was clicked. */
   onOpenLink: (target: string) => void
   /** A mention was made a link, in the note given. */
@@ -32,7 +34,7 @@ interface Heading {
  * with the note's outline and the sources it cites. Nothing here needs a
  * desk; Put on desk lays the note beside your sources.
  */
-export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, onPutOnDesk, onOpenLink, onLinked }: Props) {
+export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, onPutOnDesk, onPin, onOpenLink, onLinked }: Props) {
   const [headings, setHeadings] = useState<Heading[]>([])
   const notes = [...items.values()].filter((item) => item.kind === 'note')
   // Who links here and who names it without a link, asked again whenever a note changes.
@@ -67,6 +69,9 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
             {folders.length > 0 ? folders.join(' / ') : 'Notes'}
             {note.updatedAt && <span className="note-page-edited"> · edited {edited(note.updatedAt)}</span>}
           </span>
+          <button type="button" className="outline-button" aria-pressed={note.pinned === true} onClick={() => onPin(!note.pinned)}>
+            {note.pinned ? 'Unpin' : 'Pin'}
+          </button>
           <button type="button" className="outline-button" onClick={onPutOnDesk}>
             Put on desk
           </button>

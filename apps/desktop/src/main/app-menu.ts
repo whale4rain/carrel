@@ -39,6 +39,10 @@ export function setAppMenu(platform: string): void {
       ],
     },
     {
+      label: 'Notes',
+      submenu: [command('open-note', 'Open Note…'), command('daily', 'Today’s Note')],
+    },
+    {
       label: 'Desk',
       submenu: [command('focus', 'Focus'), command('leave', 'Back to Desk'), { type: 'separator' }, command('that', 'that.'), command('hand', 'Hand Tool'), command('select-all', 'Select All Sheets')],
     },

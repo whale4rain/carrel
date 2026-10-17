@@ -128,6 +128,25 @@ describe('Notes', () => {
   })
 })
 
+describe('pinned and daily notes', () => {
+  it('pins a note in its header', async () => {
+    const note = await notes.create('Learn economics', words('Exam plan'))
+    expect(note.pinned).toBe(false)
+    await notes.pin('Learn economics', note.id, true)
+    expect(await readFile(join(dir(), 'Exam plan.md'), 'utf8')).toContain('pinned: true')
+    expect((await notes.list('Learn economics'))[0]!.pinned).toBe(true)
+    await notes.pin('Learn economics', note.id, false)
+    expect((await notes.read('Learn economics', note.id)).pinned).toBe(false)
+  })
+
+  it("makes today's note once, in Daily", async () => {
+    const today = await notes.daily('Learn economics')
+    expect(today).toMatchObject({ title: '2026-10-14', folder: 'Daily', name: '2026-10-14' })
+    expect((await notes.daily('Learn economics')).id).toBe(today.id)
+    expect(await readdir(join(dir(), 'Daily'))).toEqual(['2026-10-14.md'])
+  })
+})
+
 describe('links between notes', () => {
   const linking = (text: string): NoteDoc => ({ type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'See ' }, { type: 'noteLink', attrs: { target: text, label: '' } }] }] })
 

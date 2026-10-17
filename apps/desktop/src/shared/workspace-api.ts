@@ -20,6 +20,8 @@ export interface ItemView {
   name?: string
   /** Notes: the notes it links to, by name as written. */
   links?: string[]
+  /** Notes: kept at the top of the sidebar. */
+  pinned?: boolean
   /** Notes: its #tags, lower-cased. */
   tags?: string[]
   /** Notes: the items its *that.* chips point into. */
@@ -155,6 +157,10 @@ export interface WorkspaceApi {
   createNote(folder?: string, title?: string): Promise<ItemView>
   /** The notes that link to a note, and those that name it without a link. */
   mentions(id: string): Promise<{ linked: MentionView[]; unlinked: MentionView[] }>
+  /** Pins a note to the top of the sidebar, or lets it go. */
+  pinNote(id: string, pinned: boolean): Promise<ItemView>
+  /** Today's note, made if it isn't there yet. */
+  dailyNote(): Promise<ItemView>
   /** Turns the first place note `from` names note `to` into a [[link]]. */
   linkMention(from: string, to: string): Promise<ItemView>
   /** The project's note folders, empty ones too ("a", "a/b"). */
@@ -255,6 +261,8 @@ export const workspaceChannels = {
   moveNote: 'workspace:move-note',
   mentions: 'workspace:mentions',
   linkMention: 'workspace:link-mention',
+  pinNote: 'workspace:pin-note',
+  dailyNote: 'workspace:daily-note',
   note: 'workspace:note',
   saveNote: 'workspace:save-note',
   search: 'workspace:search',

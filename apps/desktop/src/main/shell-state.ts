@@ -227,6 +227,16 @@ export class ShellController {
     return this.notes.mentions(await this.openFolder(), id)
   }
 
+  async pinNote(id: string, pinned: boolean): Promise<ItemView> {
+    const folder = await this.openFolder()
+    return noteItem(await this.notes.pin(folder, id, pinned), await this.citedItems(folder))
+  }
+
+  async dailyNote(): Promise<ItemView> {
+    const folder = await this.openFolder()
+    return noteItem(await this.notes.daily(folder), await this.citedItems(folder))
+  }
+
   async linkMention(from: string, to: string): Promise<ItemView> {
     const folder = await this.openFolder()
     return noteItem(await this.notes.linkMention(folder, from, to), await this.citedItems(folder))
@@ -601,7 +611,7 @@ function kitSheets(kit: KitManifest): ItemView[] {
 function noteItem(note: NoteSummary, sources: ReadonlyMap<string, string>): ItemView {
   // Turns of a thread are not sources.
   const cites = [...new Set(note.cites.flatMap((that) => (sources.has(that) && !threadOf(sources.get(that)!) ? [sources.get(that)!] : [])))]
-  return { id: note.id, kind: 'note', title: note.title, folder: note.folder, name: note.name, links: note.links, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
+  return { id: note.id, kind: 'note', title: note.title, folder: note.folder, name: note.name, links: note.links, pinned: note.pinned, updatedAt: note.updatedAt, tags: note.tags, cites, createdBy: note.createdBy, createdAt: note.createdAt }
 }
 
 function noteView(note: NoteFile): NoteView {
