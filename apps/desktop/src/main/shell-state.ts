@@ -69,6 +69,8 @@ export class ShellController {
   private readonly kitHost: KitHost | undefined
   /** How a kit's question reaches the agent, once the agent is set up. */
   askForKit: ((folder: string, kit: string, question: string) => Promise<string>) | undefined
+  /** Projects whose old, unused that.s were taken away this session. */
+  private readonly tidied = new Set<string>()
   /** PDFs being read for search, by item. */
   private readonly reading = new Map<string, Promise<void>>()
 
@@ -564,7 +566,21 @@ export class ShellController {
 
   async thats(): Promise<ThatView[]> {
     const { open } = await this.state()
-    return open ? (await this.anchors.list(open.project)).map(thatView) : []
+    if (!open) return []
+    // Once a session, unused that.s from more than a week ago are taken away.
+    if (!this.tidied.has(open.project)) {
+      this.tidied.add(open.project)
+      await this.anchors.tidy(open.project).catch(() => undefined)
+    }
+    return (await this.anchors.list(open.project)).map(thatView)
+  }
+
+  /** Takes a *that.* away if nothing uses it; one in use stays (and says so with `false`). */
+  async removeThat(id: string): Promise<boolean> {
+    const folder = await this.openFolder()
+    if ((await this.anchors.cited(folder)).has(id)) return false
+    await this.anchors.remove(folder, id)
+    return true
   }
 
   async thatImage(id: string): Promise<Uint8Array | null> {

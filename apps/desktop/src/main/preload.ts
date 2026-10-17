@@ -45,6 +45,7 @@ const workspace: WorkspaceApi = {
   makeThat: (request) => call(workspaceChannels.makeThat, request),
   thats: () => call(workspaceChannels.thats),
   thatImage: (id) => call(workspaceChannels.thatImage, id),
+  removeThat: (id) => call(workspaceChannels.removeThat, id),
   kits: () => call(workspaceChannels.kits),
   addKit: (name, allow) => call(workspaceChannels.addKit, name, allow === true),
   kitCall: (name, method, args) => call(workspaceChannels.kitCall, name, method, args),

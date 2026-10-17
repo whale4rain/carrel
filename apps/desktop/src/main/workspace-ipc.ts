@@ -69,6 +69,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     makeThat: (request) => controller.makeThat(request),
     thats: () => controller.thats(),
     thatImage: (id) => controller.thatImage(text(id)),
+    removeThat: (id) => controller.removeThat(text(id)),
     kits: () => controller.kits(),
     addKit: (name, allow) => controller.addKit(text(name), allow === true),
     kitCall: (name, method, args) => controller.kitCall(text(name), text(method), Array.isArray(args) ? args.slice(0, 8) : []),
