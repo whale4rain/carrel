@@ -214,6 +214,8 @@ export interface WorkspaceApi {
   thats(): Promise<ThatView[]>
   /** A *that.*'s snapshot image (PNG), if it has one. */
   thatImage(id: string): Promise<Uint8Array | null>
+  /** Takes a *that.* away if nothing uses it; false when a note, question or kit still does. */
+  removeThat(id: string): Promise<boolean>
   /** The learning kits installed on this computer. */
   kits(): Promise<KitView[]>
   /** Adds a kit to the open project; its sheets, to lay on the desk. `allow` says yes to what it asks. */
@@ -295,6 +297,7 @@ export const workspaceChannels = {
   makeThat: 'workspace:make-that',
   thats: 'workspace:thats',
   thatImage: 'workspace:that-image',
+  removeThat: 'workspace:remove-that',
   kits: 'workspace:kits',
   addKit: 'workspace:add-kit',
   kitCall: 'workspace:kit-call',

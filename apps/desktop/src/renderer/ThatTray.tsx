@@ -14,9 +14,10 @@ export const THAT_DRAG = 'application/x-carrel-that'
 const TRAY = 8
 
 /**
- * The tray: the *that.*s made on this desk, as chips. A chip opens its
- * source, or drags into a note to cite it; × only takes it off the tray, the
- * *that.* itself is kept in the project.
+ * The tray: today's *that.*s on this desk's sources, as chips. A chip opens
+ * its source, or drags into a note to cite it. × (or Remove on its
+ * right-click menu) takes the *that.* away; one a note, question or kit uses
+ * only leaves the tray.
  */
 export function ThatTray({
   thats,
@@ -54,11 +55,18 @@ export function ThatTray({
                   event.dataTransfer.effectAllowed = 'copy'
                 }}
                 onClick={() => onOpen(that)}
+                onContextMenu={(event) => {
+                  event.preventDefault()
+                  event.stopPropagation()
+                  void window.carrel.menu([{ id: 'remove', label: 'Remove' }]).then((picked) => {
+                    if (picked === 'remove') onRemove(that)
+                  })
+                }}
               >
                 {chipLabel(that, item)}
                 {lost.has(that.id) && ' · saved'}
               </button>
-              <button type="button" className="that-remove" aria-label={`Take ${chipLabel(that, item)} off the tray`} onClick={() => onRemove(that)}>
+              <button type="button" className="that-remove" aria-label={`Remove ${chipLabel(that, item)}`} onClick={() => onRemove(that)}>
                 ×
               </button>
             </li>
