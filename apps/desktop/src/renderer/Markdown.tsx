@@ -45,6 +45,13 @@ function drawInlines(content: readonly NoteInline[], onThat: ((id: string) => vo
         </span>
       )
     }
+    if (node.type === 'noteLink') {
+      return (
+        <span key={at} className="note-link">
+          {node.attrs.label || node.attrs.target}
+        </span>
+      )
+    }
     let text: ReactNode = node.text
     for (const mark of node.marks ?? []) {
       text = mark.type === 'bold' ? <strong>{text}</strong> : mark.type === 'italic' ? <em>{text}</em> : <code>{text}</code>
