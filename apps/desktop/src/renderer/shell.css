@@ -3527,3 +3527,29 @@ kbd {
   margin: 0;
   padding-left: 6px;
 }
+
+/* Focus's ← and →: back the way you came after a jump. */
+.focus-bar .focus-trail {
+  flex: none;
+  display: flex;
+  gap: 2px;
+  opacity: 1;
+}
+
+.focus-bar .focus-trail button {
+  width: 28px;
+  padding: 0;
+  justify-content: center;
+  background: transparent;
+  color: var(--paper);
+  font-size: 15px;
+}
+
+.focus-bar .focus-trail button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--paper) 16%, transparent);
+}
+
+.focus-bar .focus-trail button:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

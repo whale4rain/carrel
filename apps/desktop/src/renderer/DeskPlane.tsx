@@ -71,6 +71,13 @@ const FOCUS_SHELF = 96
 const FOCUS_MARGIN = 48
 /** A focused sheet is no wider than this, so lines stay readable. */
 const FOCUS_MAX_W = 1100
+/** A place in Focus to come back to: a sheet, and the page it was on. */
+interface Spot {
+  sheet: string
+  page?: number
+}
+/** Steps Focus's trail keeps. */
+const TRAIL = 50
 /** Sheets kept beside the focused one, at most. */
 const FOCUS_BESIDE = 2
 /** A shelf card being dragged up beside the focused sheet. */
@@ -354,9 +361,13 @@ export function DeskPlane({
     }
     const ids = next.slice(current.length).map((sheet) => sheet.id)
     if (ids.length === 0) return
-    setFocused(undefined)
     save(next, 'added', ids, current)
     setSelected(new Set(ids))
+    // A jump in Focus to a source not on the desk lays it down and focuses it; adding more ends Focus.
+    if (focusedRef.current && ids.length === 1) {
+      latest.current = next
+      enterFocus(ids[0]!)
+    } else setFocused(undefined)
   }
   const addSheet = (): void => addSheets([null])
 
@@ -570,8 +581,44 @@ export function DeskPlane({
     save(foldTo(current, new Set([id]), folding), folding ? 'folded' : 'unfolded', [id], current)
   }
 
+  // Focus's trail: where you were before each jump, so ← and → take you back the way you came.
+  const [trail, setTrailState] = useState<{ back: Spot[]; forward: Spot[] }>({ back: [], forward: [] })
+  const trailRef = useRef(trail)
+  const setTrail = (next: { back: Spot[]; forward: Spot[] }): void => {
+    trailRef.current = next
+    setTrailState(next)
+  }
+  const positionsRef = useRef(positions)
+  positionsRef.current = positions
+  const here = (): Spot | undefined => {
+    const sheet = focusedRef.current
+    if (!sheet) return undefined
+    const page = /^(?:p\.|§) (\d+)/.exec(positionsRef.current.get(sheet) ?? '')?.[1]
+    return { sheet, ...(page ? { page: Number(page) } : {}) }
+  }
+  // A jump in Focus (another sheet, or another page of this one) leaves a step to come back to.
+  const step = (): void => {
+    const now = here()
+    if (now) setTrail({ back: [...trailRef.current.back, now].slice(-TRAIL), forward: [] })
+  }
+  const travelFocus = (way: 'back' | 'forward'): void => {
+    const now = here()
+    const known = trailRef.current
+    const from = way === 'back' ? known.back : known.forward
+    const to = from.at(-1)
+    if (!to || !now || !latest.current.some((sheet) => sheet.id === to.sheet)) return
+    const rest = from.slice(0, -1)
+    setTrail(way === 'back' ? { back: rest, forward: [...known.forward, now] } : { back: [...known.back, now], forward: rest })
+    showFocus(to.sheet)
+    if (to.page !== undefined) setGoTo({ sheet: to.sheet, page: to.page, nonce: Date.now() })
+  }
+
   // Focus: one sheet fills the desk. A web sheet goes live in it.
   const enterFocus = (id: string): void => {
+    if (focusedRef.current && focusedRef.current !== id) step()
+    showFocus(id)
+  }
+  const showFocus = (id: string): void => {
     const sheet = latest.current.find((candidate) => candidate.id === id)
     if (!sheet) return
     // A sheet beside the focused one swaps places with it.
@@ -591,6 +638,7 @@ export function DeskPlane({
   }
   const unpin = (id: string): void => setBeside((now) => now.filter((other) => other !== id))
   const leaveFocus = (): void => {
+    setTrail({ back: [], forward: [] })
     focusedRef.current = undefined
     setFocused(undefined)
     setActive(undefined)
@@ -750,7 +798,10 @@ export function DeskPlane({
     // A sheet just laid down comes back here on the next render.
     if (!sheet && (that || show.page !== undefined)) return
     handled.current = show.nonce
-    if (sheet && show.page !== undefined) setGoTo({ sheet: sheet.id, page: show.page, nonce: show.nonce })
+    if (sheet && show.page !== undefined) {
+      if (focusedRef.current === sheet.id) step()
+      setGoTo({ sheet: sheet.id, page: show.page, nonce: show.nonce })
+    }
   })
   function showItem(item: ItemView, write: boolean): void {
     const sheet = latest.current.find((candidate) => candidate.itemId === item.id)
@@ -777,6 +828,7 @@ export function DeskPlane({
       setSavedCopy(that)
       return
     }
+    if (focusedRef.current === sheet.id) step()
     bringForward(sheet)
     const moment = momentOf(that.selectors)
     if (item.file) setFocus({ sheet: sheet.id, that, nonce: Date.now() })
@@ -807,6 +859,8 @@ export function DeskPlane({
         // Focus keeps the desk as it is: only Esc, that. and swapping sheets.
         const page = zoomable(focused)
         if (event.key === 'Escape') leaveFocus()
+        else if (mod && event.key === '[') travelFocus('back')
+        else if (mod && event.key === ']') travelFocus('forward')
         else if (mod && event.key === '.') void pointAt()
         else if (page && mod && (event.key === '=' || event.key === '+')) void zoomPage(focused, 1)
         else if (page && mod && event.key === '-') void zoomPage(focused, -1)
@@ -853,6 +907,8 @@ export function DeskPlane({
       if (focused) {
         const page = zoomable(focused)
         if (id === 'leave') leaveFocus()
+        else if (id === 'focus-back') travelFocus('back')
+        else if (id === 'focus-forward') travelFocus('forward')
         else if (id === 'that') void pointAt()
         else if (page && id === 'zoom-in') void zoomPage(focused, 1)
         else if (page && id === 'zoom-out') void zoomPage(focused, -1)
@@ -1320,6 +1376,14 @@ export function DeskPlane({
       {inFocus && (
         <>
           <div className="focus-bar" role="toolbar" aria-label="Focus">
+            <span className="focus-trail">
+              <button type="button" aria-label="Back" title="Back to where you were (⌘[)" disabled={trail.back.length === 0} onClick={() => travelFocus('back')}>
+                ←
+              </button>
+              <button type="button" aria-label="Forward" title="Forward again (⌘])" disabled={trail.forward.length === 0} onClick={() => travelFocus('forward')}>
+                →
+              </button>
+            </span>
             <strong>Focus</strong>
             <span>Everything else waits on the shelf below. Drag a card up to keep it beside.</span>
             <button type="button" onClick={leaveFocus}>

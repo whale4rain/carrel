@@ -75,6 +75,12 @@ test('focus a sheet, swap from the shelf, and go back', async () => {
   await expect(page.locator('.sheet')).toHaveCount(1)
   await expect(page.locator('.sheet[data-focused]')).toHaveAttribute('aria-label', 'Blank sheet')
   await expect(cards).toHaveText(['PaperReading'])
+  // ← goes back the way you came, → forward again.
+  await page.getByRole('button', { name: 'Back', exact: true }).click()
+  await expect(page.locator('.sheet[data-focused]')).toHaveAttribute('aria-label', 'Reading')
+  await expect(page.getByRole('button', { name: 'Back', exact: true })).toBeDisabled()
+  await page.getByRole('button', { name: 'Forward' }).click()
+  await expect(page.locator('.sheet[data-focused]')).toHaveAttribute('aria-label', 'Blank sheet')
 
   // Esc: the desk is back exactly as it was.
   await page.keyboard.press('Escape')

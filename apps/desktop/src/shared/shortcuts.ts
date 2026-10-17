@@ -58,6 +58,8 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
     shortcuts: [
       { id: 'focus', label: 'Focus the selected sheet (or double-click it)', keys: { mod: true, key: 'Enter' } },
       { id: 'leave', label: 'Back to the desk', keys: { key: 'Escape' } },
+      { id: 'focus-back', label: 'Back to where you were before a jump', keys: { mod: true, key: '[' } },
+      { id: 'focus-forward', label: 'Forward again', keys: { mod: true, key: ']' } },
     ],
   },
   {

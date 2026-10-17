@@ -44,7 +44,7 @@ export function setAppMenu(platform: string): void {
     },
     {
       label: 'Desk',
-      submenu: [command('focus', 'Focus'), command('leave', 'Back to Desk'), { type: 'separator' }, command('that', 'that.'), command('hand', 'Hand Tool'), command('select-all', 'Select All Sheets')],
+      submenu: [command('focus', 'Focus'), command('leave', 'Back to Desk'), command('focus-back', 'Back'), command('focus-forward', 'Forward'), { type: 'separator' }, command('that', 'that.'), command('hand', 'Hand Tool'), command('select-all', 'Select All Sheets')],
     },
     { role: 'windowMenu' },
     { role: 'help', submenu: [command('shortcuts', 'Keyboard Shortcuts')] },
