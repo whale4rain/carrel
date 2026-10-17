@@ -4,7 +4,7 @@ import { Decoration, DecorationSet } from '@tiptap/pm/view'
 import { Placeholder } from '@tiptap/extensions'
 import { EditorContent, useEditor } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import type { ItemView, NoteDoc } from '../shared/workspace-api.js'
 import { THAT_DRAG } from './ThatTray.js'
@@ -71,6 +71,29 @@ export const NoteLink = Node.create({
         find: /\[\[([^[\]|\n]+)\]\]$/,
         handler: ({ state, range, match }) => {
           state.tr.replaceWith(range.from, range.to, this.type.create({ target: match[1]!.trim(), label: '' }))
+        },
+      }),
+    ]
+  },
+})
+
+/** A place under the title for what the page shows there (the note's properties); the text flows around it. */
+const UnderTitle = Extension.create<{ slot: () => HTMLElement | undefined }>({
+  name: 'underTitle',
+  addOptions() {
+    return { slot: () => undefined }
+  },
+  addProseMirrorPlugins() {
+    const slot = this.options.slot
+    return [
+      new Plugin({
+        props: {
+          decorations: (state) => {
+            const element = slot()
+            const first = state.doc.firstChild
+            if (!element || !first) return DecorationSet.empty
+            return DecorationSet.create(state.doc, [Decoration.widget(first.nodeSize, () => element, { key: 'under-title', side: -1, ignoreSelection: true, stopEvent: () => true })])
+          },
         },
       }),
     ]
@@ -208,6 +231,7 @@ export function NoteView({
   onDoc,
   notes = [],
   onOpenLink,
+  underTitle,
 }: {
   item: ItemView
   write: boolean
@@ -222,7 +246,18 @@ export function NoteView({
   notes?: readonly ItemView[]
   /** A [[link]] was clicked: open (or make) the note it names. */
   onOpenLink?: ((target: string) => void) | undefined
+  /** Shown under the note's title line, outside its text. */
+  underTitle?: ReactNode
 }) {
+  // The element `underTitle` is drawn into; the editor places it after the title.
+  const slot = useMemo(() => {
+    const element = document.createElement('div')
+    element.className = 'note-under-title'
+    element.contentEditable = 'false'
+    return element
+  }, [])
+  const hasSlot = useRef(false)
+  hasSlot.current = underTitle !== undefined
   const [error, setError] = useState<string>()
   // Edits count only once the note's own text is in.
   const ready = useRef(false)
@@ -292,7 +327,7 @@ export function NoteView({
   lookRef.current = look
 
   const editor = useEditor({
-    extensions: [...extensions, LinkStatus.configure({ known: () => known.current })],
+    extensions: [...extensions, LinkStatus.configure({ known: () => known.current }), UnderTitle.configure({ slot: () => (hasSlot.current ? slot : undefined) })],
     editorProps: {
       // While [[ offers notes, the arrows pick one, Enter or Tab links it and Esc closes the list.
       handleKeyDown: (_view, event) => {
@@ -395,6 +430,7 @@ export function NoteView({
   return (
     <div className="note-view" data-scrolls>
       <EditorContent editor={editor} />
+      {underTitle !== undefined && createPortal(underTitle, slot)}
       {suggest &&
         candidates.length > 0 &&
         createPortal(

@@ -3,6 +3,7 @@ import { mkdir, readdir, readFile, rename, stat, writeFile } from 'node:fs/promi
 import { dirname, join } from 'node:path'
 import { isMissing } from './files.js'
 import { citedThats, fromMarkdown, inlines, linkName, linksOf, linkText, plainText, tagsOf, toMarkdown, type NoteBlock, type NoteDoc, type NoteInline } from './note-markdown.js'
+import { cleanPropertyName, formatProperty, parseProperty, PROPERTY_KEY, type Properties, type PropertyValue } from './properties.js'
 import type { Actor, Workspace } from './workspace.js'
 
 /**
@@ -34,6 +35,8 @@ export interface NoteSummary {
   links: string[]
   /** Kept at the top of the sidebar. */
   pinned: boolean
+  /** Its other header fields: status, dates, aliases and the like. */
+  properties: Properties
 }
 
 /** Another note that links to a note, or mentions it without a link. */
@@ -113,7 +116,7 @@ export class Notes {
     const stamp = this.now().toISOString()
     const title = titleOf(doc)
     const relative = await this.freeName(folder, place, fileName(title))
-    const note: NoteFile = { id: randomUUID(), title, folder: place, name: nameOf(relative), tags: tagsOf(doc), cites: citedThats(doc), links: linksOf(doc), pinned: false, createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
+    const note: NoteFile = { id: randomUUID(), title, folder: place, name: nameOf(relative), tags: tagsOf(doc), cites: citedThats(doc), links: linksOf(doc), pinned: false, properties: {}, createdBy: actor, createdAt: stamp, updatedAt: stamp, doc }
     await this.write(folder, relative, note, [])
     await this.workspace.event(folder, actor, 'note.added', { id: note.id, path: relative })
     return note
@@ -125,7 +128,7 @@ export class Notes {
     if (toMarkdown(before.doc) === toMarkdown(doc)) return before
     let relative = this.index(folder).get(id)!
     if (titleOf(doc) !== before.title) relative = await this.moveFile(folder, id, before.folder, fileName(titleOf(doc)))
-    const note: NoteFile = { ...before, doc, title: titleOf(doc), name: nameOf(relative), tags: tagsOf(doc), cites: citedThats(doc), links: linksOf(doc), updatedAt: this.now().toISOString() }
+    const note: NoteFile = { ...before, doc, title: titleOf(doc), name: nameOf(relative), tags: tagsWith(doc, before.properties), cites: citedThats(doc), links: linksOf(doc), updatedAt: this.now().toISOString() }
     await this.write(folder, relative, note, extra)
     await this.workspace.event(folder, actor, 'note.edited', { id })
     // Links to its old name follow it, as Obsidian's do; an untitled note had no name worth keeping.
@@ -143,6 +146,22 @@ export class Notes {
     await this.workspace.event(folder, actor, 'note.moved', { id, from, to: relative })
     if (nameOf(relative) !== note.name) await this.retarget(folder, id, [note.name], nameOf(relative), actor)
     return { ...note, folder: place, name: nameOf(relative) }
+  }
+
+  /** Sets one of a note's properties, or takes it away (`null`). */
+  async setProperty(folder: string, id: string, key: string, value: PropertyValue | null, actor: Actor = 'user'): Promise<NoteFile> {
+    const name = cleanPropertyName(key)
+    if (OWN_KEYS.has(name)) throw new Error(`"${name}" is kept by Carrel itself.`)
+    const { note, extra } = await this.parsed(folder, id)
+    const properties = { ...note.properties }
+    if (value === null) delete properties[name]
+    else properties[name] = value
+    const changed: NoteFile = { ...note, properties, tags: tagsWith(note.doc, properties) }
+    // A raw line under the same key (one this couldn't read) gives way to the new value.
+    const kept = extra.filter((entry) => PROPERTY_KEY.exec(entry)?.[1]?.trim() !== name)
+    await this.write(folder, this.index(folder).get(id)!, changed, kept)
+    await this.workspace.event(folder, actor, 'note.property', { id, key: name, value })
+    return changed
   }
 
   /** Pins a note to the top of the sidebar, or lets it go. */
@@ -317,22 +336,32 @@ export class Notes {
     const doc = fromMarkdown(body)
     const stamp = this.now().toISOString()
     const place = relative.includes('/') ? relative.slice(0, relative.lastIndexOf('/')) : ''
+    // Other header fields become properties when they read as such; the rest stay as written.
+    const properties: Properties = {}
+    const extra: string[] = []
+    for (const entry of headerEntries(text)) {
+      if (entry.key !== undefined && OWN_KEYS.has(entry.key)) continue
+      const property = parseProperty(entry.text)
+      if (property && !OWN_KEYS.has(property.key) && !(property.key in properties)) properties[property.key] = property.value
+      else extra.push(entry.text)
+    }
     return {
       note: {
         id: header.id ?? '',
         title: titleOf(doc),
         folder: place,
         name: nameOf(relative),
-        tags: tagsOf(doc),
+        tags: tagsWith(doc, properties),
         cites: citedThats(doc),
         links: linksOf(doc),
         pinned: header.pinned === 'true',
+        properties,
         createdBy: header.createdBy === 'agent' ? 'agent' : 'user',
         createdAt: header.created ?? stamp,
         updatedAt: header.updated ?? header.created ?? stamp,
         doc,
       },
-      extra: headerEntries(text).filter((entry) => entry.key === undefined || !OWN_KEYS.has(entry.key)).map((entry) => entry.text),
+      extra,
     }
   }
 
@@ -372,6 +401,7 @@ export class Notes {
       `updated: ${note.updatedAt}`,
       ...(note.createdBy === 'agent' ? ['createdBy: agent'] : []),
       ...(note.pinned ? ['pinned: true'] : []),
+      ...Object.entries(note.properties).map(([key, value]) => formatProperty(key, value)),
       ...extra,
       '---',
       '',
@@ -396,7 +426,7 @@ export class Notes {
 }
 
 export function summaryOf(note: NoteFile): NoteSummary {
-  return { id: note.id, title: note.title, folder: note.folder, name: note.name, links: note.links, pinned: note.pinned, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt, tags: note.tags, cites: note.cites }
+  return { id: note.id, title: note.title, folder: note.folder, name: note.name, links: note.links, pinned: note.pinned, properties: note.properties, createdBy: note.createdBy, createdAt: note.createdAt, updatedAt: note.updatedAt, tags: note.tags, cites: note.cites }
 }
 
 /** The first line of a note, or "Untitled note". */
@@ -466,7 +496,7 @@ function headerEntries(text: string): Array<{ key?: string; text: string }> {
   if (!match) return []
   const found: Array<{ key?: string; text: string }> = []
   for (const line of match[1]!.split(/\r?\n/)) {
-    const key = /^([\w-]+):/.exec(line)?.[1]
+    const key = PROPERTY_KEY.exec(line)?.[1]?.trim()
     const last = found.at(-1)
     if (key === undefined && last && /^(\s|-)/.test(line)) last.text += `\n${line}`
     else if (line.trim().length > 0) found.push(key === undefined ? { text: line } : { key, text: line })
@@ -476,6 +506,13 @@ function headerEntries(text: string): Array<{ key?: string; text: string }> {
 
 function basename(relative: string): string {
   return relative.slice(relative.lastIndexOf('/') + 1)
+}
+
+/** A note's #tags, with any listed in its tags property, lower-cased, each once. */
+function tagsWith(doc: NoteDoc, properties: Properties): string[] {
+  const listed = properties.tags
+  const more = (Array.isArray(listed) ? listed : typeof listed === 'string' ? listed.split(/[\s,]+/) : []).map((tag) => tag.replace(/^#/, '').toLowerCase()).filter((tag) => tag !== '')
+  return [...new Set([...tagsOf(doc), ...more])]
 }
 
 /** A note file's name without ".md". */

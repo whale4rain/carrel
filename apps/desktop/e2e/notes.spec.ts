@@ -3,7 +3,7 @@
 // another folder; Put on desk lays it beside your sources. [[Links]] join
 // notes, and a note's margin lists who links to it and who only names it.
 // Run `pnpm build` first.
-import { mkdtemp, readdir, rm } from 'node:fs/promises'
+import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
@@ -164,6 +164,54 @@ test('open a note by name, pin it, and write today’s note', async () => {
   await expect(page.locator('.note-page-path')).toContainText('Daily')
   await pinned.getByRole('button', { name: /Today’s note/ }).click()
   await expect(page.locator('.sidebar [aria-label="Notes"]').getByRole('group', { name: 'Daily' }).locator('.row.note')).toHaveText([today])
+  await page.evaluate(() => window.carrel.workspace.state())
+  await quit(app)
+})
+
+test('give a note properties under its title', async () => {
+  const { app, page } = await start(home)
+  const tree = page.locator('.sidebar [aria-label="Notes"]')
+  await tree.getByRole('button', { name: '+ New note' }).click()
+  const editor = page.locator('.note-page .ProseMirror')
+  await expect(editor).toBeFocused()
+  await page.keyboard.type('Supply shocks')
+  await expect(tree.locator('.row.note', { hasText: 'Supply shocks' })).toHaveCount(1)
+  const props = page.getByLabel('Properties')
+
+  // A text property: name it, pick its kind, then type its value.
+  await props.getByRole('button', { name: '+ Add a property' }).click()
+  await props.getByLabel('Property name').fill('status')
+  await props.getByRole('button', { name: 'Add', exact: true }).click()
+  await props.getByLabel('status', { exact: true }).fill('Learning')
+  await props.getByLabel('status', { exact: true }).press('Enter')
+  // A list: tags, which also tag the note.
+  await props.getByRole('button', { name: '+ Add a property' }).click()
+  await props.getByLabel('Property name').fill('tags')
+  await props.getByLabel('Property name').press('Enter')
+  await props.getByLabel('Add to tags').fill('exam')
+  await props.getByLabel('Add to tags').press('Enter')
+  await expect(props.locator('.note-prop-chip')).toHaveText(['exam×'])
+  await expect(page.locator('.sidebar .tag', { hasText: '#exam' })).toHaveCount(1)
+  // A checkbox.
+  await props.getByRole('button', { name: '+ Add a property' }).click()
+  await props.getByLabel('Property name').fill('done')
+  await props.getByLabel('Kind').selectOption('checkbox')
+  await props.getByRole('button', { name: 'Add', exact: true }).click()
+  await props.getByLabel('done', { exact: true }).check()
+
+  // They live in the note's header, and survive more writing.
+  await editor.locator('h1').click()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Oil prices.')
+  const file = join(home, 'Carrel', 'Notes home', 'notes', 'Supply shocks.md')
+  await expect.poll(() => readFile(file, 'utf8')).toMatch(/status: Learning\ntags:\n {2}- exam\ndone: true\n---\n# Supply shocks\n\nOil prices\.\n$/)
+
+  // Remove one.
+  await props.locator('.note-prop', { hasText: 'done' }).hover()
+  await props.getByRole('button', { name: 'Remove done' }).click()
+  await expect(props.locator('.note-prop')).toHaveCount(2)
+  await expect.poll(() => readFile(file, 'utf8')).not.toContain('done:')
   await page.evaluate(() => window.carrel.workspace.state())
   await quit(app)
 })

@@ -38,6 +38,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     mentions: (id) => controller.mentions(text(id)),
     linkMention: (from, to) => controller.linkMention(text(from), text(to)),
     pinNote: (id, pinned) => controller.pinNote(text(id), pinned === true),
+    setProperty: (id, key, value) => controller.setProperty(text(id), text(key), value),
     dailyNote: () => controller.dailyNote(),
     noteFolders: () => controller.noteFolders(),
     createFolder: (path) => controller.createFolder(text(path)),

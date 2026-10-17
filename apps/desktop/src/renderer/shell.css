@@ -3370,3 +3370,160 @@ kbd {
   color: var(--ink-muted);
   font-size: 10px;
 }
+
+/* A note's properties under its title: name on the left in ink-muted, value on the right. */
+.note-text > .note-under-title {
+  margin-top: 4px;
+  cursor: default;
+}
+
+.note-props {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--rule);
+  font: var(--text-label);
+  font-weight: 400;
+}
+
+.note-prop {
+  display: grid;
+  grid-template-columns: 128px minmax(0, 1fr) 22px;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  border-radius: 6px;
+}
+
+.note-prop:hover {
+  background: var(--paper-2);
+}
+
+.note-prop-name {
+  padding-left: 6px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--ink-muted);
+}
+
+.note-prop-value {
+  min-width: 0;
+  height: 26px;
+  padding: 0 6px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  user-select: text;
+}
+
+.note-prop-value:hover {
+  border-color: var(--rule);
+}
+
+.note-prop-value:focus {
+  outline: none;
+  border-color: var(--graphite);
+  background: var(--paper);
+}
+
+.note-prop-value[type='date'] {
+  justify-self: start;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.note-prop-check {
+  justify-self: start;
+  width: 15px;
+  height: 15px;
+  margin-left: 6px;
+  accent-color: var(--ink);
+}
+
+.note-prop-list {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.note-prop-list .note-prop-value {
+  flex: 1;
+  min-width: 60px;
+}
+
+.note-prop-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 0 4px 0 8px;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  font: var(--text-caption);
+}
+
+.note-prop-chip button {
+  width: 16px;
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+.note-prop-remove {
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  color: var(--ink-muted);
+  text-align: center;
+  opacity: 0;
+}
+
+.note-prop:hover .note-prop-remove,
+.note-prop-remove:focus-visible,
+.note-prop-remove.shown {
+  opacity: 1;
+}
+
+.note-prop-remove:hover {
+  color: var(--ink);
+}
+
+.note-prop-add {
+  align-self: flex-start;
+  padding: 4px 6px;
+  border-radius: 6px;
+  color: var(--ink-muted);
+}
+
+.note-prop-add:hover {
+  background: var(--paper-2);
+  color: var(--ink);
+}
+
+.note-prop-new {
+  grid-template-columns: 128px auto auto 22px;
+  justify-content: start;
+}
+
+.note-prop-new .note-prop-value {
+  border-color: var(--rule);
+}
+
+.note-prop-kind {
+  height: 26px;
+  border: 1px solid var(--rule);
+  border-radius: 6px;
+  background: var(--paper);
+  color: var(--ink);
+  font: inherit;
+}
+
+.note-props .field-error {
+  grid-column: 1 / -1;
+  margin: 0;
+  padding-left: 6px;
+}
