@@ -35,7 +35,7 @@ test('lay a learning kit on the desk, in its sandbox', async () => {
   await kits.getByRole('menuitem', { name: 'Stages' }).click()
   // It asks once, the first time.
   const asking = page.getByRole('dialog', { name: 'Allow Language' })
-  await expect(asking.locator('li')).toHaveText(['Read your that.s and the words they point at', 'Schedule reviews'])
+  await expect(asking.locator('li')).toHaveText(['Read your that.s and the words they point at', 'Schedule reviews', 'Ask the agent questions (each one shows in the thread)'])
   await asking.getByRole('button', { name: 'Allow' }).click()
 
   const sheet = page.locator('.sheet[data-kind="kit"]')
@@ -188,13 +188,24 @@ test('build a deck from that.s, review it, and move on a stage', async () => {
   await addSheet('Vocabulary')
   await page.getByRole('dialog', { name: 'Allow Language' }).getByRole('button', { name: 'Allow' }).click()
 
-  // The that. waits in the deck; one click puts its words in, the learner adds the meaning.
+  // The that. waits in the deck; one click puts its words in, and the agent suggests a meaning in pencil.
   const deck = await kitFrame(page, 'language', 'deck')
   await expect(deck.locator('#thats .that')).toHaveText(['la mesa'])
   await expect(deck.locator('#thats .from')).toHaveText(['Lectura, §1'])
   await deck.getByRole('button', { name: 'Use "la mesa"' }).click()
   await expect(deck.locator('#front')).toHaveValue('la mesa')
-  await deck.locator('#back').fill('the table')
+  await deck.getByRole('button', { name: 'Suggest' }).click()
+  const suggestion = deck.getByRole('status', { name: 'Suggested meaning' })
+  await expect(suggestion.locator('.said')).toHaveText('the table')
+  await expect(deck.locator('#back')).toHaveValue('')
+  // Esc dismisses it; asked again, Tab keeps it.
+  await deck.locator('#back').press('Escape')
+  await expect(suggestion).toBeHidden()
+  await deck.getByRole('button', { name: 'Suggest' }).click()
+  await expect(suggestion.locator('.said')).toHaveText('the table')
+  await deck.locator('#back').press('Tab')
+  await expect(suggestion).toBeHidden()
+  await expect(deck.locator('#back')).toHaveValue('the table')
   await deck.getByRole('button', { name: 'Add to deck' }).click()
   await expect(deck.locator('#cards .front')).toHaveText(['la mesa'])
   await expect(deck.locator('#thats .that')).toHaveCount(0)

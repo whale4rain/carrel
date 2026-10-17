@@ -65,6 +65,8 @@ export interface AgentApi {
   addToNote(turnId: string, noteId?: string, thread?: string): Promise<ItemView>
   /** A *that.* the agent made while answering, to show with the others. */
   onThat(listener: (that: ThatView) => void): () => void
+  /** The project thread gained turns from elsewhere (a learning kit asked the agent). */
+  onTurns(listener: () => void): () => void
 }
 
 export const agentChannels = {
@@ -81,4 +83,5 @@ export const agentChannels = {
   proposal: 'agent:proposal',
   thatTurn: 'agent:that-turn',
   addToNote: 'agent:add-to-note',
+  turns: 'agent:turns',
 } as const

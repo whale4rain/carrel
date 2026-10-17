@@ -104,6 +104,15 @@ export function AgentPanel({
     [],
   )
 
+  // A learning kit asked the agent: its turns land in the project thread.
+  useEffect(
+    () =>
+      agent.onTurns(() => {
+        if (threadId === PROJECT_THREAD) void agent.thread(threadId).then(setThread)
+      }),
+    [threadId],
+  )
+
   useEffect(() => agent.onProposal((proposal) => setProposals((known) => [...known.filter((other) => other.id !== proposal.id), proposal])), [])
 
   // Keep the newest words in view.
@@ -400,7 +409,7 @@ function TurnView({
   children?: ReactNode
 }) {
   const [added, setAdded] = useState<string>()
-  if (turn.by === 'user') return <Mine turn={turn.id} text={turn.text} points={turn.points ?? []} labels={labels} onOpenThat={onOpenThat} />
+  if (turn.by === 'user') return <Mine turn={turn.id} text={turn.text} kit={turn.kit} points={turn.points ?? []} labels={labels} onOpenThat={onOpenThat} />
   return (
     <div className="agent-answer" data-turn={turn.id} data-that={that ? '' : undefined}>
       <Steps steps={turn.steps ?? []} cost={turn.cost} />
@@ -461,18 +470,22 @@ function turnOf(that: ThatView): string | undefined {
 function Mine({
   turn,
   text,
+  kit,
   points,
   labels,
   onOpenThat,
 }: {
   turn?: string
   text: string
+  /** Asked by a learning kit for you: its title. */
+  kit?: string | undefined
   points: readonly string[]
   labels: ReadonlyMap<string, string>
   onOpenThat: (id: string) => void
 }) {
   return (
-    <p className="agent-me" data-turn={turn}>
+    <p className="agent-me" data-turn={turn} data-kit={kit}>
+      {kit ? <span className="agent-kit">{kit} kit asked</span> : null}
       {points.map((id) => (
         <button key={id} type="button" className="that-chip" data-that={id} onClick={() => onOpenThat(id)}>
           {labels.get(id) || 'that.'}

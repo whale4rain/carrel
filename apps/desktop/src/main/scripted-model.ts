@@ -6,14 +6,24 @@ import type { LLMAdapter, LLMStreamEvent } from 'tnega/agent'
  * with the first thing it found, citing a chip the question pointed at.
  * Asked to "make a note", it proposes one. No network, no key.
  */
+/** What the stand-in model says a few words mean, for checks of the language kit. */
+const MEANINGS: Record<string, string> = { 'la mesa': 'the table', 'el libro': 'the book', 'la ventana': 'the window' }
+
 export function scriptedModel(): LLMAdapter {
   let call = 0
   return {
     complete: () => Promise.reject(new Error('The scripted model only streams.')),
-    async *stream(messages): AsyncIterable<LLMStreamEvent> {
+    async *stream(messages, tools): AsyncIterable<LLMStreamEvent> {
       const id = `scripted-${call++}`
       const last = messages.at(-1)
       yield { type: 'message_start', id }
+      if (tools.length === 0) {
+        // A learning kit's question, asked with no tools: a meaning for the quoted words.
+        const words = /[“"]([^”"]+)[”"]/.exec(last?.content ?? '')?.[1]?.trim() ?? ''
+        yield { type: 'message_delta', id, delta: MEANINGS[words.toLowerCase()] ?? `the meaning of “${words}” here` }
+        yield { type: 'message_stop', id, finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0 } }
+        return
+      }
       if (last?.role !== 'tool') {
         const asked = [...messages].reverse().find((message) => message.role === 'user')?.content ?? ''
         // The question comes after any [Context] block.

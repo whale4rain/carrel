@@ -66,6 +66,8 @@ export class ShellController {
   private readonly kitShelf: KitShelf | undefined
   private readonly projectKits: ProjectKits
   private readonly kitHost: KitHost | undefined
+  /** How a kit's question reaches the agent, once the agent is set up. */
+  askForKit: ((folder: string, kit: string, question: string) => Promise<string>) | undefined
   /** PDFs being read for search, by item. */
   private readonly reading = new Map<string, Promise<void>>()
 
@@ -89,7 +91,14 @@ export class ShellController {
           const titles = new Map((await this.library.list(folder)).map((item) => [item.id, item.title]))
           return (await this.anchors.list(folder))
             .filter((anchor) => titles.has(anchor.itemId))
-            .map((anchor) => ({ id: anchor.id, label: anchor.label, ...(anchor.snapshot.text ? { text: anchor.snapshot.text } : {}), source: titles.get(anchor.itemId)! }))
+            .map((anchor) => {
+              const around = aroundOf(anchor.selectors)
+              return { id: anchor.id, label: anchor.label, ...(anchor.snapshot.text ? { text: anchor.snapshot.text } : {}), ...(around ? { around } : {}), source: titles.get(anchor.itemId)! }
+            })
+        },
+        ask: (folder, kit, question) => {
+          if (!this.askForKit) throw new Error('The agent is not set up yet.')
+          return this.askForKit(folder, kit, question)
         },
       })
   }
@@ -658,4 +667,11 @@ function isChange(value: unknown): value is SheetChange {
     Array.isArray(change.ids) &&
     change.ids.every((id) => typeof id === 'string')
   )
+}
+
+/** A text *that.* with the words just around it, as its quote selector kept them. */
+function aroundOf(selectors: readonly Selector[]): string | undefined {
+  const quote = selectors.find((selector) => selector.type === 'TextQuoteSelector')
+  if (!quote) return undefined
+  return `${quote.prefix}${quote.exact}${quote.suffix}`.replace(/\s+/g, ' ').trim()
 }

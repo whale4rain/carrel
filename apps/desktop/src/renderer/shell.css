@@ -3248,6 +3248,14 @@ kbd {
   color: var(--paper);
 }
 
+/* A question a learning kit asked the agent for you. */
+.agent-kit {
+  display: block;
+  margin-bottom: 2px;
+  font: var(--text-label);
+  color: var(--ink-muted);
+}
+
 /* [[Links]] between notes: ink words with a graphite underline; fainter when the note doesn't exist yet. */
 .note-link {
   color: var(--ink);

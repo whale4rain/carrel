@@ -73,6 +73,12 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
         },
       }),
   })
+  controller.askForKit = async (folder, kit, question) => {
+    const { answer } = await agent.askForKit(folder, kit, question)
+    for (const window of BrowserWindow.getAllWindows()) window.webContents.send(agentChannels.turns)
+    if (answer.error !== undefined) throw new Error(answer.error)
+    return answer.text
+  }
   const openFolder = async (): Promise<string> => {
     const { open } = await controller.state()
     if (!open) throw new Error('Create a project first.')

@@ -7,6 +7,10 @@ import { MeteredModel } from './metered.js'
 import { CarrelTnega, type OpenCarrelProject } from './tnega.js'
 import { describeStep } from './tools.js'
 
+/** How the agent answers a learning kit: briefly, in plain text, with nothing around the answer. */
+const KIT_PROMPT =
+  'You answer one question from a learning kit in Carrel, a study app. Answer only what is asked, in plain text, in as few words as the answer needs (at most 40). No preamble, no Markdown.'
+
 /** What the panel draws while the agent answers. */
 export type AgentEvent =
   /** The answer so far. Text written before a step folds into the steps line, so it starts again. */
@@ -131,6 +135,36 @@ export class ProjectAgent {
         },
         thread,
       )
+      return { question, answer }
+    })
+    this.queue = run.catch(() => undefined)
+    return run
+  }
+
+  /**
+   * A question a learning kit asks for the person (`kit.agent.ask`): one
+   * model call with no tools, kept in the project thread under the kit's
+   * name with its cost, so it shows in the thread and counts in the total.
+   * It waits its turn behind the person's own questions.
+   */
+  askForKit(folder: string, kit: string, text: string): Promise<{ question: Turn; answer: Turn }> {
+    const run = this.queue.then(async () => {
+      const question = await this.threads.add(folder, { by: 'user', kit, text })
+      this.meter.take()
+      let reply = ''
+      let error: string | undefined
+      try {
+        const messages = [
+          { role: 'system' as const, content: KIT_PROMPT },
+          { role: 'user' as const, content: text },
+        ]
+        for await (const event of this.meter.llm.stream!(messages, [], { temperature: 0.2 })) if (event.type === 'message_delta') reply += event.delta
+        reply = reply.trim()
+        if (!reply) error = 'The model gave no answer.'
+      } catch (reason) {
+        error = reason instanceof Error ? reason.message : String(reason)
+      }
+      const answer = await this.threads.add(folder, { by: 'agent', kit, text: reply, cost: this.meter.take(), ...(error !== undefined ? { error } : {}) })
       return { question, answer }
     })
     this.queue = run.catch(() => undefined)

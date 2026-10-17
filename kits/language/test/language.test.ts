@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error The kit's pages are plain JavaScript.
-import { cardId, dueCards, dueLabel, moveTo, newCard, numbers, stageOf, wordThats } from '../sheets/language.js'
+import { cardId, dueCards, dueLabel, meaningQuestion, moveTo, newCard, numbers, sentenceOf, stageOf, wordThats } from '../sheets/language.js'
 
 /** A kit bridge with an in-memory store, as the pages see it. */
 function fakeKit() {
@@ -61,5 +61,15 @@ describe('the language kit', () => {
     const reviews = Array.from({ length: 20 }, (_, i) => ({ at: '2026-10-15T09:00:00Z', grade: i < 5 ? 'again' : 'good' }))
     expect(numbers([card('a', { due: '2026-10-10T00:00:00Z' }), card('b', null)], reviews, now)).toEqual({ cards: 2, due: 1, week: 20, retention: 75 })
     expect(numbers([], reviews.slice(0, 5), now).retention).toBeNull()
+  })
+
+  it('asks for a meaning with the sentence the words came from', () => {
+    const around = 'casa es grande. Pongo el libro en la mesa. Luego abro la'
+    expect(sentenceOf(around, 'la mesa')).toBe('Pongo el libro en la mesa.')
+    expect(sentenceOf(around, 'nada')).toBe(around)
+    expect(sentenceOf(undefined, 'la mesa')).toBe('')
+    expect(meaningQuestion('la mesa', around)).toBe('What does “la mesa” mean in this sentence: “Pongo el libro en la mesa.”? Give a short meaning in English, a few words, as a dictionary would.')
+    expect(meaningQuestion('la mesa')).toBe('What does “la mesa” mean? Give a short meaning in English, a few words, as a dictionary would.')
+    expect(meaningQuestion('la mesa', 'la mesa')).toMatch(/^What does “la mesa” mean\?/)
   })
 })
