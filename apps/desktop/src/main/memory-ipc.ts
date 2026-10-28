@@ -1,4 +1,4 @@
-import { ChatSync, dayOf, DEFAULT_SETTINGS, Kept, memoryPaths, onTrail, readChatGptExport, readSettings, visitKey, writeSettings, type MemoryPaths, type MemorySettings } from '@carrel/memory'
+import { ChatSync, dayOf, DEFAULT_SETTINGS, Kept, memoryPaths, onTrail, readChatGptExport, readSettings, visitKey, writeSettings, type Day, type MemoryPaths, type MemorySettings } from '@carrel/memory'
 import type { CarrelRoots } from '@carrel/core'
 import { BrowserWindow, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, screen } from 'electron'
 import { readFile } from 'node:fs/promises'
@@ -42,8 +42,9 @@ export class MemoryService {
   private keepWindow: BrowserWindow | undefined
   private gathered: Gathered = {}
   private screenshot: string | undefined
-  /** Trail visits kept since Carrel started, so a page read twice in a day is kept once. */
-  private readonly visits = new Set<string>()
+  /** Today's trail visits (read from today's file once, then kept up to date), so a page read twice in a day is kept once. */
+  private visits = new Set<string>()
+  private visitsDay?: Day
 
   constructor(private readonly options: MemoryServiceOptions) {
     this.paths = memoryPaths(options.roots)
@@ -90,16 +91,27 @@ export class MemoryService {
     if (trail.length === 0 || !onTrail(url, trail)) return
     const day = dayOf(new Date())
     const key = `visit:${visitKey(url)}:${day}`
+    if (this.visitsDay !== day) {
+      const kept = (await this.kept.day(day)).flatMap((capture) => (capture.kind === 'visit' && capture.key ? [capture.key] : []))
+      if (this.visitsDay !== day) {
+        this.visits = new Set(kept)
+        this.visitsDay = day
+      }
+    }
     if (this.visits.has(key)) return
-    // After a restart the set is empty, so ask today's file too.
-    if ((await this.kept.day(day)).some((capture) => capture.key === key)) {
-      this.visits.add(key)
+    // Claimed before the text is read, so a second call for the same page keeps nothing.
+    this.visits.add(key)
+    const words = (await text()).replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n\n').trim()
+    if (words.length < VISIT_MIN_TEXT) {
+      this.visits.delete(key)
       return
     }
-    const words = (await text()).replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n\n').trim()
-    if (words.length < VISIT_MIN_TEXT) return
-    this.visits.add(key)
-    await this.kept.add({ key, kind: 'visit', from: 'trail', title: title || url, text: words, url: visitKey(url) })
+    try {
+      await this.kept.add({ key, kind: 'visit', from: 'trail', title: title || url, text: words, url: visitKey(url) })
+    } catch (error) {
+      this.visits.delete(key)
+      throw error
+    }
     this.told()
   }
 
