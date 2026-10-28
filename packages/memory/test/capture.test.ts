@@ -182,5 +182,7 @@ describe('reading trail settings', () => {
     expect(onTrail('https://notx.com/a', ['x.com'])).toBe(false)
     expect(onTrail('file:///etc/passwd', ['x.com'])).toBe(false)
     expect(visitKey('https://arxiv.org/abs/1#section')).toBe('https://arxiv.org/abs/1')
+    expect(visitKey('https://app.example.com/#/article/one')).toBe('https://app.example.com/#/article/one')
+    expect(visitKey('https://app.example.com/#!/a')).toBe('https://app.example.com/#!/a')
   })
 })

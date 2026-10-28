@@ -174,7 +174,7 @@ export class ChatSync {
     const found: Array<{ file: string; read: (text: string) => Conversation }> = []
     const sessions = join(this.options.tnegaHome, 'sessions')
     for (const workspace of await folders(sessions)) {
-      for (const name of await files(join(sessions, workspace))) {
+      for (const name of await this.listed(join(sessions, workspace))) {
         const id = name.slice(0, -'.jsonl'.length)
         if (name.endsWith('.jsonl') && SESSION_ID.test(id)) found.push({ file: join(sessions, workspace, name), read: (text) => readTnegaSession(id, text) })
       }
@@ -182,13 +182,23 @@ export class ChatSync {
     for (const project of await folders(this.options.content)) {
       const threads = join(this.options.content, project, 'threads')
       const titles = await sideTitles(join(threads, 'side-threads.json'))
-      for (const name of await files(threads)) {
+      for (const name of await this.listed(threads)) {
         if (!name.endsWith('.jsonl')) continue
         const thread = name.slice(0, -'.jsonl'.length)
         found.push({ file: join(threads, name), read: (text) => readCarrelThread(project, thread, text, titles.get(thread)) })
       }
     }
     return found
+  }
+
+  /** A folder's files; one that can't be listed is skipped, so the other folders are still read. */
+  private async listed(dir: string): Promise<string[]> {
+    try {
+      return await files(dir)
+    } catch (error) {
+      console.error(`memory: skipping ${dir}:`, error)
+      return []
+    }
   }
 
   private async readCursor(): Promise<Cursor> {
