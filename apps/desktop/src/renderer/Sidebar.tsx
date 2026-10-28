@@ -3,7 +3,8 @@ import type { Frame } from '../shared/frame.js'
 import { shortcutLabel } from '../shared/shortcuts.js'
 import type { ItemView, NoteViewSpec, ShellState } from '../shared/workspace-api.js'
 import type { SideThread } from '../shared/agent-api.js'
-import { BookIcon, CalendarIcon, ChevronIcon, LinkIcon, PinIcon, SearchIcon, SparkIcon, TableIcon } from './icons.js'
+import type { KeptToday } from '../shared/memory-api.js'
+import { BookIcon, CalendarIcon, ChevronIcon, LinesIcon, LinkIcon, PinIcon, SearchIcon, SparkIcon, TableIcon } from './icons.js'
 import { initials } from './initials.js'
 import type { Shelf } from './Library.js'
 import { NameField } from './NameField.js'
@@ -27,6 +28,8 @@ export interface WorkspaceActions extends NotesTreeActions {
   openShortcuts(): void
   /** Opens the project thread (or a side thread, by id) beside the desk. */
   openThread(id?: string): void
+  /** Opens the map of what you learned in place of the desk. */
+  openMap(): void
 }
 
 interface Props {
@@ -45,10 +48,14 @@ interface Props {
   sides: readonly SideThread[]
   /** The thread open in the panel, if it is open. */
   thread: string | undefined
+  /** The map is open. */
+  map: boolean
+  /** What was kept today, for the line under Map. */
+  kept: KeptToday | undefined
 }
 
 /** One project, its desks, and the things the project owns. */
-export function Sidebar({ frame, state, actions, items, folders, note, views, view, sides, thread }: Props) {
+export function Sidebar({ frame, state, actions, items, folders, note, views, view, sides, thread, map, kept }: Props) {
   const notes = items.filter((item) => item.kind === 'note').sort((a, b) => (b.updatedAt ?? '').localeCompare(a.updatedAt ?? ''))
   const count = (...kinds: Array<ItemView['kind']>): number => items.filter((item) => kinds.includes(item.kind)).length
   const open = state.open
@@ -116,6 +123,14 @@ export function Sidebar({ frame, state, actions, items, folders, note, views, vi
         <kbd>{shortcutLabel(frame, 'search')}</kbd>
       </button>
 
+      <section className="group" aria-label="Memory">
+        <button type="button" className="row tree-row" aria-label="Map of what you learned" aria-current={map ? 'page' : undefined} onClick={actions.openMap}>
+          <LinesIcon />
+          <span className="grow">Map</span>
+        </button>
+        {kept && <KeptLine kept={kept} />}
+      </section>
+
       {open && (
         <>
           <section className="group" aria-label="Desks">
@@ -125,7 +140,7 @@ export function Sidebar({ frame, state, actions, items, folders, note, views, vi
                 type="button"
                 key={desk.id}
                 className="row desk"
-                aria-current={desk.id === open.desk && note === undefined && view === undefined ? 'page' : undefined}
+                aria-current={desk.id === open.desk && note === undefined && view === undefined && !map ? 'page' : undefined}
                 onClick={() => void actions.openDesk(desk.id)}
               >
                 {desk.id === open.desk && <span className="open-dot" aria-hidden />}
@@ -271,4 +286,21 @@ export function Sidebar({ frame, state, actions, items, folders, note, views, vi
       </footer>
     </nav>
   )
+}
+
+/** What was kept today, quietly: the newest thing kept on purpose, and counts. */
+function KeptLine({ kept }: { kept: KeptToday }) {
+  const counts = [kept.chats > 0 && plural(kept.chats, 'chat'), kept.visits > 0 && `${plural(kept.visits, 'page')} read`, kept.kept > 0 && `${kept.kept} kept`].filter(Boolean)
+  if (counts.length === 0) return null
+  return (
+    <div className="kept-today" aria-label="Kept today">
+      <h2>Kept today</h2>
+      {kept.latest[0] && <span className="kept-today-latest">{kept.latest[0].title}</span>}
+      <span>{counts.join(', ')}</span>
+    </div>
+  )
+}
+
+function plural(n: number, word: string): string {
+  return `${n} ${word}${n === 1 ? '' : 's'}`
 }

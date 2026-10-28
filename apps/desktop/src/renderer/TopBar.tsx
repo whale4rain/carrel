@@ -7,7 +7,7 @@ interface Props {
   project: string | undefined
   desk: string | undefined
   /** What is open: a desk, or a note on its own page. */
-  place?: 'desk' | 'note' | 'view'
+  place?: 'desk' | 'note' | 'view' | 'map'
   /** Whether the agent's thread is open beside the desk. */
   agentOpen: boolean
   onAgent: () => void
@@ -30,7 +30,9 @@ export function TopBar({ frame, project, desk, place = 'desk', agentOpen, onAgen
       >
         <SidebarIcon />
       </button>
-      {project && desk ? (
+      {place === 'map' ? (
+        <h1 className="desk-name">Map</h1>
+      ) : project && desk ? (
         <>
           <span className="crumb">{project} /</span>
           <h1 className="desk-name">{desk}</h1>

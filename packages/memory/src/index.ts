@@ -22,3 +22,4 @@ export { cosine, localEmbedder, VectorCache, words, type Embedder } from './embe
 export { DISTILL_MARK, distillPrompt, jsonIn, MAX_LINES, MAX_PIECES, parseLines, parsePieces, RELATE_MARK, relatePrompt, type Ask, type Candidates, type DistilledPiece } from './prompts.js'
 export { readCues, recall, type Cues, type Recalled } from './recall.js'
 export { MemoryEngine, type Distilled, type MemoryEngineOptions } from './engine.js'
+export { CARD, LOOSE_ENDS, MAP_RANGES, mapLayout, rangeStart, type MapBand, type MapCard, type MapLayout, type MapLine, type MapRange } from './map.js'

@@ -107,3 +107,13 @@ export const TableIcon = () => (
     <path d="M3 10h18M3 15h18M10 10v10" />
   </svg>
 )
+
+/** The memory map: three pieces joined by lines. */
+export const LinesIcon = () => (
+  <svg {...line}>
+    <circle cx="5" cy="17" r="2" />
+    <circle cx="12" cy="7" r="2" />
+    <circle cx="19" cy="15" r="2" />
+    <path d="M6.5 15.5 10.5 8.5M13.8 8.2l3.6 5.4" />
+  </svg>
+)
