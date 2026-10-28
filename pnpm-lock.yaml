@@ -47,6 +47,9 @@ importers:
       '@carrel/margin':
         specifier: workspace:*
         version: link:../../packages/margin
+      '@carrel/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@tiptap/core':
         specifier: ^3.32.0
         version: 3.32.0(@tiptap/pm@3.32.0)

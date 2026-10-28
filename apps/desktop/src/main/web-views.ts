@@ -32,6 +32,8 @@ export interface WebHooks {
   ask(ask: AgentAsk, that: unknown): void
   /** The item's *that.*s, to mark them in its page. */
   anchors(itemId: string): Promise<ReadonlyArray<{ id: string; selectors: Selector[] }>>
+  /** A page finished loading (or moved within itself): the reading trail may keep it. `text` reads its words. */
+  visited?(url: string, title: string, text: () => Promise<string>): void
 }
 
 function isPageSelection(value: unknown): value is { source: string; start: number; end: number } {
@@ -223,11 +225,36 @@ export class WebViews {
       const focus = page.focus
       delete page.focus
       void view.webContents.insertCSS(BAND_STYLE).then(() => this.mark(page, focus))
+      this.visited(page)
+    })
+    // Pages that change without loading (x.com, most apps) still count as a visit, once settled.
+    view.webContents.on('did-navigate-in-page', (_event, _url, mainFrame) => {
+      if (mainFrame) setTimeout(() => this.visited(page), 1500)
     })
     this.window.contentView.addChildView(view)
     this.pages.set(id, page)
     void view.webContents.loadURL(url).catch(() => undefined)
     return page
+  }
+
+  /** The live page, what is selected in it, and its text: what Keep can save. */
+  async livePage(): Promise<{ url: string; title: string; text: string; selection?: string } | undefined> {
+    const page = this.live ? this.pages.get(this.live) : undefined
+    if (!page || page.view.webContents.isDestroyed()) return undefined
+    const contents = page.view.webContents
+    const text: unknown = await contents.executeJavaScript(TEXT_OF_PAGE).catch(() => '')
+    const selected: unknown = await contents.executeJavaScript('String(getSelection() || "")').catch(() => '')
+    const selection = typeof selected === 'string' ? selected.trim() : ''
+    return { url: contents.getURL(), title: contents.getTitle(), text: typeof text === 'string' ? text : '', ...(selection ? { selection } : {}) }
+  }
+
+  private visited(page: Page): void {
+    const contents = page.view.webContents
+    if (!this.hooks.visited || contents.isDestroyed()) return
+    this.hooks.visited(contents.getURL(), contents.getTitle(), async () => {
+      const text: unknown = await contents.executeJavaScript(TEXT_OF_PAGE).catch(() => '')
+      return typeof text === 'string' ? text : ''
+    })
   }
 
   /** Loads the sheet's page again, if it is open. */

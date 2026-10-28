@@ -43,6 +43,10 @@ export function setAppMenu(platform: string): void {
       submenu: [command('open-note', 'Open Note…'), command('daily', 'Today’s Note')],
     },
     {
+      label: 'Memory',
+      submenu: [command('keep', 'Keep…'), { type: 'separator' }, command('import-chatgpt', 'Import ChatGPT Export…'), command('memory-settings', 'Reading Trail and Memory…')],
+    },
+    {
       label: 'Desk',
       submenu: [command('focus', 'Focus'), command('leave', 'Back to Desk'), { type: 'separator' }, command('that', 'that.'), command('hand', 'Hand Tool'), command('select-all', 'Select All Sheets')],
     },

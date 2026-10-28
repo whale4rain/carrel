@@ -14,8 +14,10 @@ import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
 import { ShortcutSheet } from './ShortcutSheet.js'
+import { MemorySettings } from './MemorySettings.js'
 import { DESK_COMMAND, frame } from './platform.js'
 import './shell.css'
+import './memory.css'
 
 const api = window.carrel.workspace
 
@@ -51,6 +53,8 @@ export function App() {
   const dailyRef = useRef<() => void>(() => undefined)
   const [talking, setTalking] = useState(false)
   const [keys, setKeys] = useState(false)
+  // Memory's settings, opened from the menu bar; `import` starts the ChatGPT import at once.
+  const [memorySettings, setMemorySettings] = useState<'open' | 'import'>()
   // The sidebar folds away (⌘\ / Ctrl+\); remembered on this computer.
   const [sidebar, setSidebar] = useState(() => {
     try {
@@ -100,6 +104,9 @@ export function App() {
       else if (key === '/' || key === 'shortcuts') setKeys((now) => !now)
       else if (key === 'o' || key === 'open-note') setOpening((now) => !now)
       else if (key === 'daily') dailyRef.current()
+      else if (key === 'keep') void window.carrel.memory.openKeep()
+      else if (key === 'memory-settings') setMemorySettings('open')
+      else if (key === 'import-chatgpt') setMemorySettings('import')
       else return false
       return true
     }
@@ -371,6 +378,7 @@ export function App() {
             />
           )}
           {keys && <ShortcutSheet onClose={() => setKeys(false)} />}
+          {memorySettings && <MemorySettings importNow={memorySettings === 'import'} onClose={() => setMemorySettings(undefined)} />}
           {opening && open && (
             <QuickOpen
               items={items}
