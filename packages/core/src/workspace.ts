@@ -132,6 +132,8 @@ export class Workspace {
   async createProject(name: string, firstDesk = 'First desk'): Promise<OpenProject> {
     assertProjectName(name)
     assertDeskName(firstDesk)
+    // ~/Carrel/Memory holds what you learn across projects (28 Oct).
+    if (name.toLowerCase() === 'memory') throw new Error('"Memory" is where Carrel keeps what you learn. Choose another name.')
     const existing = await this.listProjects()
     if (existing.some((other) => other.toLowerCase() === name.toLowerCase())) {
       throw new Error(`There is already a project called "${name}".`)

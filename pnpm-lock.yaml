@@ -144,6 +144,15 @@ importers:
         specifier: 5.3.0
         version: 5.3.0
 
+  packages/memory:
+    dependencies:
+      '@carrel/core':
+        specifier: workspace:*
+        version: link:../core
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
+
   spikes/tnega:
     dependencies:
       tnega:

@@ -17,6 +17,10 @@ afterEach(async () => {
 })
 
 describe('Workspace', () => {
+  it('keeps the name Memory for what you learn', async () => {
+    await expect(workspace.createProject('memory')).rejects.toThrow(/Memory/)
+  })
+
   it('has no projects before the first one', async () => {
     expect(await workspace.listProjects()).toEqual([])
   })

@@ -1,0 +1,17 @@
+{
+  "name": "@carrel/memory",
+  "version": "0.0.0",
+  "private": true,
+  "description": "What Carrel keeps of each day, the pieces it makes of them, and the lines between them.",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@carrel/core": "workspace:*",
+    "fflate": "0.8.3"
+  }
+}
