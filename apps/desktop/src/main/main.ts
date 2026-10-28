@@ -18,6 +18,7 @@ import { WebViews, type WebLayout } from './web-views.js'
 import { popupMenu } from './menus.js'
 import { setAppMenu } from './app-menu.js'
 import { isMenuEntries } from '../shared/menu.js'
+import { MemoryService } from './memory-ipc.js'
 
 const outDir = fileURLToPath(new URL('.', import.meta.url))
 // The app icon files (made by `pnpm icons`), beside out/.
@@ -42,6 +43,20 @@ if (process.env.CARREL_HOME) app.setPath('userData', join(workspace.roots.intern
 // Learning kits: the first-party ones built beside the app, then ones made on this computer.
 const kitShelf = new KitShelf([join(outDir, 'kits'), join(workspace.roots.internal, 'kits')])
 const controller = new ShellController(workspace, { readPages: pdfPages, kits: kitShelf })
+// What you learn, kept by day in ~/Carrel/Memory. Checks keep tnega's sessions inside CARREL_HOME too.
+const memory = new MemoryService({
+  roots: workspace.roots,
+  ...(process.env.CARREL_HOME ? { tnegaHome: join(process.env.CARREL_HOME, '.tnega') } : {}),
+  livePage: async () => {
+    for (const views of webViews.values()) {
+      const page = await views.livePage()
+      if (page) return page
+    }
+    return undefined
+  },
+  keepUrl: () => `${deskUrl(frameFor(process.platform, process.env.CARREL_FRAME))}&keep=1`,
+  preload: `${outDir}preload.cjs`,
+})
 
 // Each window's web pages, by its renderer.
 const webViews = new Map<number, WebViews>()
@@ -111,6 +126,7 @@ async function createWindow(): Promise<void> {
         if (!window.isDestroyed()) window.webContents.send('web:ask', { ask, that })
       },
       anchors: async (itemId) => (await controller.thats()).filter((that) => that.itemId === itemId),
+      visited: (url, title, text) => void memory.visited(url, title, text).catch((error: unknown) => console.error('reading trail:', error)),
     }),
   )
   window.on('closed', () => webViews.delete(id))
@@ -604,6 +620,8 @@ app.whenReady().then(async () => {
   setAppMenu(process.platform)
   const settled = serveWorkspace(controller)
   const stopAgent = serveAgent(workspace, controller)
+  memory.serve()
+  memory.start()
   // Let the last save land before quitting; an answer still coming gets a moment to be kept.
   let quitting = false
   app.on('before-quit', (event) => {
@@ -611,7 +629,8 @@ app.whenReady().then(async () => {
     event.preventDefault()
     quitting = true
     const agentStopped = Promise.race([stopAgent(), new Promise((resolve) => setTimeout(resolve, 2000))])
-    void Promise.allSettled([settled(), agentStopped]).finally(() => app.quit())
+    const memoryStopped = Promise.race([memory.stop(), new Promise((resolve) => setTimeout(resolve, 2000))])
+    void Promise.allSettled([settled(), agentStopped, memoryStopped]).finally(() => app.quit())
   })
   await createWindow()
   app.on('activate', () => {

@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron'
 import { agentChannels, type AgentApi, type AgentLive, type ProposalView } from '../shared/agent-api.js'
 import type { AgentAsk, MenuEntry } from '../shared/menu.js'
+import { memoryChannels, type MemoryApi } from '../shared/memory-api.js'
 import { workspaceChannels, type ItemView, type ThatView, type WebApi, type WebLoading, type WorkspaceApi, type WorkspaceReply } from '../shared/workspace-api.js'
 
 async function call<T>(channel: string, ...args: unknown[]): Promise<T> {
@@ -94,12 +95,25 @@ const agent: AgentApi = {
   onTurns: (listener) => listen<void>(agentChannels.turns, listener),
 }
 
+const memory: MemoryApi = {
+  openKeep: () => call(memoryChannels.openKeep),
+  offer: () => call(memoryChannels.offer),
+  keep: (choice, reason) => call(memoryChannels.keep, choice, reason),
+  closeKeep: () => ipcRenderer.send(memoryChannels.closeKeep),
+  today: () => call(memoryChannels.today),
+  settings: () => call(memoryChannels.settings),
+  saveSettings: (settings) => call(memoryChannels.saveSettings, settings),
+  importChatGpt: () => call(memoryChannels.importChatGpt),
+  onKept: (listener) => listen<void>(memoryChannels.kept, listener),
+}
+
 // The typed bridge between renderer and main.
 contextBridge.exposeInMainWorld('carrel', {
   platform: process.platform,
   workspace,
   web,
   agent,
+  memory,
   /** Shows a native right-click menu; resolves with the id of the command picked. */
   menu: (entries: MenuEntry[]) => ipcRenderer.invoke('menu:popup', entries) as Promise<string | undefined>,
   /** A command picked in the menu bar, by its shortcut id. */

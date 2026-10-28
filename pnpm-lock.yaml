@@ -47,6 +47,9 @@ importers:
       '@carrel/margin':
         specifier: workspace:*
         version: link:../../packages/margin
+      '@carrel/memory':
+        specifier: workspace:*
+        version: link:../../packages/memory
       '@tiptap/core':
         specifier: ^3.32.0
         version: 3.32.0(@tiptap/pm@3.32.0)
@@ -143,6 +146,15 @@ importers:
       '@fontsource-variable/literata':
         specifier: 5.3.0
         version: 5.3.0
+
+  packages/memory:
+    dependencies:
+      '@carrel/core':
+        specifier: workspace:*
+        version: link:../core
+      fflate:
+        specifier: 0.8.3
+        version: 0.8.3
 
   spikes/tnega:
     dependencies:

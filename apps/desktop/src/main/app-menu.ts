@@ -14,7 +14,9 @@ export function setAppMenu(platform: string): void {
       label,
       ...(keys ? { accelerator: keys, registerAccelerator: false } : {}),
       click: (_item, window) => {
-        const target = window instanceof BrowserWindow ? window : BrowserWindow.getFocusedWindow()
+        const focused = window instanceof BrowserWindow ? window : BrowserWindow.getFocusedWindow()
+        // The Keep window has no desk to run commands; they go to Carrel's main window.
+        const target = focused && !isKeep(focused) ? focused : BrowserWindow.getAllWindows().find((other) => !isKeep(other))
         target?.webContents.send('menu:command', id)
       },
     }
@@ -43,6 +45,10 @@ export function setAppMenu(platform: string): void {
       submenu: [command('open-note', 'Open Note…'), command('daily', 'Today’s Note')],
     },
     {
+      label: 'Memory',
+      submenu: [command('keep', 'Keep…'), { type: 'separator' }, command('import-chatgpt', 'Import ChatGPT Export…'), command('memory-settings', 'Reading Trail and Memory…')],
+    },
+    {
       label: 'Desk',
       submenu: [command('focus', 'Focus'), command('leave', 'Back to Desk'), { type: 'separator' }, command('that', 'that.'), command('hand', 'Hand Tool'), command('select-all', 'Select All Sheets')],
     },
@@ -55,4 +61,8 @@ export function setAppMenu(platform: string): void {
 function labelOf(id: string): string {
   for (const group of SHORTCUTS) for (const shortcut of group.shortcuts) if (shortcut.id === id) return shortcut.label
   return id
+}
+
+function isKeep(window: BrowserWindow): boolean {
+  return new URL(window.webContents.getURL() || 'about:blank').searchParams.has('keep')
 }
