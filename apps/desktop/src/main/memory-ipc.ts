@@ -41,6 +41,8 @@ export class MemoryService {
   readonly engine: MemoryEngine
   private readonly chats: ChatSync
   private model: (() => LLMAdapter) | undefined
+  /** Settles once the saved key has been read. */
+  private modelReady: Promise<void> = Promise.resolve()
   private evening: ReturnType<typeof setInterval> | undefined
   private distilling: Promise<Distilled[]> | undefined
   private retryAt = 0
@@ -69,8 +71,9 @@ export class MemoryService {
   }
 
   /** The model the engine asks: the agent's, with its key. */
-  useModel(model: () => LLMAdapter): void {
+  useModel(model: () => LLMAdapter, ready: Promise<void> = Promise.resolve()): void {
     this.model = model
+    this.modelReady = ready
   }
 
   /** Starts keeping chats in the background and takes the Keep shortcut. */
@@ -110,7 +113,7 @@ export class MemoryService {
    * today from the evening hour on. Quiet: it tells the windows, never you.
    */
   async eveningJob(now = new Date()): Promise<void> {
-    if (this.distilling || Date.now() < this.retryAt || !this.canAsk()) return
+    if (this.distilling || Date.now() < this.retryAt || !(await this.canAsk())) return
     const { eveningHour } = await this.settings
     const today = dayOf(now)
     const days = (await this.engine.pending(today)).filter((day) => day < today || now.getHours() >= eveningHour)
@@ -123,7 +126,7 @@ export class MemoryService {
 
   /** Makes pieces from every day waiting, today too, now. */
   async distillNow(): Promise<{ pieces: number; lines: number }> {
-    if (!this.canAsk()) throw new Error('Add a model key first: making pieces asks the model.')
+    if (!(await this.canAsk())) throw new Error('Add a model key first: making pieces asks the model.')
     await this.syncChats()
     const runs = await this.distill(await this.engine.pending(dayOf(new Date())))
     return { pieces: runs.reduce((sum, run) => sum + run.pieces.length, 0), lines: runs.reduce((sum, run) => sum + run.lines.length, 0) }
@@ -146,7 +149,8 @@ export class MemoryService {
     }
   }
 
-  private canAsk(): boolean {
+  private async canAsk(): Promise<boolean> {
+    await this.modelReady.catch(() => undefined)
     if (!this.model) return false
     try {
       this.model()

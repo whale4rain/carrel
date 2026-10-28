@@ -16,6 +16,11 @@ export interface Cues {
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec']
+/** A month by its name or its short name, and nothing else: "dec" and "december", not "decoding". */
+const MONTH = 'jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sept?(?:ember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?'
+const MONTH_WORD = new RegExp(`^(?:${MONTH})$`)
+/** "oct 14", "october 14." or "14 oct". */
+const DATE = new RegExp(`\\b(${MONTH})\\.? (\\d{1,2})\\b|\\b(\\d{1,2}) (${MONTH})\\b`)
 
 /** Words that name a source, and the label they mean. */
 const SOURCE_WORDS: Record<string, string> = {
@@ -71,13 +76,13 @@ export function readCues(query: string, today: Day): Cues {
   else {
     const ago = /\b(\d+|a|two|three|four|five|six) (day|days|week|weeks) ago\b/.exec(lower)
     const weekday = WEEKDAYS.findIndex((name) => new RegExp(`\\b${name}\\b|\\b${name.slice(0, 3)}\\b`).test(lower))
-    const date = /\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.? (\d{1,2})\b|\b(\d{1,2}) (jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b/.exec(lower)
+    const date = DATE.exec(lower)
     if (ago) {
       const n = { a: 1, two: 2, three: 3, four: 4, five: 5, six: 6 }[ago[1] as 'a'] ?? Number(ago[1])
       const back = ago[2]!.startsWith('week') ? n * 7 : n
       set(addDays(today, -back - (ago[2]!.startsWith('week') ? 3 : 1)), addDays(today, -back + (ago[2]!.startsWith('week') ? 3 : 1)))
     } else if (date) {
-      const month = MONTHS.indexOf((date[1] ?? date[4])!)
+      const month = MONTHS.indexOf((date[1] ?? date[4])!.slice(0, 3))
       const dayOfMonth = Number(date[2] ?? date[3])
       const start = startOf(today)
       let year = start.getFullYear()
@@ -97,7 +102,7 @@ export function readCues(query: string, today: Day): Cues {
     if (SOURCE_WORDS[word]) sources.add(SOURCE_WORDS[word]!)
   }
   for (const word of words(query)) {
-    if (SOURCE_WORDS[word] || FILLER.has(word) || WEEKDAYS.some((name) => name === word || name.slice(0, 3) === word) || MONTHS.some((name) => word.startsWith(name) && word.length <= 9) || /^\d{1,2}$/.test(word)) continue
+    if (SOURCE_WORDS[word] || FILLER.has(word) || WEEKDAYS.some((name) => name === word || name.slice(0, 3) === word) || MONTH_WORD.test(word) || /^\d{1,2}$/.test(word)) continue
     topic.push(word)
   }
   return { ...(from ? { from } : {}), ...(to ? { to } : {}), sources: [...sources], words: topic }

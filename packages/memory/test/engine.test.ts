@@ -75,6 +75,28 @@ describe('MemoryEngine', () => {
     expect(asked[1]!.user).toContain('Pieces already made today')
   })
 
+  it('tries the lines again when the model failed to draw them, dated by the newer piece', async () => {
+    let failRelate = true
+    const flaky: Ask = async (system, user) => {
+      if (system.startsWith(RELATE_MARK) && failRelate) throw new Error('rate limited')
+      return ask(system, user)
+    }
+    const memory = new MemoryEngine({ paths, ask: flaky, now: () => now })
+    await memory.kept.add({ kind: 'page', from: 'keep', title: 'Paged attention', text: text('Paged attention'), at: OCT_14.toISOString() })
+    await memory.distill('2026-10-14')
+    await memory.kept.add({ kind: 'page', from: 'keep', title: 'Prefix caching', text: text('Prefix caching'), at: OCT_15.toISOString() })
+    await expect(memory.distill('2026-10-15')).rejects.toThrow('rate limited')
+    expect((await memory.pieces.day('2026-10-15')).pieces).toHaveLength(1)
+    expect(await memory.pending('2026-10-16')).toEqual(['2026-10-15'])
+
+    failRelate = false
+    const retried = await memory.distill('2026-10-15')
+    expect(retried.lines).toHaveLength(1)
+    expect(retried.lines[0]!.drawnOn).toBe('2026-10-15')
+    expect((await memory.pieces.day('2026-10-15')).unrelated).toBeUndefined()
+    expect(await memory.pending('2026-10-16')).toEqual([])
+  })
+
   it('draws lines only between days, and a removed line never returns', async () => {
     const memory = engine()
     await memory.kept.add({ kind: 'page', from: 'keep', title: 'Paged attention', text: text('Paged attention'), at: OCT_14.toISOString() })
@@ -158,6 +180,10 @@ describe('prompts', () => {
 
   it('reads time cues', () => {
     expect(readCues('yesterday', '2026-10-16')).toMatchObject({ from: '2026-10-15', to: '2026-10-15' })
+    const decoding = readCues('decoding 2', '2026-10-16')
+    expect(decoding.from).toBeUndefined()
+    expect(decoding.words).toEqual(['decoding'])
+    expect(readCues('october 14', '2026-10-16')).toMatchObject({ from: '2026-10-14', to: '2026-10-14' })
     expect(readCues('the video on tuesday', '2026-10-16')).toMatchObject({ from: '2026-10-13', to: '2026-10-13', sources: ['Video'] })
   })
 })

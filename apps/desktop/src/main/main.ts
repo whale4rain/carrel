@@ -621,7 +621,7 @@ app.whenReady().then(async () => {
   const settled = serveWorkspace(controller)
   const agent = serveAgent(workspace, controller)
   // The memory engine asks the agent's model, with its key.
-  memory.useModel(agent.model)
+  memory.useModel(agent.model, agent.ready)
   memory.serve()
   memory.start()
   // Let the last save land before quitting; an answer still coming gets a moment to be kept.

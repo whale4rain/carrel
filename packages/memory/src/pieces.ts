@@ -39,6 +39,8 @@ export interface DayPieces {
   /** The captures already turned into pieces, by key, with a hash of what they said then. */
   distilled: Record<string, string>
   distilledAt?: string
+  /** Pieces made but still waiting for their lines (the model call for them failed). */
+  unrelated?: string[]
   /** What distilling this day sent to the model, every run together. */
   cost?: { calls: number; bytes: number }
 }
@@ -56,6 +58,7 @@ export class Pieces {
       distilled: typeof read?.distilled === 'object' && read.distilled !== null ? read.distilled : {},
       ...(typeof read?.distilledAt === 'string' ? { distilledAt: read.distilledAt } : {}),
       ...(read?.cost ? { cost: read.cost } : {}),
+      ...(Array.isArray(read?.unrelated) && read.unrelated.length > 0 ? { unrelated: read.unrelated.filter((id): id is string => typeof id === 'string') } : {}),
     }
   }
 

@@ -80,22 +80,33 @@ export class MemoryEngine {
         file.pieces.push(...added)
         file.cost = { calls: (file.cost?.calls ?? 0) + 1, bytes: (file.cost?.bytes ?? 0) + byteLength(system) + byteLength(user) }
       }
-      if (fresh.length === 0) return { day, pieces: [], lines: [] }
+      const waiting = file.unrelated ?? []
+      if (fresh.length === 0 && waiting.length === 0) return { day, pieces: [], lines: [] }
       for (const capture of fresh) file.distilled[capture.key] = captureHash(capture)
       file.distilledAt = this.now().toISOString()
+      // Pieces wait here for their lines, so a failed model call is tried again on the next run.
+      const toRelate = new Set([...waiting, ...added.map((piece) => piece.id)])
+      file.unrelated = [...toRelate]
       await this.pieces.save(file)
-      const lines = added.length > 0 ? await this.relate(added) : []
+      const pieces = file.pieces.filter((piece) => toRelate.has(piece.id))
+      const lines = pieces.length > 0 ? await this.relate(pieces) : []
+      const done = await this.pieces.day(day)
+      delete done.unrelated
+      await this.pieces.save(done)
       return { day, pieces: added, lines }
     })
   }
 
-  /** Days up to `today` with captures not yet distilled, oldest first; `back` days at most. */
-  async pending(today: Day, back = 7): Promise<Day[]> {
-    const days = (await this.kept.days()).filter((day) => day <= today && day >= addDays(today, -back))
+  /**
+   * Days up to `today` with captures not yet distilled, or pieces still waiting for their lines,
+   * oldest first. All of them, so days missed while Carrel was closed are caught up; `back` limits it.
+   */
+  async pending(today: Day, back?: number): Promise<Day[]> {
+    const days = (await this.kept.days()).filter((day) => day <= today && (back === undefined || day >= addDays(today, -back)))
     const waiting: Day[] = []
     for (const day of days) {
       const file = await this.pieces.day(day)
-      if ((await this.kept.day(day)).some((capture) => file.distilled[capture.key] !== captureHash(capture))) waiting.push(day)
+      if ((file.unrelated?.length ?? 0) > 0 || (await this.kept.day(day)).some((capture) => file.distilled[capture.key] !== captureHash(capture))) waiting.push(day)
     }
     return waiting
   }
@@ -185,10 +196,9 @@ export class MemoryEngine {
       })
     const { system, user, refs } = relatePrompt(sets, removed)
     const answer = await this.ask(system, user)
-    const today = dayOf(this.now())
     const drawn = parseLines(answer, sets, refs).map(({ from, to, relation }) => {
       const [newer, older] = from.day >= to.day ? [from, to] : [to, from]
-      return { from: newer.id, to: older.id, relation, drawnOn: today }
+      return { from: newer.id, to: older.id, relation, drawnOn: newer.day }
     })
     // The model call counts toward the day of the pieces it was for.
     const day = added[0]!.day

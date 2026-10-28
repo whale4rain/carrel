@@ -14,7 +14,8 @@ function day(date: Date): string {
 }
 
 const today = new Date()
-const yesterday = new Date(today.getTime() - 24 * 3600_000)
+// The calendar day before, not 24 hours back: a day can be 25 hours long.
+const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1, today.getHours(), today.getMinutes())
 
 test.beforeAll(async () => {
   home = await mkdtemp(join(tmpdir(), 'carrel-e2e-'))
