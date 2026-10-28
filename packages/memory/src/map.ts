@@ -74,7 +74,9 @@ export function rangeStart(range: MapRange, today: Day, pieces: readonly Pick<Pi
 /** Lays out the pieces from `first` to `today` and the shown lines between them, at least `width` pixels wide. */
 export function mapLayout(pieces: readonly Piece[], lines: readonly Line[], options: { today: Day; first: Day; width: number }): MapLayout {
   const { today, first } = options
-  const span = Math.max(1, daysBetween(first, today))
+  const days = Math.max(0, daysBetween(first, today))
+  // At least one day wide, so a map of only today still has room.
+  const span = Math.max(1, days)
   const width = Math.max(options.width, 480, PAD.left + PAD.right + CARD.width + span * MIN_DAY)
   const inRange = pieces.filter((piece) => piece.day >= first && piece.day <= today).sort((a, b) => a.day.localeCompare(b.day) || a.createdAt.localeCompare(b.createdAt))
   const usable = width - PAD.left - PAD.right - CARD.width
@@ -120,7 +122,7 @@ export function mapLayout(pieces: readonly Piece[], lines: readonly Line[], opti
   const height = Math.max(y, PAD.top + 120) + AXIS
   const every = span <= 14 ? 2 : span <= 31 ? 5 : Math.ceil(span / 8)
   const ticks: MapLayout['ticks'] = []
-  for (let n = span; n >= 0; n -= every) {
+  for (let n = days; n >= 0; n -= every) {
     const day = addDays(first, n)
     ticks.unshift({ day, x: xOf(day) + CARD.width / 2, label: day === today ? 'Today' : dayLabel(day) })
   }

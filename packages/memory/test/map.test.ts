@@ -27,6 +27,13 @@ describe('map layout', () => {
     expect(map.ticks.at(-1)).toMatchObject({ day: today, label: 'Today' })
   })
 
+  it('ends the axis at Today when every piece is from today', () => {
+    const pieces = [piece('a', today, 'Inference')]
+    const map = mapLayout(pieces, [], { today, first: rangeStart('all', today, pieces), width: 1000 })
+    expect(map.ticks).toHaveLength(1)
+    expect(map.ticks.at(-1)).toMatchObject({ day: today, label: 'Today' })
+  })
+
   it('stacks cards of one group that would overlap', () => {
     const pieces = [piece('a', '2026-10-20', 'Inference'), piece('b', '2026-10-20', 'Inference'), piece('c', '2026-10-21', 'Inference')]
     const map = mapLayout(pieces, [], { today, first: rangeStart('2w', today), width: 900 })

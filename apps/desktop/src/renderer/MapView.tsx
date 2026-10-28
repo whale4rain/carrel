@@ -38,8 +38,12 @@ export function MapView({ frame, canWrite, onWriteMore, onOpenUrl }: Props) {
   const [width, setWidth] = useState(900)
   const canvas = useRef<HTMLDivElement>(null)
 
+  // A slower, older read must not draw over a newer one.
+  const latest = useRef(0)
   const load = useCallback(async (): Promise<void> => {
+    const ticket = ++latest.current
     const next = await memory.map(range)
+    if (ticket !== latest.current) return
     setData(next)
     setSelected((now) => (now && next.pieces.some((piece) => piece.id === now) ? now : newest(next)?.id))
   }, [range])
