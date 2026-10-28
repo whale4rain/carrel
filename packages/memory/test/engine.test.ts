@@ -155,6 +155,35 @@ describe('MemoryEngine', () => {
     expect(types).toEqual(['piece.edited', 'piece.removed'])
   })
 
+  it('shows removed and reworded pieces to the model, and never makes a removed one again', async () => {
+    const memory = engine()
+    await memory.kept.add({ kind: 'page', from: 'keep', title: 'Paged attention', text: text('Paged attention'), at: OCT_14.toISOString() })
+    await memory.kept.add({ kind: 'page', from: 'keep', title: 'Block tables', text: text('Block tables'), at: OCT_14.toISOString() })
+    const { pieces } = await memory.distill('2026-10-14')
+    await memory.editPiece(pieces[0]!.id, { title: 'Paged attention splits the cache' })
+    await memory.removePiece(pieces[1]!.id)
+    // The capture behind the removed piece grows, so the day is distilled again.
+    await memory.kept.add({ kind: 'page', from: 'keep', title: 'Block tables', text: `${text('Block tables')} More.`, at: OCT_14.toISOString() })
+    const again = await memory.distill('2026-10-14')
+    expect(again.pieces).toEqual([])
+    const prompt = asked.at(-1)!.user
+    expect(prompt).toContain('Pieces the person removed')
+    expect(prompt).toContain('- Block tables')
+    expect(prompt).toContain('"Paged attention" became "Paged attention splits the cache"')
+  })
+
+  it('grows a piece when a grown capture brings back the same title', async () => {
+    const memory = engine()
+    await memory.kept.add({ kind: 'chat', from: 'tnega', key: 'chat:tnega:b:2026-10-15', title: 'KV cache', text: text('KV cache'), at: OCT_15.toISOString() })
+    await memory.distill('2026-10-15')
+    await memory.kept.add({ kind: 'chat', from: 'tnega', key: 'chat:tnega:b:2026-10-15', title: 'KV cache', text: `${text('KV cache')} And eviction.`, at: OCT_15.toISOString() })
+    const grown: Ask = async () => JSON.stringify({ pieces: [{ title: 'KV cache', body: 'It keeps keys and values, and evicts old ones.', group: 'Inference', from: [1] }] })
+    const again = await new MemoryEngine({ paths, ask: grown, now: () => now }).distill('2026-10-15')
+    expect(again.pieces).toEqual([])
+    const [piece] = (await memory.pieces.day('2026-10-15')).pieces
+    expect(piece!.body).toBe('It keeps keys and values, and evicts old ones.')
+  })
+
   it('finds pieces and things never made into pieces by cues', async () => {
     const memory = engine()
     await memory.kept.add({ kind: 'page', from: 'keep', title: 'Inference costs are falling', text: text('Inference costs'), url: 'https://x.com/someone/status/1', at: OCT_14.toISOString() })

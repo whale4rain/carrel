@@ -20,7 +20,15 @@ export const MAX_PIECES = 8
 /** Most lines one new piece gets. */
 export const MAX_LINES = 3
 
-export function distillPrompt(day: Day, captures: readonly Capture[], made: readonly Piece[], groups: readonly string[]): { system: string; user: string } {
+/** What the person changed in earlier pieces, shown to the model as examples. */
+export interface PieceCorrections {
+  /** Titles of pieces they removed. */
+  removed: string[]
+  /** Pieces they reworded. */
+  edited: Array<{ before: string; after: string }>
+}
+
+export function distillPrompt(day: Day, captures: readonly Capture[], made: readonly Piece[], groups: readonly string[], corrections: PieceCorrections = { removed: [], edited: [] }): { system: string; user: string } {
   const system = [
     DISTILL_MARK,
     'You are the memory of Carrel, a study app. You turn one day of what a person read, asked and kept into a few pieces: things they found or understood that day.',
@@ -40,6 +48,8 @@ export function distillPrompt(day: Day, captures: readonly Capture[], made: read
   const lines = [`Day: ${dayLabel(day)} (${day})`]
   if (groups.length > 0) lines.push(`Existing groups: ${groups.join('; ')}`)
   if (made.length > 0) lines.push('Pieces already made today (do not repeat them):', ...made.map((piece) => `- ${piece.title}`))
+  if (corrections.removed.length > 0) lines.push('Pieces the person removed (do not make pieces like these):', ...corrections.removed.map((title) => `- ${title}`))
+  if (corrections.edited.length > 0) lines.push('Pieces the person reworded (write the way they did):', ...corrections.edited.map(({ before, after }) => `- "${before}" became "${after}"`))
   lines.push('', 'Captures:')
   captures.forEach((capture, index) => {
     const head = [`[${index + 1}] ${capture.kind} from ${capture.from}: ${capture.title}`]

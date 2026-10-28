@@ -2,8 +2,8 @@ import { addDays, dayOf, type Day } from './days.js'
 import { cosine, localEmbedder, VectorCache, type Embedder } from './embed.js'
 import { Kept, type Capture, type MemoryPaths } from './kept.js'
 import { Lines, pairKey, type Line } from './lines.js'
-import { captureHash, newPiece, Pieces, recordCorrection, sourceLabel, type Piece } from './pieces.js'
-import { distillPrompt, parseLines, parsePieces, relatePrompt, type Ask, type Candidates } from './prompts.js'
+import { captureHash, newPiece, Pieces, readCorrections, recordCorrection, sourceLabel, type Piece } from './pieces.js'
+import { distillPrompt, parseLines, parsePieces, relatePrompt, type Ask, type Candidates, type PieceCorrections } from './prompts.js'
 import { recall, type Recalled } from './recall.js'
 
 /** Older pieces looked at for each new one. */
@@ -67,15 +67,27 @@ export class MemoryEngine {
       let added: Piece[] = []
       if (worth.length > 0) {
         const groups = [...new Set((await this.pieces.all()).map((piece) => piece.group))]
-        const { system, user } = distillPrompt(day, worth, file.pieces, groups)
+        const corrections = await this.pieceCorrections()
+        const { system, user } = distillPrompt(day, worth, file.pieces, groups, corrections)
         const answer = await this.ask(system, user)
-        const made = new Set(file.pieces.map((piece) => piece.title.toLowerCase()))
+        const made = new Map(file.pieces.map((piece) => [piece.title.toLowerCase(), piece]))
+        const removed = new Set(corrections.removed.map((title) => title.toLowerCase()))
         const now = this.now()
         added = parsePieces(answer, worth.length).flatMap((found) => {
-          if (made.has(found.title.toLowerCase())) return []
-          made.add(found.title.toLowerCase())
+          const key = found.title.toLowerCase()
+          if (removed.has(key)) return []
+          const same = made.get(key)
+          if (same) {
+            // The same idea again, from what was added to a capture: it grows the piece already there.
+            // Words you wrote yourself stay yours.
+            if (!same.edited && found.body) same.body = found.body
+            same.captures = [...new Set([...same.captures, ...found.from.map((n) => worth[n - 1]!.key)])]
+            return []
+          }
           const behind = found.from.map((n) => worth[n - 1]!)
-          return [newPiece(day, { title: found.title, body: found.body, group: found.group, source: sourceOf(behind[0]!), captures: behind.map((capture) => capture.key) }, now)]
+          const piece = newPiece(day, { title: found.title, body: found.body, group: found.group, source: sourceOf(behind[0]!), captures: behind.map((capture) => capture.key) }, now)
+          made.set(key, piece)
+          return [piece]
         })
         file.pieces.push(...added)
         file.cost = { calls: (file.cost?.calls ?? 0) + 1, bytes: (file.cost?.bytes ?? 0) + byteLength(system) + byteLength(user) }
@@ -162,6 +174,18 @@ export class MemoryEngine {
     const captures: Capture[] = []
     for (const day of await this.kept.days()) captures.push(...(await this.kept.day(day)))
     return recall(query, dayOf(this.now()), pieces, captures, limit)
+  }
+
+  /** The latest pieces you removed or reworded, for the distilling prompt. */
+  private async pieceCorrections(): Promise<PieceCorrections> {
+    const all = await readCorrections(this.paths)
+    const removed: string[] = []
+    const edited: PieceCorrections['edited'] = []
+    for (const correction of all) {
+      if (correction.type === 'piece.removed') removed.push(correction.title)
+      else if (correction.type === 'piece.edited' && correction.before.title !== correction.after.title) edited.push({ before: correction.before.title, after: correction.after.title })
+    }
+    return { removed: [...new Set(removed)].slice(-REMOVED_EXAMPLES), edited: edited.slice(-REMOVED_EXAMPLES) }
   }
 
   /** Draws lines from new pieces to pieces of other days. */

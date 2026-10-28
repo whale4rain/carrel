@@ -1,5 +1,5 @@
 import { createHash, randomUUID } from 'node:crypto'
-import { appendFile, mkdir, readdir } from 'node:fs/promises'
+import { appendFile, mkdir, readdir, readFile } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { isMissing, readJson, writeJson } from '@carrel/core'
 import { isDay, type Day } from './days.js'
@@ -146,4 +146,24 @@ export type Correction =
 export async function recordCorrection(paths: MemoryPaths, correction: Correction): Promise<void> {
   await mkdir(dirname(paths.corrections), { recursive: true })
   await appendFile(paths.corrections, `${JSON.stringify(correction)}\n`, 'utf8')
+}
+
+/** Every correction so far, oldest first; a line that can't be read is left out. */
+export async function readCorrections(paths: MemoryPaths): Promise<Correction[]> {
+  let text: string
+  try {
+    text = await readFile(paths.corrections, 'utf8')
+  } catch (error) {
+    if (isMissing(error)) return []
+    throw error
+  }
+  return text.split('\n').flatMap((line) => {
+    if (!line.trim()) return []
+    try {
+      const read = JSON.parse(line) as Correction
+      return typeof read?.type === 'string' ? [read] : []
+    } catch {
+      return []
+    }
+  })
 }
