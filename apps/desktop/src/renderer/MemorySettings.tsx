@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import type { MemorySettingsView } from '../shared/memory-api.js'
 
 const memory = window.carrel.memory
@@ -7,14 +7,20 @@ const memory = window.carrel.memory
  * Memory's settings: the reading trail's sites, the evening hour, and the
  * one-off ChatGPT import. Changes save as you make them; Esc closes.
  */
-export function MemorySettings({ onClose, importNow = false }: { onClose: () => void; importNow?: boolean }) {
+export function MemorySettings({ onClose, importAsk }: { onClose: () => void; importAsk?: number }) {
   const [settings, setSettings] = useState<MemorySettingsView>()
   const [site, setSite] = useState('')
   const [imported, setImported] = useState<string>()
   const [error, setError] = useState<string>()
 
+  // The settings as you last changed them, so quick changes build on each other while saves are on their way.
+  const latest = useRef<MemorySettingsView>(undefined)
+  const saves = useRef(0)
   useEffect(() => {
-    void memory.settings().then(setSettings)
+    void memory.settings().then((read) => {
+      latest.current ??= read
+      setSettings(latest.current)
+    })
   }, [])
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -27,9 +33,22 @@ export function MemorySettings({ onClose, importNow = false }: { onClose: () => 
     return () => window.removeEventListener('keydown', onKey, true)
   }, [onClose])
 
-  const save = (next: Partial<MemorySettingsView>): void => {
+  const save = (change: (now: MemorySettingsView) => Partial<MemorySettingsView>): void => {
+    if (!latest.current) return
+    const next = change(latest.current)
+    latest.current = { ...latest.current, ...next }
+    setSettings(latest.current)
     setError(undefined)
-    void memory.saveSettings(next).then(setSettings, (reason: unknown) => setError(String(reason)))
+    // Main saves one at a time, in order, so the last change wins; the newest save shows what was kept ("x.com" for "https://www.x.com").
+    const mine = ++saves.current
+    memory.saveSettings(next).then(
+      (saved) => {
+        if (mine !== saves.current) return
+        latest.current = saved
+        setSettings(saved)
+      },
+      (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
+    )
   }
   const importChatGpt = (): void => {
     setImported('Reading the export…')
@@ -46,9 +65,9 @@ export function MemorySettings({ onClose, importNow = false }: { onClose: () => 
     )
   }
   useEffect(() => {
-    if (importNow) importChatGpt()
-    // Only when opened for an import.
-  }, [])
+    if (importAsk) importChatGpt()
+    // Once for each import asked for.
+  }, [importAsk])
 
   return (
     <div
@@ -72,7 +91,7 @@ export function MemorySettings({ onClose, importNow = false }: { onClose: () => 
               {settings?.trail.map((known) => (
                 <li key={known}>
                   <span>{known}</span>
-                  <button type="button" aria-label={`Stop keeping ${known}`} onClick={() => save({ trail: settings.trail.filter((other) => other !== known) })}>
+                  <button type="button" aria-label={`Stop keeping ${known}`} onClick={() => save((now) => ({ trail: now.trail.filter((other) => other !== known) }))}>
                     ×
                   </button>
                 </li>
@@ -83,7 +102,8 @@ export function MemorySettings({ onClose, importNow = false }: { onClose: () => 
               onSubmit={(event) => {
                 event.preventDefault()
                 if (!settings || !site.trim()) return
-                save({ trail: [...settings.trail, site.trim()] })
+                const added = site.trim()
+                save((now) => ({ trail: [...now.trail, added] }))
                 setSite('')
               }}
             >
@@ -97,7 +117,10 @@ export function MemorySettings({ onClose, importNow = false }: { onClose: () => 
             <h3>Each evening</h3>
             <label className="memory-settings-row">
               The day is turned into pieces at
-              <select aria-label="Evening hour" value={settings?.eveningHour ?? 21} onChange={(event) => save({ eveningHour: Number(event.target.value) })}>
+              <select aria-label="Evening hour" value={settings?.eveningHour ?? 21} onChange={(event) => {
+                  const hour = Number(event.target.value)
+                  save(() => ({ eveningHour: hour }))
+                }}>
                 {Array.from({ length: 24 }, (_unused, hour) => (
                   <option key={hour} value={hour}>
                     {`${String(hour).padStart(2, '0')}:00`}

@@ -251,9 +251,13 @@ export class WebViews {
   private visited(page: Page): void {
     const contents = page.view.webContents
     if (!this.hooks.visited || contents.isDestroyed()) return
-    this.hooks.visited(contents.getURL(), contents.getTitle(), async () => {
+    const url = contents.getURL()
+    // The text is read later; a page that moved on to another address by then is not this visit's.
+    const still = (): boolean => !contents.isDestroyed() && contents.getURL() === url
+    this.hooks.visited(url, contents.getTitle(), async () => {
+      if (!still()) return ''
       const text: unknown = await contents.executeJavaScript(TEXT_OF_PAGE).catch(() => '')
-      return typeof text === 'string' ? text : ''
+      return still() && typeof text === 'string' ? text : ''
     })
   }
 

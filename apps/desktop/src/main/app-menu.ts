@@ -14,7 +14,9 @@ export function setAppMenu(platform: string): void {
       label,
       ...(keys ? { accelerator: keys, registerAccelerator: false } : {}),
       click: (_item, window) => {
-        const target = window instanceof BrowserWindow ? window : BrowserWindow.getFocusedWindow()
+        const focused = window instanceof BrowserWindow ? window : BrowserWindow.getFocusedWindow()
+        // The Keep window has no desk to run commands; they go to Carrel's main window.
+        const target = focused && !isKeep(focused) ? focused : BrowserWindow.getAllWindows().find((other) => !isKeep(other))
         target?.webContents.send('menu:command', id)
       },
     }
@@ -59,4 +61,8 @@ export function setAppMenu(platform: string): void {
 function labelOf(id: string): string {
   for (const group of SHORTCUTS) for (const shortcut of group.shortcuts) if (shortcut.id === id) return shortcut.label
   return id
+}
+
+function isKeep(window: BrowserWindow): boolean {
+  return new URL(window.webContents.getURL() || 'about:blank').searchParams.has('keep')
 }

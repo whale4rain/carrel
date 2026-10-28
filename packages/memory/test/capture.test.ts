@@ -112,6 +112,17 @@ describe('chats', () => {
     const tnega = (await kept.day('2026-10-15')).find((capture) => capture.from === 'tnega')
     expect(tnega?.text).toContain('Agent: Reusing KV blocks')
   })
+
+  it('skips a session it cannot read and keeps the others', async () => {
+    const tnegaHome = join(home, '.tnega')
+    const sessions = join(tnegaHome, 'sessions', 'abc123')
+    await mkdir(sessions, { recursive: true })
+    await writeFile(join(sessions, '00000000-0000-4000-8000-000000000000.jsonl'), 'null\n')
+    await writeFile(join(sessions, `${SESSION_ID}.jsonl`), tnegaLog([{ type: 'meta', ts: OCT_15_9AM, payload: { title: 'Inference costs' } }, { type: 'user/message', ts: OCT_15_9AM, payload: { content: 'What is prefix caching?' } }]))
+    const sync = new ChatSync(kept, { tnegaHome, content: join(home, 'none'), cursorFile: join(paths.internal, 'chats.json') })
+    expect(await sync.sync()).toBe(1)
+    expect(await sync.sync()).toBe(0)
+  })
 })
 
 describe('ChatGPT export', () => {
@@ -158,6 +169,10 @@ describe('reading trail settings', () => {
     expect(await readSettings(paths)).toEqual({ trail: [], eveningHour: 21 })
     const saved = await writeSettings(paths, { trail: ['https://www.X.com/home', 'arxiv.org', 'not a site', 'arxiv.org'], eveningHour: 25 })
     expect(saved).toEqual({ trail: ['x.com', 'arxiv.org'], eveningHour: 21 })
+    // A file that can't be read reads as the defaults, and saving repairs it.
+    await writeFile(join(paths.internal, 'settings.json'), '{ not json')
+    expect(await readSettings(paths)).toEqual({ trail: [], eveningHour: 21 })
+    expect(await writeSettings(paths, { eveningHour: 20 })).toEqual({ trail: [], eveningHour: 20 })
     expect(siteOf('blog.example.com/post')).toBe('blog.example.com')
   })
 

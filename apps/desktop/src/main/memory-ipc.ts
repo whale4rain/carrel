@@ -1,4 +1,4 @@
-import { ChatSync, dayOf, Kept, memoryPaths, onTrail, readChatGptExport, readSettings, visitKey, writeSettings, type MemoryPaths, type MemorySettings } from '@carrel/memory'
+import { ChatSync, dayOf, DEFAULT_SETTINGS, Kept, memoryPaths, onTrail, readChatGptExport, readSettings, visitKey, writeSettings, type MemoryPaths, type MemorySettings } from '@carrel/memory'
 import type { CarrelRoots } from '@carrel/core'
 import { BrowserWindow, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, screen } from 'electron'
 import { readFile } from 'node:fs/promises'
@@ -35,6 +35,8 @@ export class MemoryService {
   readonly kept: Kept
   private readonly chats: ChatSync
   private settings: Promise<MemorySettings>
+  /** Settings saves, one at a time, so each reads what the one before it wrote. */
+  private settingsWrites: Promise<unknown> = Promise.resolve()
   private syncing: Promise<number> = Promise.resolve(0)
   private timer: ReturnType<typeof setInterval> | undefined
   private keepWindow: BrowserWindow | undefined
@@ -51,7 +53,7 @@ export class MemoryService {
       content: options.roots.content,
       cursorFile: join(this.paths.internal, 'chats.json'),
     })
-    this.settings = readSettings(this.paths)
+    this.settings = readSettings(this.paths).catch(() => ({ ...DEFAULT_SETTINGS }))
   }
 
   /** Starts keeping chats in the background and takes the Keep shortcut. */
@@ -167,8 +169,11 @@ export class MemoryService {
     const clean: Partial<MemorySettings> = {}
     if (Array.isArray(settings.trail)) clean.trail = settings.trail.filter((site): site is string => typeof site === 'string').slice(0, 100)
     if (typeof settings.eveningHour === 'number') clean.eveningHour = settings.eveningHour
-    this.settings = writeSettings(this.paths, clean)
-    return this.settings
+    const save = this.settingsWrites.then(() => writeSettings(this.paths, clean))
+    this.settingsWrites = save.catch(() => undefined)
+    const saved = await save
+    this.settings = Promise.resolve(saved)
+    return saved
   }
 
   /** Asks for a ChatGPT export (conversations.json or the .zip) and keeps what's in it. */
@@ -182,7 +187,13 @@ export class MemoryService {
       file = chosen.filePaths[0]
     }
     const conversations = readChatGptExport(await readFile(file))
-    const kept = await this.chats.keepConversations(conversations)
+    // After any sync running now, and before the next, so their cursors don't overwrite each other.
+    const run = this.syncing.then(
+      () => this.chats.keepConversations(conversations),
+      () => this.chats.keepConversations(conversations),
+    )
+    this.syncing = run.catch(() => 0)
+    const kept = await run
     if (kept > 0) this.told()
     return { conversations: conversations.length, kept }
   }

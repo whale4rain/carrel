@@ -125,17 +125,20 @@ export class ChatSync {
     const cursor = await this.readCursor()
     let added = 0
     for (const source of await this.sources()) {
+      // One file that can't be read or understood is skipped; the others are still kept.
       let info
+      let captures: NewCapture[]
       try {
         info = await stat(source.file)
+        const seen = cursor.files[source.file]
+        if (seen && seen.size === info.size && seen.mtimeMs === info.mtimeMs) continue
+        captures = chatCaptures(source.read(await readFile(source.file, 'utf8')))
       } catch (error) {
-        if (isMissing(error)) continue
-        throw error
+        if (!isMissing(error)) console.error(`memory: skipping ${source.file}:`, error)
+        continue
       }
-      const seen = cursor.files[source.file]
-      if (seen && seen.size === info.size && seen.mtimeMs === info.mtimeMs) continue
-      const text = await readFile(source.file, 'utf8')
-      added += await this.keep(source.read(text), cursor)
+      // A failed write still stops the sync, so the cursor never claims what wasn't kept.
+      added += await this.keepCaptures(captures, cursor)
       cursor.files[source.file] = { size: info.size, mtimeMs: info.mtimeMs }
     }
     await writeJson(this.options.cursorFile, cursor)
@@ -152,8 +155,12 @@ export class ChatSync {
   }
 
   private async keep(conversation: Conversation, cursor: Cursor): Promise<number> {
+    return this.keepCaptures(chatCaptures(conversation), cursor)
+  }
+
+  private async keepCaptures(captures: readonly NewCapture[], cursor: Cursor): Promise<number> {
     let added = 0
-    for (const capture of chatCaptures(conversation)) {
+    for (const capture of captures) {
       const hash = createHash('sha256').update(capture.title).update('\n').update(capture.text).digest('hex').slice(0, 16)
       if (cursor.keys[capture.key!] === hash) continue
       await this.kept.add(capture)

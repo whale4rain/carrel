@@ -13,7 +13,8 @@ export interface MemorySettings {
 export const DEFAULT_SETTINGS: MemorySettings = { trail: [], eveningHour: 21 }
 
 export async function readSettings(paths: MemoryPaths): Promise<MemorySettings> {
-  const read = (await readJson(settingsFile(paths))) as Partial<MemorySettings> | undefined
+  // An unreadable file reads as defaults, so saving can repair it.
+  const read = (await readJson(settingsFile(paths)).catch(() => undefined)) as Partial<MemorySettings> | undefined
   return cleanSettings({ ...DEFAULT_SETTINGS, ...read })
 }
 
