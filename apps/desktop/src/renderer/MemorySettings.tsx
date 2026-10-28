@@ -1,3 +1,4 @@
+import { siteOf } from '@carrel/memory/sites'
 import { useEffect, useRef, useState } from 'react'
 import type { MemorySettingsView } from '../shared/memory-api.js'
 
@@ -102,8 +103,13 @@ export function MemorySettings({ onClose, importAsk }: { onClose: () => void; im
               onSubmit={(event) => {
                 event.preventDefault()
                 if (!settings || !site.trim()) return
-                const added = site.trim()
-                save((now) => ({ trail: [...now.trail, added] }))
+                // Kept as main keeps it ("x.com" for "https://www.x.com"), so a later change can't bring a raw address back.
+                const added = siteOf(site)
+                if (!added) {
+                  setError('That is not a site. Try something like arxiv.org.')
+                  return
+                }
+                save((now) => ({ trail: [...new Set([...now.trail, added])] }))
                 setSite('')
               }}
             >

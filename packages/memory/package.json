@@ -5,7 +5,8 @@
   "description": "What Carrel keeps of each day, the pieces it makes of them, and the lines between them.",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./sites": "./src/sites.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json"
