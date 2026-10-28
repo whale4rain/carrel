@@ -29,12 +29,13 @@ export function onTrail(url: string, sites: readonly string[]): boolean {
 
 /**
  * A page's address as the trail keys it: without its #fragment, so scrolling to a heading isn't a new visit.
- * A hash route ("#/article/one", "#!/a") names a page of its own, so it stays.
+ * A hash route ("#/article/one", "#!/a") names a page of its own, so it stays, without a heading after it.
  */
 export function visitKey(url: string): string {
   try {
     const parsed = new URL(url)
-    if (!/^#!?\//.test(parsed.hash)) parsed.hash = ''
+    if (/^#!?\//.test(parsed.hash)) parsed.hash = parsed.hash.replace(/(.)#.*$/, '$1')
+    else parsed.hash = ''
     return parsed.toString()
   } catch {
     return url

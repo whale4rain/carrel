@@ -88,8 +88,14 @@ export class MemoryService {
   async visited(url: string, title: string, text: () => Promise<string>): Promise<void> {
     const { trail } = await this.settings
     if (trail.length === 0 || !onTrail(url, trail)) return
-    const key = `visit:${visitKey(url)}:${dayOf(new Date())}`
+    const day = dayOf(new Date())
+    const key = `visit:${visitKey(url)}:${day}`
     if (this.visits.has(key)) return
+    // After a restart the set is empty, so ask today's file too.
+    if ((await this.kept.day(day)).some((capture) => capture.key === key)) {
+      this.visits.add(key)
+      return
+    }
     const words = (await text()).replace(/[ \t]+/g, ' ').replace(/\n\s*\n+/g, '\n\n').trim()
     if (words.length < VISIT_MIN_TEXT) return
     this.visits.add(key)

@@ -184,5 +184,6 @@ describe('reading trail settings', () => {
     expect(visitKey('https://arxiv.org/abs/1#section')).toBe('https://arxiv.org/abs/1')
     expect(visitKey('https://app.example.com/#/article/one')).toBe('https://app.example.com/#/article/one')
     expect(visitKey('https://app.example.com/#!/a')).toBe('https://app.example.com/#!/a')
+    expect(visitKey('https://app.example.com/#/article/one#section')).toBe('https://app.example.com/#/article/one')
   })
 })
