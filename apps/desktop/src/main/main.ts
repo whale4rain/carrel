@@ -619,7 +619,9 @@ app.whenReady().then(async () => {
   keepKitsHome(session.defaultSession)
   setAppMenu(process.platform)
   const settled = serveWorkspace(controller)
-  const stopAgent = serveAgent(workspace, controller)
+  const agent = serveAgent(workspace, controller)
+  // The memory engine asks the agent's model, with its key.
+  memory.useModel(agent.model, agent.ready)
   memory.serve()
   memory.start()
   // Let the last save land before quitting; an answer still coming gets a moment to be kept.
@@ -628,7 +630,7 @@ app.whenReady().then(async () => {
     if (quitting) return
     event.preventDefault()
     quitting = true
-    const agentStopped = Promise.race([stopAgent(), new Promise((resolve) => setTimeout(resolve, 2000))])
+    const agentStopped = Promise.race([agent.stop(), new Promise((resolve) => setTimeout(resolve, 2000))])
     const memoryStopped = Promise.race([memory.stop(), new Promise((resolve) => setTimeout(resolve, 2000))])
     void Promise.allSettled([settled(), agentStopped, memoryStopped]).finally(() => app.quit())
   })

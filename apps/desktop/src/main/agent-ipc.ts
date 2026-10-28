@@ -21,23 +21,23 @@ const MODEL = process.env.CARREL_LLM_MODEL ?? 'deepseek-flash'
  * kept in ~/.carrel/model.json, encrypted by the system keychain.
  * `CARREL_LLM=scripted` answers with a stand-in model, for checks.
  */
-export function serveAgent(workspace: Workspace, controller: ShellController): () => Promise<void> {
+export function serveAgent(workspace: Workspace, controller: ShellController): { stop: () => Promise<void>; model: () => LLMAdapter; ready: Promise<void> } {
   const keyFile = join(workspace.roots.internal, 'model.json')
   const scripted = process.env.CARREL_LLM === 'scripted'
   let saved: string | undefined
-  let loaded = false
+  let loading: Promise<void> | undefined
   let model: LLMAdapter | undefined
 
-  const loadKey = async (): Promise<void> => {
-    if (loaded) return
-    loaded = true
-    try {
-      const file = JSON.parse(await readFile(keyFile, 'utf8')) as { key?: unknown }
-      if (typeof file.key === 'string' && safeStorage.isEncryptionAvailable()) saved = safeStorage.decryptString(Buffer.from(file.key, 'base64'))
-    } catch {
-      // No key kept yet.
-    }
-  }
+  // Read once; everyone who asks waits for the same read.
+  const loadKey = (): Promise<void> =>
+    (loading ??= (async () => {
+      try {
+        const file = JSON.parse(await readFile(keyFile, 'utf8')) as { key?: unknown }
+        if (typeof file.key === 'string' && safeStorage.isEncryptionAvailable()) saved = safeStorage.decryptString(Buffer.from(file.key, 'base64'))
+      } catch {
+        // No key kept yet.
+      }
+    })())
   const apiKey = (): string | undefined => process.env.CARREL_LLM_API_KEY || saved
   const status = async (): Promise<AgentStatus> => {
     await loadKey()
@@ -135,7 +135,8 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
     )
     return answer
   })
-  return () => agent.dispose()
+  // The saved key is read now, so the memory's evening job can use it without the agent panel being opened first.
+  return { stop: () => agent.dispose(), model: current, ready: loadKey() }
 }
 
 /**
