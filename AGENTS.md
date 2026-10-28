@@ -2,14 +2,39 @@
 
 Guide for agents (and people) working on Carrel. Read this first.
 
-Carrel is a desktop app for long-running study and research, built on
-[tnega](https://github.com/whale4rain/tnega). You lay out books, linked videos,
-web pages and notes on a free-layout **desk**, point at exact passages or
-moments with ***that.***, write notes that cite them, and keep the tnega agent
-one shortcut away. **Learning kits** (plugins) shape the desk for different
-kinds of learning.
+Carrel is a desktop app, built on [tnega](https://github.com/whale4rain/tnega),
+that **quietly keeps what you learn each day and draws lines between pieces
+from different days**. The map of those lines is the front door. The desk
+(books, videos, web pages and notes in free layout, pointed at with
+***that.***), notes, the agent and **learning kits** are where you go deeper.
 
 Owner: Ocean Rain (`whale4rain`).
+
+## Direction from 28 Oct: keep, connect, map
+
+Ocean Rain changed direction after a few days of use (23–28 Oct). This section
+wins over the desk-first sections below where they disagree. Full plan: the
+design doc's "Plan from 28 Oct" section; mockup: `MarginMap` in the canvas
+(copy in [`.agent/design/mockups/`](.agent/design/mockups/MarginMap.png)).
+
+- Not exam or checklist style. The agent draws lines; it never writes "you also learned X yesterday".
+- Lines join pieces from different days, with one relation: builds on, same idea, why it matters, contradicts.
+- A line the person removes is remembered and never drawn again. Corrections are data.
+
+| Phase | What gets built |
+| --- | --- |
+| 0. Check with real material | The owner's own check that lines from two weeks of real material are worth keeping (owner's task) |
+| 1. Capture | tnega and Carrel chats kept automatically; one-off ChatGPT export import; Keep (⌘⇧K / Ctrl+Shift+K) for the current page, a selection or a screenshot; opt-in reading trail for chosen sites |
+| 2. Memory engine | Evening job turns the day's captures into pieces; embeddings find candidate lines, the agent picks the relation; removed lines don't come back; retrieval by cues (time, source, topic) |
+| 3. The map | Pieces by day, earlier lines grey, today's new lines highlighted; detail panel to remove a line; search that finds unsaved things; 2 weeks, month, all |
+| 4. Going deeper | Open the source, write more as a note, ask the agent, open a cluster on a desk |
+
+**Memory on disk:** `~/Carrel/Memory/` (not a project; the name is reserved)
+holds `kept/YYYY-MM-DD.jsonl` (captures; a later line with the same key wins),
+`kept/files/` (screenshots), `pieces/YYYY-MM-DD.json`, `lines.json` (removed
+lines stay, marked removed) and `corrections.jsonl`. Internals (settings, chat
+source cursors, embeddings cache) go in `~/.carrel/memory/`. The code is
+`packages/memory` (`@carrel/memory`).
 
 ## Design artifacts
 
@@ -27,7 +52,7 @@ A copy of Margin (brand book, `tokens.json`, component guidelines) and the
 baseline mockups lives in [`.agent/design/`](.agent/design/README.md). Read it
 before designing any screen or learning kit sheet.
 
-**Baseline mockups:** `MarginMac2`, `MarginFocus`, `MarginCompare`,
+**Baseline mockups:** `MarginMap` (the map, from 28 Oct), `MarginMac2`, `MarginFocus`, `MarginCompare`,
 `MarginMac`, `MarginWin`, plus `MarginTalk` and `MarginDesk` for details.
 Ignore `Main`, `Windows` and `Sheet` (older style). The Read/Watch/Compare/Write
 buttons in `MarginDesk` were replaced by Focus and Compare actions.
@@ -91,9 +116,10 @@ timestamps) are JetBrains Mono. Day and Night themes; Mac and Windows frames.
 - Builder flow: describe need, agent proposes a pencil card, builds and tests in scratch on Accept, hot-loads on a trial desk, user picks Keep, Revise or Discard.
 - First-party kits live in `kits/`. First kit: language (beginner, intermediate, advanced; only the user moves the stage).
 
-## Development plan
+## Development plan (desk-first, superseded on 28 Oct)
 
-Full plan: the design doc's "Development plan" section. In short: prove the
+Phases 0–6 and part of 7 were built (PRs #1–#56). New work follows
+"Direction from 28 Oct" above. Full plan: the design doc's "Development plan" section. In short: prove the
 risky parts with spikes, then build the core loop (desk, source, *that.*,
 note, agent) end to end, thinly, then polish in the order the owner uses it.
 
@@ -143,12 +169,3 @@ Commands (Node 22.19+, pnpm 10):
 | `pnpm dev` | Build and open the desktop app |
 | `pnpm --filter @carrel/desktop smoke` | Start the built app, check it renders, quit |
 | `pnpm --filter @carrel/desktop e2e` | The core loop end to end with real clicks and keys, across a restart (Playwright) |
-
-## Milestone 1 (next)
-
-One pull request each, in order:
-
-1. Scaffold the pnpm monorepo (`apps/desktop`, `packages/core`, `packages/margin`, tnega dependency, lint/typecheck/test).
-2. Margin tokens to CSS variables (Day and Night) from `tokens.json`.
-3. Electron shell: Mac and Windows frames, empty grid-paper desk, sidebar skeleton.
-4. Projects and desks on disk in `~/Carrel/<project>/`, reopened after restart.

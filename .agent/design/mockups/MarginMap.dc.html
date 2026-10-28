@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Carrel map of what you learned</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&amp;family=JetBrains+Mono:wght@500&amp;display=swap">
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="position: relative; width: 1600px; height: 1000px; overflow: hidden; background: #33413a; font-family: 'Instrument Sans', system-ui, sans-serif; color: #1b1f24">
+
+<div style="position: absolute; left: 60px; top: 50px; width: 1480px; height: 900px; border-radius: 12px; overflow: hidden; background: #cfd8d1; box-shadow: 0 0 0 1px rgba(0,0,0,0.25), 0 30px 80px rgba(0,0,0,0.45)">
+
+<nav aria-label="Carrel" style="position: absolute; left: 0; top: 0; width: 200px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; gap: 18px; padding: 52px 10px 14px; background: #e8ede9; border-right: 1px solid #c9d1cb; font-size: 13px">
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="display: flex; align-items: center; gap: 8px; padding: 7px 10px; border-radius: 6px; background: #1b1f24; color: #fcfcf9; font-weight: 500"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="6" cy="7" r="2"></circle><circle cx="18" cy="6" r="2"></circle><circle cx="12" cy="17" r="2"></circle><path d="M8 7.5l8-1M7 9l4 6.5M17 8l-4 7.5"></path></svg>Map</span>
+<span style="padding: 7px 10px">Today</span>
+<span style="padding: 7px 10px">Library</span>
+<span style="padding: 7px 10px">Notes</span>
+<span style="padding: 7px 10px">Conversations</span>
+</div>
+<div style="display: flex; flex-direction: column; gap: 2px">
+<span style="padding: 0 10px 4px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #59616a">KEPT TODAY</span>
+<span style="padding: 5px 10px; font-size: 12px; line-height: 16px">Prefix caching reuses KV blocks</span>
+<span style="padding: 5px 10px; font-size: 12px; line-height: 16px; color: #3a4148">2 chats, 4 pages read</span>
+</div>
+<div style="flex: 1"></div>
+<div style="padding: 10px; border-radius: 8px; background: #dce3de; font-size: 12px; line-height: 17px; color: #3a4148">Everything you read and ask is kept. Press <span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #1b1f24">⌘⇧K</span> to keep something on purpose.</div>
+</nav>
+
+<div style="position: absolute; left: 0; top: 0; width: 1480px; height: 52px; box-sizing: border-box; display: flex; align-items: center; gap: 14px; padding: 0 16px 0 20px">
+<div style="display: flex; gap: 8px" aria-hidden="true">
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #ff5f57"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #febc2e"></span>
+<span style="width: 12px; height: 12px; border-radius: 6px; background: #28c840"></span>
+</div>
+<span style="width: 116px"></span>
+<span style="font-family: Literata, Georgia, serif; font-size: 16px; font-weight: 500">What you’ve learned</span>
+<div role="group" aria-label="Time range" style="display: flex; gap: 2px; padding: 3px; border-radius: 8px; background: #fcfcf9; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)">
+<button type="button" style="height: 24px; padding: 0 10px; border: none; border-radius: 6px; background: #1b1f24; color: #fcfcf9; font-family: inherit; font-size: 12px; font-weight: 500">2 weeks</button>
+<button type="button" style="height: 24px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; color: #59616a; font-family: inherit; font-size: 12px; font-weight: 500">Month</button>
+<button type="button" style="height: 24px; padding: 0 10px; border: none; border-radius: 6px; background: transparent; color: #59616a; font-family: inherit; font-size: 12px; font-weight: 500">All</button>
+</div>
+<div style="flex: 1; display: flex; justify-content: center">
+<div style="width: 520px; display: flex; align-items: center; gap: 8px; height: 32px; padding: 0 12px; border-radius: 8px; background: #fcfcf9; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10); font-size: 13px; color: #59616a">
+<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span>Find anything, even unsaved: “that post on inference costs, Tuesday”</span>
+</div>
+</div>
+<button type="button" style="height: 28px; padding: 0 12px; border: none; border-radius: 7px; background: #1b1f24; color: #fcfcf9; font-family: inherit; font-size: 12px; font-weight: 500">Keep <span style="font-family: 'JetBrains Mono', monospace; font-size: 10px; color: #a5aca8">⌘⇧K</span></button>
+</div>
+
+<div aria-label="Map of pieces over two weeks" style="position: absolute; left: 200px; top: 52px; width: 940px; height: 848px; overflow: hidden; background-color: #cfd8d1; background-image: linear-gradient(#c6d0c8 1px, transparent 1px), linear-gradient(90deg, #c6d0c8 1px, transparent 1px); background-size: 24px 24px; border-top: 1px solid #c3ccc5">
+
+<svg width="940" height="848" viewBox="0 0 940 848" style="position: absolute; left: 0; top: 0" aria-hidden="true">
+<g fill="none" stroke="#8c959c" stroke-width="1.5" stroke-linecap="round">
+<path d="M145 247 Q280 190 420 182"></path>
+<path d="M420 182 Q530 168 640 182"></path>
+<path d="M310 392 Q470 300 640 182"></path>
+<path d="M255 647 Q430 470 585 272"></path>
+<path d="M365 472 Q450 492 530 472"></path>
+<path d="M475 392 Q510 430 530 472"></path>
+<path d="M530 472 Q660 400 750 272"></path>
+</g>
+<g fill="none" stroke-linecap="round">
+<path d="M860 192 Q750 168 640 182" stroke="rgba(255,225,77,0.55)" stroke-width="10"></path>
+<path d="M860 192 Q640 64 420 182" stroke="rgba(255,225,77,0.55)" stroke-width="10"></path>
+<path d="M860 192 Q600 560 200 572" stroke="rgba(255,225,77,0.55)" stroke-width="10"></path>
+<path d="M860 192 Q750 168 640 182" stroke="#c9a200" stroke-width="2.5"></path>
+<path d="M860 192 Q640 64 420 182" stroke="#c9a200" stroke-width="2.5"></path>
+<path d="M860 192 Q600 560 200 572" stroke="#c9a200" stroke-width="2.5"></path>
+</g>
+<g stroke="#9aa39c" stroke-width="1">
+<line x1="40" y1="790" x2="920" y2="790"></line>
+</g>
+</svg>
+
+<span style="position: absolute; left: 14px; top: 122px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #3a4148">AGENTS &amp; INFERENCE</span>
+<span style="position: absolute; left: 14px; top: 332px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #3a4148">SYSTEMS &amp; BACKEND</span>
+<span style="position: absolute; left: 14px; top: 512px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #3a4148">ALGORITHMS</span>
+<span style="position: absolute; left: 14px; top: 672px; font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #3a4148">LOOSE ENDS</span>
+
+<div style="position: absolute; left: 75px; top: 215px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>Video</span><span style="font-family: 'JetBrains Mono', monospace">Oct 10</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">How attention compares every token</div></div>
+
+<div style="position: absolute; left: 350px; top: 150px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 0 0 1.5px #c9a200, 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>Blog</span><span style="font-family: 'JetBrains Mono', monospace">Oct 15</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">KV cache grows with sequence length</div></div>
+
+<div style="position: absolute; left: 570px; top: 150px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 0 0 1.5px #c9a200, 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>Paper</span><span style="font-family: 'JetBrains Mono', monospace">Oct 19</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">Paged attention: KV in fixed-size blocks</div></div>
+
+<div style="position: absolute; left: 515px; top: 240px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>tnega code</span><span style="font-family: 'JetBrains Mono', monospace">Oct 18</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">Plugin load order follows the inject graph</div></div>
+
+<div style="position: absolute; left: 680px; top: 240px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>Chat</span><span style="font-family: 'JetBrains Mono', monospace">Oct 21</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">An agent loop needs a stop rule, not a step cap</div></div>
+
+<div style="position: absolute; left: 790px; top: 160px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 0 0 2px #e8c835, 0 10px 30px rgba(18,30,24,0.25)"><div style="display: flex; justify-content: space-between; align-items: center; font-size: 10px; color: #59616a"><span>Blog</span><span style="font-family: 'JetBrains Mono', monospace; font-weight: 500; padding: 0 5px; border-radius: 2px; background: #ffe14d; color: #1b1f24">Today</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px; font-weight: 500">Prefix caching reuses KV blocks</div></div>
+
+<div style="position: absolute; left: 240px; top: 360px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>X thread</span><span style="font-family: 'JetBrains Mono', monospace">Oct 13</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">How OS virtual memory pages work</div></div>
+
+<div style="position: absolute; left: 405px; top: 360px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>Blog</span><span style="font-family: 'JetBrains Mono', monospace">Oct 16</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">Postgres advisory locks for job queues</div></div>
+
+<div style="position: absolute; left: 295px; top: 440px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>X thread</span><span style="font-family: 'JetBrains Mono', monospace">Oct 14</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">Retry with backoff and jitter</div></div>
+
+<div style="position: absolute; left: 460px; top: 440px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>Chat</span><span style="font-family: 'JetBrains Mono', monospace">Oct 17</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">Tool calls must be safe to repeat</div></div>
+
+<div style="position: absolute; left: 130px; top: 540px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 0 0 1.5px #c9a200, 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>LeetCode 146</span><span style="font-family: 'JetBrains Mono', monospace">Oct 11</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">LRU cache: hash map + linked list</div></div>
+
+<div style="position: absolute; left: 185px; top: 615px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10)"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>LeetCode 207</span><span style="font-family: 'JetBrains Mono', monospace">Oct 12</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">Course schedule: topological sort</div></div>
+
+<div style="position: absolute; left: 735px; top: 700px; width: 140px; box-sizing: border-box; padding: 8px 10px; background: #fcfcf9; border-radius: 4px; box-shadow: 0 1px 0 rgba(18,30,24,0.10), 0 2px 6px rgba(18,30,24,0.10); opacity: 0.85"><div style="display: flex; justify-content: space-between; font-size: 10px; color: #59616a"><span>X post</span><span style="font-family: 'JetBrains Mono', monospace">Oct 22</span></div><div style="margin-top: 3px; font-size: 12.5px; line-height: 16px">Rust ownership, first look</div></div>
+
+<span style="position: absolute; left: 70px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3a4148">Oct 9</span>
+<span style="position: absolute; left: 180px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3a4148">Oct 11</span>
+<span style="position: absolute; left: 290px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3a4148">Oct 13</span>
+<span style="position: absolute; left: 400px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3a4148">Oct 15</span>
+<span style="position: absolute; left: 510px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3a4148">Oct 17</span>
+<span style="position: absolute; left: 620px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3a4148">Oct 19</span>
+<span style="position: absolute; left: 730px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; color: #3a4148">Oct 21</span>
+<span style="position: absolute; left: 838px; top: 800px; font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; color: #1b1f24">Today</span>
+
+</div>
+
+<aside aria-label="Today's piece" style="position: absolute; left: 1140px; top: 52px; width: 340px; height: 848px; box-sizing: border-box; display: flex; flex-direction: column; gap: 16px; padding: 20px 22px; background: #fcfcf9; border-left: 1px solid #d5dcd7; border-top: 1px solid #c3ccc5">
+<div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: #59616a"><span style="font-family: 'JetBrains Mono', monospace; font-size: 11px; font-weight: 500; padding: 1px 6px; border-radius: 2px; background: #ffe14d; color: #1b1f24">Today</span><span>from a blog you read at 10:40</span></div>
+<p style="margin: 0; font-family: Literata, Georgia, serif; font-size: 22px; line-height: 28px; font-weight: 500">Prefix caching reuses KV blocks</p>
+<p style="margin: 0; font-size: 14px; line-height: 21px">When many requests start with the same prompt, the server keeps the KV blocks it already computed and reuses them instead of computing them again.</p>
+<span style="font-size: 12px; color: #2457c5">[Blog] How prefix caching works ↗</span>
+
+<div style="height: 1px; background: #e2e5df"></div>
+
+<span style="font-size: 11px; font-weight: 600; letter-spacing: 0.6px; color: #59616a">3 NEW LINES</span>
+
+<div style="display: flex; gap: 10px; align-items: flex-start">
+<span style="flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 5px; background: #ffe14d; box-shadow: 0 0 0 1.5px #c9a200"></span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #59616a">builds on · <span style="font-family: 'JetBrains Mono', monospace">Oct 19</span></span><span style="font-size: 14px; line-height: 20px">Paged attention: KV in fixed-size blocks</span></div>
+<button type="button" aria-label="Remove this line" style="width: 22px; height: 22px; border: none; background: transparent; color: #7f878e; font-size: 14px">×</button>
+</div>
+<div style="display: flex; gap: 10px; align-items: flex-start">
+<span style="flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 5px; background: #ffe14d; box-shadow: 0 0 0 1.5px #c9a200"></span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #59616a">why it matters · <span style="font-family: 'JetBrains Mono', monospace">Oct 15</span></span><span style="font-size: 14px; line-height: 20px">KV cache grows with sequence length</span></div>
+<button type="button" aria-label="Remove this line" style="width: 22px; height: 22px; border: none; background: transparent; color: #7f878e; font-size: 14px">×</button>
+</div>
+<div style="display: flex; gap: 10px; align-items: flex-start">
+<span style="flex: none; width: 10px; height: 10px; margin-top: 4px; border-radius: 5px; background: #ffe14d; box-shadow: 0 0 0 1.5px #c9a200"></span>
+<div style="flex: 1; display: flex; flex-direction: column; gap: 2px"><span style="font-size: 12px; color: #59616a">same idea · <span style="font-family: 'JetBrains Mono', monospace">Oct 11</span></span><span style="font-size: 14px; line-height: 20px">LRU cache: keep what’s used, drop the rest</span></div>
+<button type="button" aria-label="Remove this line" style="width: 22px; height: 22px; border: none; background: transparent; color: #7f878e; font-size: 14px">×</button>
+</div>
+
+<div style="flex: 1"></div>
+<span style="font-size: 12px; line-height: 17px; color: #59616a">Lines are drawn from what you read and asked. Remove any that don’t fit.</span>
+<div style="display: flex; gap: 8px">
+<button type="button" style="flex: 1; height: 34px; border: none; border-radius: 8px; background: #1b1f24; color: #fcfcf9; font-family: inherit; font-size: 13px; font-weight: 500">Write more</button>
+<button type="button" style="flex: 1; height: 34px; border-radius: 8px; border: 1px solid #7f878e; background: transparent; color: #1b1f24; font-family: inherit; font-size: 13px; font-weight: 500">Open on a desk</button>
+</div>
+</aside>
+
+</div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>
