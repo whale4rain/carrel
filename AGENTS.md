@@ -169,12 +169,3 @@ Commands (Node 22.19+, pnpm 10):
 | `pnpm dev` | Build and open the desktop app |
 | `pnpm --filter @carrel/desktop smoke` | Start the built app, check it renders, quit |
 | `pnpm --filter @carrel/desktop e2e` | The core loop end to end with real clicks and keys, across a restart (Playwright) |
-
-## Milestone 1 (next)
-
-One pull request each, in order:
-
-1. Scaffold the pnpm monorepo (`apps/desktop`, `packages/core`, `packages/margin`, tnega dependency, lint/typecheck/test).
-2. Margin tokens to CSS variables (Day and Night) from `tokens.json`.
-3. Electron shell: Mac and Windows frames, empty grid-paper desk, sidebar skeleton.
-4. Projects and desks on disk in `~/Carrel/<project>/`, reopened after restart.
