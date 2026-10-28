@@ -1,3 +1,4 @@
+import { DISTILL_MARK, RELATE_MARK } from '@carrel/memory'
 import type { LLMAdapter, LLMStreamEvent } from 'tnega/agent'
 
 /**
@@ -17,6 +18,12 @@ export function scriptedModel(): LLMAdapter {
       const id = `scripted-${call++}`
       const last = messages.at(-1)
       yield { type: 'message_start', id }
+      const system = messages[0]?.role === 'system' ? messages[0].content : ''
+      if (tools.length === 0 && (system.startsWith(DISTILL_MARK) || system.startsWith(RELATE_MARK))) {
+        yield { type: 'message_delta', id, delta: memoryAnswer(system, last?.content ?? '') }
+        yield { type: 'message_stop', id, finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0 } }
+        return
+      }
       if (tools.length === 0) {
         // A learning kit's question, asked with no tools: a meaning for the quoted words.
         const words = /[“"]([^”"]+)[”"]/.exec(last?.content ?? '')?.[1]?.trim() ?? ''
@@ -68,4 +75,17 @@ function firstHit(content: string): { kind: string; title: string; text: string 
   } catch {
     return undefined
   }
+}
+
+/**
+ * The memory engine's two prompts: one piece per capture, titled after it,
+ * and a "same idea" line from each new piece to its closest older one.
+ */
+function memoryAnswer(system: string, user: string): string {
+  if (system.startsWith(DISTILL_MARK)) {
+    const pieces = [...user.matchAll(/^\[(\d+)\] \w+ from \w+: (.+)$/gm)].map(([, n, title]) => ({ title, body: `What ${title} says, in short.`, group: 'Kept', from: [Number(n)] }))
+    return JSON.stringify({ pieces })
+  }
+  const lines = [...user.matchAll(/^New piece (\d+)[^\n]*\nOlder pieces:\n\s+(c\d+)/gm)].map(([, n, old]) => ({ new: Number(n), old, relation: 'same idea' }))
+  return JSON.stringify({ lines })
 }

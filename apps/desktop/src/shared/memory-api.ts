@@ -51,6 +51,8 @@ export interface MemoryApi {
   today(): Promise<KeptToday>
   settings(): Promise<MemorySettingsView>
   saveSettings(settings: Partial<MemorySettingsView>): Promise<MemorySettingsView>
+  /** Makes pieces and lines from every day waiting, today too, without waiting for the evening. */
+  distillNow(): Promise<{ pieces: number; lines: number }>
   /** Asks for a ChatGPT export and keeps its conversations. Null when you cancel. */
   importChatGpt(): Promise<ImportResult | null>
   /** Something was kept (by Keep, the trail or a chat): the "Kept today" line reads again. */
@@ -66,5 +68,6 @@ export const memoryChannels = {
   settings: 'memory:settings',
   saveSettings: 'memory:save-settings',
   importChatGpt: 'memory:import-chatgpt',
+  distillNow: 'memory:distill-now',
   kept: 'memory:kept',
 } as const

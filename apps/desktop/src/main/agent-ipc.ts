@@ -21,7 +21,7 @@ const MODEL = process.env.CARREL_LLM_MODEL ?? 'deepseek-flash'
  * kept in ~/.carrel/model.json, encrypted by the system keychain.
  * `CARREL_LLM=scripted` answers with a stand-in model, for checks.
  */
-export function serveAgent(workspace: Workspace, controller: ShellController): () => Promise<void> {
+export function serveAgent(workspace: Workspace, controller: ShellController): { stop: () => Promise<void>; model: () => LLMAdapter } {
   const keyFile = join(workspace.roots.internal, 'model.json')
   const scripted = process.env.CARREL_LLM === 'scripted'
   let saved: string | undefined
@@ -135,7 +135,7 @@ export function serveAgent(workspace: Workspace, controller: ShellController): (
     )
     return answer
   })
-  return () => agent.dispose()
+  return { stop: () => agent.dispose(), model: current }
 }
 
 /**

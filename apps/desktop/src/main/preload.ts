@@ -104,6 +104,7 @@ const memory: MemoryApi = {
   settings: () => call(memoryChannels.settings),
   saveSettings: (settings) => call(memoryChannels.saveSettings, settings),
   importChatGpt: () => call(memoryChannels.importChatGpt),
+  distillNow: () => call(memoryChannels.distillNow),
   onKept: (listener) => listen<void>(memoryChannels.kept, listener),
 }
 

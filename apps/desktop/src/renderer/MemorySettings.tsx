@@ -6,12 +6,13 @@ const memory = window.carrel.memory
 
 /**
  * Memory's settings: the reading trail's sites, the evening hour, and the
- * one-off ChatGPT import. Changes save as you make them; Esc closes.
+ * one-off ChatGPT import, and making pieces now. Changes save as you make them; Esc closes.
  */
 export function MemorySettings({ onClose, importAsk }: { onClose: () => void; importAsk?: number }) {
   const [settings, setSettings] = useState<MemorySettingsView>()
   const [site, setSite] = useState('')
   const [imported, setImported] = useState<string>()
+  const [made, setMade] = useState<string>()
   const [error, setError] = useState<string>()
 
   // The settings as you last changed them, so quick changes build on each other while saves are on their way.
@@ -61,6 +62,17 @@ export function MemorySettings({ onClose, importAsk }: { onClose: () => void; im
       },
       (reason: unknown) => {
         setImported(undefined)
+        setError(reason instanceof Error ? reason.message : String(reason))
+      },
+    )
+  }
+  const distillNow = (): void => {
+    setMade('Making pieces…')
+    setError(undefined)
+    memory.distillNow().then(
+      (result) => setMade(result.pieces > 0 ? `Made ${count(result.pieces, 'piece')} and drew ${count(result.lines, 'line')}.` : 'Nothing new to make pieces from.'),
+      (reason: unknown) => {
+        setMade(undefined)
         setError(reason instanceof Error ? reason.message : String(reason))
       },
     )
@@ -134,6 +146,11 @@ export function MemorySettings({ onClose, importAsk }: { onClose: () => void; im
                 ))}
               </select>
             </label>
+            <p className="memory-settings-note">Days missed while Carrel was closed are caught up when it opens.</p>
+            <button type="button" className="outline-button" onClick={distillNow}>
+              Make pieces now
+            </button>
+            {made && <p className="memory-settings-note" role="status">{made}</p>}
           </section>
           <section aria-label="Import">
             <h3>Chats from elsewhere</h3>

@@ -1,5 +1,6 @@
-import { ChatSync, dayOf, DEFAULT_SETTINGS, Kept, memoryPaths, onTrail, readChatGptExport, readSettings, visitKey, writeSettings, type Day, type MemoryPaths, type MemorySettings } from '@carrel/memory'
+import { ChatSync, dayOf, DEFAULT_SETTINGS, Kept, MemoryEngine, memoryPaths, onTrail, readChatGptExport, readSettings, visitKey, writeSettings, type Day, type Distilled, type MemoryPaths, type MemorySettings } from '@carrel/memory'
 import type { CarrelRoots } from '@carrel/core'
+import type { LLMAdapter } from 'tnega/agent'
 import { BrowserWindow, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, screen } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
@@ -10,6 +11,10 @@ import { captureFor, offerOf, type Gathered } from './keep.js'
 
 /** How often chats are read again while Carrel runs. */
 const SYNC_MS = 5 * 60_000
+/** How often the evening job looks at the clock. */
+const EVENING_MS = 10 * 60_000
+/** After a failed run, the evening job waits this long before trying again. */
+const RETRY_MS = 60 * 60_000
 /** Pages on the trail shorter than this are not worth keeping (a login wall, an empty app shell). */
 const VISIT_MIN_TEXT = 200
 
@@ -33,7 +38,12 @@ export interface MemoryServiceOptions {
 export class MemoryService {
   readonly paths: MemoryPaths
   readonly kept: Kept
+  readonly engine: MemoryEngine
   private readonly chats: ChatSync
+  private model: (() => LLMAdapter) | undefined
+  private evening: ReturnType<typeof setInterval> | undefined
+  private distilling: Promise<Distilled[]> | undefined
+  private retryAt = 0
   private settings: Promise<MemorySettings>
   /** Settings saves, one at a time, so each reads what the one before it wrote. */
   private settingsWrites: Promise<unknown> = Promise.resolve()
@@ -55,18 +65,28 @@ export class MemoryService {
       cursorFile: join(this.paths.internal, 'chats.json'),
     })
     this.settings = readSettings(this.paths).catch(() => ({ ...DEFAULT_SETTINGS }))
+    this.engine = new MemoryEngine({ paths: this.paths, ask: (system, user) => this.ask(system, user) })
+  }
+
+  /** The model the engine asks: the agent's, with its key. */
+  useModel(model: () => LLMAdapter): void {
+    this.model = model
   }
 
   /** Starts keeping chats in the background and takes the Keep shortcut. */
   start(): void {
     setTimeout(() => void this.syncChats(), 3000)
     this.timer = setInterval(() => void this.syncChats(), SYNC_MS)
+    // The evening job: days missed while Carrel was closed are caught up soon after it opens.
+    setTimeout(() => void this.eveningJob(), 15_000)
+    this.evening = setInterval(() => void this.eveningJob(), EVENING_MS)
     const taken = globalShortcut.register('CommandOrControl+Shift+K', () => void this.openKeep())
     if (!taken) console.error('Keep: ⌘⇧K is taken by another app.')
   }
 
   async stop(): Promise<void> {
     if (this.timer) clearInterval(this.timer)
+    if (this.evening) clearInterval(this.evening)
     globalShortcut.unregister('CommandOrControl+Shift+K')
     await this.syncChats()
   }
@@ -83,6 +103,72 @@ export class MemoryService {
     })
     run.catch((error: unknown) => console.error('memory: keeping chats:', error))
     return run.catch(() => 0)
+  }
+
+  /**
+   * Turns kept days into pieces and lines: earlier days whenever they wait,
+   * today from the evening hour on. Quiet: it tells the windows, never you.
+   */
+  async eveningJob(now = new Date()): Promise<void> {
+    if (this.distilling || Date.now() < this.retryAt || !this.canAsk()) return
+    const { eveningHour } = await this.settings
+    const today = dayOf(now)
+    const days = (await this.engine.pending(today)).filter((day) => day < today || now.getHours() >= eveningHour)
+    if (days.length === 0) return
+    await this.distill(days).catch((error: unknown) => {
+      this.retryAt = Date.now() + RETRY_MS
+      console.error('memory: the evening job:', error)
+    })
+  }
+
+  /** Makes pieces from every day waiting, today too, now. */
+  async distillNow(): Promise<{ pieces: number; lines: number }> {
+    if (!this.canAsk()) throw new Error('Add a model key first: making pieces asks the model.')
+    await this.syncChats()
+    const runs = await this.distill(await this.engine.pending(dayOf(new Date())))
+    return { pieces: runs.reduce((sum, run) => sum + run.pieces.length, 0), lines: runs.reduce((sum, run) => sum + run.lines.length, 0) }
+  }
+
+  private async distill(days: Day[]): Promise<Distilled[]> {
+    if (this.distilling) await this.distilling.catch(() => undefined)
+    const run = (async () => {
+      const runs: Distilled[] = []
+      for (const day of days) runs.push(await this.engine.distill(day))
+      return runs
+    })()
+    this.distilling = run
+    try {
+      const runs = await run
+      if (runs.some((done) => done.pieces.length > 0 || done.lines.length > 0)) this.told()
+      return runs
+    } finally {
+      if (this.distilling === run) this.distilling = undefined
+    }
+  }
+
+  private canAsk(): boolean {
+    if (!this.model) return false
+    try {
+      this.model()
+      return true
+    } catch {
+      return false
+    }
+  }
+
+  /** Asks the model once, with no tools, and returns its whole answer. */
+  private async ask(system: string, user: string): Promise<string> {
+    if (!this.model) throw new Error('There is no model yet.')
+    const model = this.model()
+    if (!model.stream) throw new Error('The model cannot stream.')
+    let answer = ''
+    const messages = [
+      { role: 'system' as const, content: system },
+      { role: 'user' as const, content: user },
+    ]
+    for await (const event of model.stream(messages, [], { temperature: 0.2 })) if (event.type === 'message_delta') answer += event.delta
+    if (!answer.trim()) throw new Error('The model gave no answer.')
+    return answer
   }
 
   /** The reading trail: a page read in Carrel, kept when its site is on the trail. */
@@ -242,6 +328,7 @@ export class MemoryService {
     handle(memoryChannels.today, () => this.today())
     handle(memoryChannels.settings, () => this.readSettings())
     handle(memoryChannels.saveSettings, async (_event, settings) => this.saveSettings(typeof settings === 'object' && settings !== null ? (settings as Partial<MemorySettingsView>) : {}))
+    handle(memoryChannels.distillNow, () => this.distillNow())
     handle(memoryChannels.importChatGpt, (event) => this.importChatGpt(BrowserWindow.fromWebContents(event.sender) ?? undefined))
   }
 }
