@@ -1,11 +1,11 @@
-import { ChatSync, dayOf, DEFAULT_SETTINGS, Kept, MemoryEngine, memoryPaths, onTrail, readChatGptExport, readSettings, visitKey, writeSettings, type Day, type Distilled, type MemoryPaths, type MemorySettings } from '@carrel/memory'
+import { ChatSync, dayOf, DEFAULT_SETTINGS, Kept, MemoryEngine, memoryPaths, onTrail, rangeStart, readChatGptExport, readSettings, visitKey, writeSettings, type Day, type Distilled, type MemoryPaths, type MemorySettings } from '@carrel/memory'
 import type { CarrelRoots } from '@carrel/core'
 import type { LLMAdapter } from 'tnega/agent'
 import { BrowserWindow, clipboard, desktopCapturer, dialog, globalShortcut, ipcMain, screen } from 'electron'
 import { readFile } from 'node:fs/promises'
 import { homedir } from 'node:os'
 import { join, resolve } from 'node:path'
-import { memoryChannels, type KeepChoice, type KeptToday, type MemorySettingsView } from '../shared/memory-api.js'
+import { memoryChannels, type KeepChoice, type KeptToday, type MapData, type MapRange, type MemorySettingsView } from '../shared/memory-api.js'
 import type { WorkspaceReply } from '../shared/workspace-api.js'
 import { captureFor, offerOf, type Gathered } from './keep.js'
 
@@ -269,6 +269,17 @@ export class MemoryService {
     }
   }
 
+  /** The map's pieces and lines for a range: every piece from its first day to today, and the lines among them. */
+  async map(range: MapRange): Promise<MapData> {
+    const today = dayOf(new Date())
+    const all = await this.engine.pieces.all()
+    const first = rangeStart(range, today, all)
+    const pieces = all.filter((piece) => piece.day >= first && piece.day <= today)
+    const shown = new Set(pieces.map((piece) => piece.id))
+    const lines = (await this.engine.lines.shown()).filter((line) => shown.has(line.from) && shown.has(line.to))
+    return { today, first, pieces, lines, kept: await this.today() }
+  }
+
   async readSettings(): Promise<MemorySettingsView> {
     return this.settings
   }
@@ -333,6 +344,21 @@ export class MemoryService {
     handle(memoryChannels.settings, () => this.readSettings())
     handle(memoryChannels.saveSettings, async (_event, settings) => this.saveSettings(typeof settings === 'object' && settings !== null ? (settings as Partial<MemorySettingsView>) : {}))
     handle(memoryChannels.distillNow, () => this.distillNow())
+    handle(memoryChannels.map, async (_event, range) => this.map(range === 'month' || range === 'all' ? range : '2w'))
+    handle(memoryChannels.recall, async (_event, query) => (typeof query === 'string' && query.trim() ? this.engine.recall(query.slice(0, 500), 30) : []))
+    handle(memoryChannels.removeLine, async (_event, id) => {
+      if (typeof id !== 'string') throw new Error('Remove which line?')
+      await this.engine.removeLine(id)
+    })
+    handle(memoryChannels.editPiece, async (_event, id, change) => {
+      if (typeof id !== 'string' || typeof change !== 'object' || change === null) throw new Error('Change which piece?')
+      const { title, body } = change as { title?: unknown; body?: unknown }
+      return this.engine.editPiece(id, { ...(typeof title === 'string' ? { title } : {}), ...(typeof body === 'string' ? { body } : {}) })
+    })
+    handle(memoryChannels.removePiece, async (_event, id) => {
+      if (typeof id !== 'string') throw new Error('Remove which piece?')
+      await this.engine.removePiece(id)
+    })
     handle(memoryChannels.importChatGpt, (event) => this.importChatGpt(BrowserWindow.fromWebContents(event.sender) ?? undefined))
   }
 }

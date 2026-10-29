@@ -39,7 +39,7 @@ test('the hand and the map', async () => {
 
   // The map is hidden until asked for.
   await expect(page.locator('.minimap')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Map' }).click()
+  await page.getByRole('button', { name: 'Map', exact: true }).click()
   const map = page.locator('.minimap')
   await expect(map).toBeVisible()
 

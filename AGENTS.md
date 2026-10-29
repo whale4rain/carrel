@@ -34,7 +34,12 @@ holds `kept/YYYY-MM-DD.jsonl` (captures; a later line with the same key wins),
 `kept/files/` (screenshots), `pieces/YYYY-MM-DD.json`, `lines.json` (removed
 lines stay, marked removed) and `corrections.jsonl`. Internals (settings, chat
 source cursors, embeddings cache) go in `~/.carrel/memory/`. The code is
-`packages/memory` (`@carrel/memory`).
+`packages/memory` (`@carrel/memory`): `kept.ts` and `chats.ts` (capture),
+`engine.ts` with `prompts.ts`, `lines.ts`, `embed.ts` and `recall.ts` (the
+engine), `map.ts` (the map's layout, pure, imported by the renderer as
+`@carrel/memory/map`). In the app: `src/main/memory-ipc.ts` (Keep, the trail,
+chat sync, the evening job), `src/renderer/MapView.tsx`. The scripted model
+answers the engine's two prompts, so e2e checks need no key.
 
 ## Design artifacts
 

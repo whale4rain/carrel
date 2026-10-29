@@ -6,6 +6,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./days": "./src/days.ts",
+    "./map": "./src/map.ts",
     "./sites": "./src/sites.ts"
   },
   "scripts": {

@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { PROJECT_THREAD, type SideThread } from '../shared/agent-api.js'
 import type { AgentAsk } from '../shared/menu.js'
+import { fromMarkdown } from '@carrel/core/note-markdown'
+import type { KeptToday, Piece } from '../shared/memory-api.js'
 import type { ItemView, NoteViewSpec, PropertyValue, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
 import { Welcome } from './Desk.js'
 import { AgentPanel, NEW_SIDE } from './AgentPanel.js'
@@ -14,10 +16,12 @@ import { SearchPalette } from './SearchPalette.js'
 import { Sidebar, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
 import { ShortcutSheet } from './ShortcutSheet.js'
+import { MapView } from './MapView.js'
 import { MemorySettings } from './MemorySettings.js'
 import { DESK_COMMAND, frame } from './platform.js'
 import './shell.css'
 import './memory.css'
+import './map.css'
 
 const api = window.carrel.workspace
 
@@ -32,13 +36,23 @@ export function App() {
   // The project's saved views of notes, and the one open in place of the desk.
   const [views, setViews] = useState<NoteViewSpec[]>([])
   const [viewId, setViewId] = useState<string>()
+  // The map of what you learned, open in place of the desk; and what was kept today, for the sidebar.
+  const [map, setMap] = useState(false)
+  const [kept, setKept] = useState<KeptToday>()
+  useEffect(() => {
+    const read = (): void => void window.carrel.memory.today().then(setKept, () => undefined)
+    read()
+    return window.carrel.memory.onKept(read)
+  }, [])
   const openPage = (note: string, write = false): void => {
+    setMap(false)
     setShow(undefined)
     setViewId(undefined)
     setPage({ note, write })
   }
   // Something to show on the desk brings the desk back.
   const showOnDesk = (request: ShowRequest): void => {
+    setMap(false)
     setPage(undefined)
     setViewId(undefined)
     setShow(request)
@@ -203,6 +217,7 @@ export function App() {
     openProject: async (name) => setState(await api.openProject(name)),
     createProject: async (name) => setState(await api.createProject(name)),
     openDesk: async (id) => {
+      setMap(false)
       setPage(undefined)
       setViewId(undefined)
       setState(await api.openDesk(id))
@@ -233,12 +248,14 @@ export function App() {
       addItems([await api.moveNote(id, folder)])
     },
     openView: (id) => {
+      setMap(false)
       setPage(undefined)
       setViewId(id)
     },
     createView: async (name) => {
       const made = await api.createView(name)
       setViews((known) => [...known, made])
+      setMap(false)
       setPage(undefined)
       setViewId(made.id)
     },
@@ -249,6 +266,20 @@ export function App() {
       setThreadId(id)
       setTalking(true)
     },
+    openMap: () => setMap(true),
+  }
+  // A piece becomes a note: its words, and where it came from.
+  const writeMore = async (piece: Piece): Promise<void> => {
+    const made = await api.createNote('', piece.title)
+    const from = piece.source.url ? `From [${piece.source.title}](${piece.source.url}).` : `From ${piece.source.title}.`
+    const saved = await api.saveNote(made.id, fromMarkdown(`${piece.body}\n\n${from}\n\n`))
+    addItems([saved])
+    openPage(saved.id, true)
+  }
+  const openUrl = async (url: string): Promise<void> => {
+    const item = await api.addLink(url)
+    addItems([item])
+    showOnDesk({ itemId: item.id, nonce: Date.now() })
   }
 
   dailyRef.current = () => {
@@ -275,9 +306,11 @@ export function App() {
       )}
       {state && (
         <>
-          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} folders={folders} note={note?.id} views={views} view={view?.id} sides={sides} thread={talking ? threadId : undefined} />}
-          <TopBar frame={frame} project={open?.project} desk={note ? note.title : view ? view.name : desk?.name} place={note ? 'note' : view ? 'view' : 'desk'} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
-          {open && note ? (
+          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} folders={folders} note={note?.id} views={views} view={view?.id} sides={sides} thread={talking ? threadId : undefined} map={map} kept={kept} />}
+          <TopBar frame={frame} project={open?.project} desk={note ? note.title : view ? view.name : desk?.name} place={map ? 'map' : note ? 'note' : view ? 'view' : 'desk'} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
+          {map ? (
+            <MapView frame={frame} canWrite={open !== undefined} onWriteMore={(piece) => void writeMore(piece)} onOpenUrl={(url) => void openUrl(url)} />
+          ) : open && note ? (
             <NotePage
               note={note}
               items={items}
