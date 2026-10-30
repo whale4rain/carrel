@@ -232,6 +232,14 @@ kbd {
   font-weight: 400;
 }
 
+.place-column .row kbd {
+  flex: none;
+}
+
+.place-column .row .grow {
+  min-width: 0;
+}
+
 .column-title {
   margin: 0;
   padding: 2px 10px 0;
