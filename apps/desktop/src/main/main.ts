@@ -518,9 +518,14 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     app.exit(1)
   }
 
-  if (!(await waitFor("document.querySelector('[data-carrel-shell] [aria-label=\"Desk\"]') !== null"))) {
-    return fail('the page did not render')
+  // The Map may be the start page (once it has pieces); pick Desks on the rail, which also keeps a late
+  // start-page answer from taking the window over, and wait for the desk.
+  const toDesk = async (): Promise<boolean> => {
+    if (!(await waitFor("document.querySelector('[data-carrel-shell] [aria-label=\"Places\"] [aria-label=\"Desks\"]') !== null"))) return false
+    await page("document.querySelector('[aria-label=\"Places\"] [aria-label=\"Desks\"]').click()")
+    return waitFor("document.querySelector('[data-carrel-shell] [aria-label=\"Desk\"]') !== null")
   }
+  if (!(await toDesk())) return fail('the page did not render')
   const openDesk = "document.querySelector('.desk-name')?.textContent"
   if (mode === 'create') {
     // Through the same bridge the sidebar uses, then wait for the shell to show it.
@@ -607,6 +612,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       itemId: items.find((item) => item.kind === 'paper').id, page: 1, text: { source: 'Words this PDF never had', start: 0, end: 24 },
     }))`)
     await reload()
+    if (!(await toDesk())) return fail('the desk did not come back after a reload')
     if (!(await waitFor("document.querySelectorAll('.that-tray .that-chip').length === 4"))) return fail('the new chip did not show')
     await page("[...document.querySelectorAll('.that-tray .that-chip')].at(-1).click()")
     if (!(await waitFor("document.querySelector('.that-saved blockquote')?.textContent === 'Words this PDF never had'"))) {
