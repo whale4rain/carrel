@@ -12,7 +12,7 @@ export const NEW_SIDE = 'new'
 
 /**
  * The project's ongoing thread with the agent, docked on the right (⌘J), or
- * one of its side threads (the Threads menu in the header).
+ * one of its side threads (the tabs under the header).
  * Your turns sit right on paper-2; the agent's answers sit left in Literata,
  * each opened by one folded line of what it did and what it sent.
  */
@@ -31,9 +31,15 @@ export function AgentPanel({
   onAddToNote,
   focusTurn,
   prompt,
+  seeing,
+  suggestions,
   onClose,
 }: {
   project: string
+  /** What is open beside the agent, in words: "the Map", "the desk “Elasticity”". */
+  seeing?: string | undefined
+  /** Next steps that fit what is open, offered as chips; a click asks. */
+  suggestions?: readonly string[]
   /** The project thread, a side thread's id, or NEW_SIDE. */
   threadId: string
   sides: readonly SideThread[]
@@ -68,7 +74,6 @@ export function AgentPanel({
   // The that.s made on turns, by turn.
   const [pointed, setPointed] = useState<ReadonlyMap<string, ThatView>>(new Map())
   const [draft, setDraft] = useState('')
-  const [menu, setMenu] = useState(false)
   // A new side thread's id, once its first question has named it.
   const [started, setStarted] = useState<string>()
   const here = started ?? threadId
@@ -256,62 +261,65 @@ export function AgentPanel({
       }}
     >
       <header className="agent-head">
-        <span className="agent-seat" aria-hidden="true">
+        <span className="agent-seat agent-seat-big" aria-hidden="true">
           a
         </span>
         <div className="agent-title">
-          <button type="button" className="agent-threads" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((now) => !now)}>
-            <b>{side ? side.title : threadId === NEW_SIDE ? 'New side thread' : 'Project thread'}</b>
-            <span aria-hidden="true">▾</span>
-          </button>
+          <b>Agent</b>
           <span>
-            {side ? 'side thread' : project}
-            {since ? ` · ${side ? 'since' : 'ongoing since'} ${since}` : ''}
+            {project}
+            {seeing ? ` · sees ${seeing}` : ''}
             {thread.total.calls > 0 ? ` · ${bytes(thread.total.bytes)} sent` : ''}
           </span>
-          {menu && (
-            <div className="agent-menu" role="menu" onKeyDown={(event) => event.key === 'Escape' && (event.stopPropagation(), setMenu(false))}>
-              {[{ id: PROJECT_THREAD, title: 'Project thread' }, ...sides].map((choice) => (
-                <button
-                  key={choice.id}
-                  type="button"
-                  role="menuitemradio"
-                  aria-checked={choice.id === threadId}
-                  onClick={() => {
-                    setMenu(false)
-                    if (choice.id !== threadId) onThread(choice.id)
-                  }}
-                >
-                  {choice.title}
-                </button>
-              ))}
-              <button
-                type="button"
-                role="menuitem"
-                className="agent-menu-new"
-                onClick={() => {
-                  setMenu(false)
-                  onThread(NEW_SIDE)
-                }}
-              >
-                + New side thread
-              </button>
-            </div>
-          )}
         </div>
         <button type="button" className="agent-close" aria-label="Close the thread" onClick={onClose}>
           ×
         </button>
       </header>
+      <div className="agent-tabs" role="tablist" aria-label="Threads">
+        {[{ id: PROJECT_THREAD, title: 'Project thread' }, ...sides, ...(threadId === NEW_SIDE ? [{ id: NEW_SIDE, title: 'New side thread' }] : [])].map((choice) => (
+          <button
+            key={choice.id}
+            type="button"
+            role="tab"
+            className="agent-tab"
+            aria-selected={choice.id === threadId}
+            title={choice.id === PROJECT_THREAD ? `Project thread${since ? `, ongoing since ${since}` : ''}` : choice.title}
+            onClick={() => choice.id !== threadId && onThread(choice.id)}
+          >
+            {choice.title}
+          </button>
+        ))}
+        {threadId !== NEW_SIDE && (
+          <button type="button" className="agent-tab agent-tab-new" aria-label="New side thread" title="A side thread keeps one topic apart" onClick={() => onThread(NEW_SIDE)}>
+            + New
+          </button>
+        )}
+      </div>
 
       <div className="agent-body" ref={body}>
-        {thread.turns.length === 0 && !asking && (
-          <p className="agent-empty">
-            {threadId === PROJECT_THREAD
-              ? 'Ask about what you are reading. The agent searches this project’s notes, sources and pages before it answers.'
-              : 'A side thread keeps one topic apart from the project thread. Your first question names it.'}
-          </p>
-        )}
+        {thread.turns.length === 0 && !asking &&
+          (threadId === PROJECT_THREAD ? (
+            <div className="agent-empty">
+              <p>Ask about what you are reading, or tell me what to do. I can:</p>
+              <ul className="agent-can" aria-label="What the agent can do">
+                <li>
+                  <b>Search this project</b> its notes, sources and pages, before I answer
+                </li>
+                <li>
+                  <b>Recall other days</b> what you kept and asked, across projects
+                </li>
+                <li>
+                  <b>Point with that.</b> at the passage each point comes from
+                </li>
+                <li>
+                  <b>Write notes and add sources</b> in pencil, until you press Tab
+                </li>
+              </ul>
+            </div>
+          ) : (
+            <p className="agent-empty">A side thread keeps one topic apart from the project thread. Your first question names it.</p>
+          ))}
         {earlier.length > 0 && (
           <button type="button" className="agent-day" onClick={() => setUnfolded((now) => !now)}>
             <i />
@@ -346,6 +354,15 @@ export function AgentPanel({
       </div>
 
       <footer className="agent-foot">
+        {status?.ready && !asking && !draft.trim() && suggestions && suggestions.length > 0 && (
+          <div className="agent-suggest" aria-label="Suggested next steps">
+            {suggestions.map((words) => (
+              <button key={words} type="button" className="agent-suggestion" onClick={() => send(words)}>
+                {words}
+              </button>
+            ))}
+          </div>
+        )}
         {pointing.length > 0 && status?.ready && (
           <p className="agent-pointing">
             <span className="agent-lead">pointing at</span>
@@ -367,7 +384,7 @@ export function AgentPanel({
               ref={input}
               rows={1}
               value={draft}
-              placeholder="Ask anytime…"
+              placeholder="Ask, or tell me what to do…"
               aria-label="Ask the agent"
               onChange={(event) => setDraft(event.target.value)}
               onKeyDown={(event) => {

@@ -633,7 +633,7 @@ app.whenReady().then(async () => {
   keepKitsHome(session.defaultSession)
   setAppMenu(process.platform)
   const settled = serveWorkspace(controller)
-  const agent = serveAgent(workspace, controller)
+  const agent = serveAgent(workspace, controller, (query) => memory.engine.recall(query.slice(0, 500), 12))
   // The memory engine asks the agent's model, with its key.
   memory.useModel(agent.model, agent.ready)
   memory.serve()
