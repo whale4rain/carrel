@@ -41,10 +41,12 @@ export function App() {
   const [kept, setKept] = useState<KeptToday>()
   // The place picked on the rail. The map is the start page once it has pieces on it.
   const [place, setPlace] = useState<Place>('desks')
+  // A place picked on the rail wins over the start page, even if the map answers later.
+  const placePicked = useRef(false)
   useEffect(() => {
     void window.carrel.memory.map('2w').then(
       (data) => {
-        if (data.pieces.length === 0) return
+        if (data.pieces.length === 0 || placePicked.current) return
         setMap(true)
         setPlace('map')
       },
@@ -286,6 +288,7 @@ export function App() {
     keep: () => void window.carrel.memory.openKeep(),
     toggleAgent: () => setTalking((now) => !now),
     openPlace: (next) => {
+      placePicked.current = true
       setSidebar(true)
       setPlace(next)
       if (next === 'map') setMap(true)
