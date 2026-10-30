@@ -41,7 +41,7 @@ export function App() {
   const [kept, setKept] = useState<KeptToday>()
   // The place picked on the rail. The map is the start page once it has pieces on it.
   const [place, setPlace] = useState<Place>('desks')
-  // A place picked on the rail wins over the start page, even if the map answers later.
+  // Anything opened before the map answers (a place, desk, note or view) wins over the start page.
   const placePicked = useRef(false)
   useEffect(() => {
     void window.carrel.memory.map('2w').then(
@@ -63,6 +63,7 @@ export function App() {
     return window.carrel.memory.onKept(read)
   }, [])
   const openPage = (note: string, write = false): void => {
+    placePicked.current = true
     setMap(false)
     setShow(undefined)
     setViewId(undefined)
@@ -70,6 +71,7 @@ export function App() {
   }
   // Something to show on the desk brings the desk back.
   const showOnDesk = (request: ShowRequest): void => {
+    placePicked.current = true
     setMap(false)
     setPage(undefined)
     setViewId(undefined)
@@ -235,6 +237,7 @@ export function App() {
     openProject: async (name) => setState(await api.openProject(name)),
     createProject: async (name) => setState(await api.createProject(name)),
     openDesk: async (id) => {
+      placePicked.current = true
       setMap(false)
       setPage(undefined)
       setViewId(undefined)
@@ -266,6 +269,7 @@ export function App() {
       addItems([await api.moveNote(id, folder)])
     },
     openView: (id) => {
+      placePicked.current = true
       setMap(false)
       setPage(undefined)
       setViewId(id)
@@ -273,6 +277,7 @@ export function App() {
     createView: async (name) => {
       const made = await api.createView(name)
       setViews((known) => [...known, made])
+      placePicked.current = true
       setMap(false)
       setPage(undefined)
       setViewId(made.id)
