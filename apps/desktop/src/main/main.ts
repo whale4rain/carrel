@@ -404,6 +404,8 @@ async function deskInteractions(
     const titles = await page("window.carrel.workspace.items().then((items) => items.filter((item) => item.kind === 'note').map((item) => item.title).join(' | '))")
     return `the note was not saved: ${String(await page("document.querySelector('.note-error')?.textContent ?? 'no message'"))}; notes: ${String(titles)}`
   }
+  // Notes is a place on the rail; its column lists the note.
+  await page("document.querySelector('[aria-label=\"Places\"] [aria-label=\"Notes\"]').click()")
   if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
     return 'the sidebar did not list the note'
   }
@@ -479,7 +481,7 @@ async function deskInteractions(
     return `Add to note did not make a note: ${String(await page("document.querySelector('.agent-answer[data-that] .turn-note')?.textContent ?? 'no button'"))}`
   }
   if (!(await waitFor("[...document.querySelectorAll('.sheet[data-kind=\"note\"] .note-chip')].some((chip) => chip.textContent === 'turn')"))) return 'the new note does not cite the turn'
-  // A side thread from the Threads menu: its first question names it, it answers there, and the sidebar lists it.
+  // A side thread from the Threads menu: its first question names it, it answers there, and the menu goes back.
   await page("document.querySelector('.agent-threads').click()")
   if (!(await waitFor("document.querySelector('.agent-menu-new') !== null"))) return 'the Threads menu did not open'
   await page("document.querySelector('.agent-menu-new').click()")
@@ -487,10 +489,12 @@ async function deskInteractions(
   await page("document.querySelector('.agent-input textarea').focus()")
   window.webContents.insertText('Side note on coffee')
   await page("document.querySelector('.agent-send:not(:disabled)')?.click()")
-  if (!(await waitFor(`document.querySelector('.agent-threads b')?.textContent === 'Side note on coffee' && document.querySelectorAll('.agent-panel .agent-answer').length === 1 && (${answer}).includes('Your note') && document.querySelector('.row.convo.side[data-current]') !== null`))) {
+  if (!(await waitFor(`document.querySelector('.agent-threads b')?.textContent === 'Side note on coffee' && document.querySelectorAll('.agent-panel .agent-answer').length === 1 && (${answer}).includes('Your note')`))) {
     return `the side thread did not answer: ${String(await page("document.querySelector('.agent-panel')?.textContent ?? 'no panel'"))}`
   }
-  await page("document.querySelector('.row.convo:not(.side)').click()")
+  await page("document.querySelector('.agent-threads').click()")
+  if (!(await waitFor("document.querySelector('.agent-menu [role=\"menuitemradio\"]') !== null"))) return 'the Threads menu did not open again'
+  await page("document.querySelector('.agent-menu [role=\"menuitemradio\"]').click()")
   if (!(await waitFor("document.querySelector('.agent-threads b')?.textContent === 'Project thread' && document.querySelectorAll('.agent-panel .agent-me').length === 2"))) return 'the project thread did not come back'
   return undefined
 }
@@ -514,14 +518,20 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     app.exit(1)
   }
 
-  if (!(await waitFor("document.querySelector('[data-carrel-shell] [aria-label=\"Desk\"]') !== null"))) {
-    return fail('the page did not render')
+  // The Map may be the start page (once it has pieces); pick Desks on the rail, which also keeps a late
+  // start-page answer from taking the window over, and wait for the desk.
+  const toDesk = async (): Promise<boolean> => {
+    if (!(await waitFor("document.querySelector('[data-carrel-shell] [aria-label=\"Places\"] [aria-label=\"Desks\"]') !== null"))) return false
+    await page("document.querySelector('[aria-label=\"Places\"] [aria-label=\"Desks\"]').click()")
+    return waitFor("document.querySelector('[data-carrel-shell] [aria-label=\"Desk\"]') !== null")
   }
+  if (!(await toDesk())) return fail('the page did not render')
   const openDesk = "document.querySelector('.desk-name')?.textContent"
   if (mode === 'create') {
     // Through the same bridge the sidebar uses, then wait for the shell to show it.
     await page("window.carrel.workspace.createProject('Smoke test').then(() => window.carrel.workspace.createDesk('Second desk'))")
     await reload()
+    if (!(await toDesk())) return fail('the desk did not come back after a reload')
     if (!(await waitFor(`${openDesk} === 'Second desk'`))) return fail('the new desk did not open')
     const problem = await deskInteractions(window, page, waitFor)
     if (problem) return fail(problem)
@@ -570,6 +580,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`${note}?.querySelector('h1')?.textContent === '${NOTE_TITLE}' && ${note}?.querySelector('p')?.textContent.startsWith('${NOTE_TEXT}') === true`))) {
       return fail(`the note came back saying ${String(await page(`${note}?.textContent ?? 'nothing'`))}`)
     }
+    await page("document.querySelector('[aria-label=\"Places\"] [aria-label=\"Notes\"]').click()")
     if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
       return fail('the sidebar did not list the note after a restart')
     }
@@ -586,11 +597,13 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       return fail(`the note's chip did not open its PDF (at ${at.x},${at.y} is ${hit})`)
     }
     // The agent's thread comes back with its turns and what they sent, and the side thread is listed.
-    if (!(await waitFor("document.querySelector('.row.convo.side')?.textContent.includes('Side note on coffee') === true"))) return fail('the side thread was not listed after a restart')
     await page("document.querySelector('.agent-button').click()")
     if (!(await waitFor("document.querySelectorAll('.agent-panel .agent-me').length === 2 && document.querySelector('.agent-panel .proposal[data-state=\"accepted\"]') !== null && document.querySelector('.agent-title > span')?.textContent.includes('sent') === true"))) {
       return fail(`the agent's thread did not come back: ${String(await page("document.querySelector('.agent-panel')?.textContent ?? 'no panel'"))}`)
     }
+    await page("document.querySelector('.agent-threads').click()")
+    if (!(await waitFor("[...document.querySelectorAll('.agent-menu [role=\"menuitemradio\"]')].some((item) => item.textContent === 'Side note on coffee')"))) return fail('the side thread was not listed after a restart')
+    await page("document.querySelector('.agent-threads').click()")
     await page("document.querySelector('.agent-close').click()")
     // The PDF's backlink brings its note forward.
     await page("document.querySelector('.sheet[data-kind=\"paper\"] .cited-by button').click()")
@@ -600,6 +613,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
       itemId: items.find((item) => item.kind === 'paper').id, page: 1, text: { source: 'Words this PDF never had', start: 0, end: 24 },
     }))`)
     await reload()
+    if (!(await toDesk())) return fail('the desk did not come back after a reload')
     if (!(await waitFor("document.querySelectorAll('.that-tray .that-chip').length === 4"))) return fail('the new chip did not show')
     await page("[...document.querySelectorAll('.that-tray .that-chip')].at(-1).click()")
     if (!(await waitFor("document.querySelector('.that-saved blockquote')?.textContent === 'Words this PDF never had'"))) {

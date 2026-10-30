@@ -8,7 +8,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { tinyPdf } from '../scripts/tiny-pdf.mjs'
-import { mod, quit, start } from './app.js'
+import { mod, place, quit, start } from './app.js'
 
 const NOTE_TITLE = 'Elasticity'
 const NOTE_TEXT = 'Coffee is a habit, so it is inelastic.'
@@ -65,6 +65,7 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   const box = await line.boundingBox()
   await chip.dragTo(line, { targetPosition: { x: (box?.width ?? 2) - 2, y: (box?.height ?? 2) / 2 } })
   await expect(editor.locator('.note-chip')).toHaveText('p.1')
+  await place(page, 'Notes')
   await expect(page.locator('[aria-label="Notes"] .row.note')).toHaveText([NOTE_TITLE])
   await expect(page.locator('.sheet[data-kind="paper"] .cited-by button')).toHaveText('1 note')
 
@@ -104,6 +105,7 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   const back = again.page
   await expect(back.locator('.sheet[data-kind="paper"] .textLayer')).toHaveText('Price elasticity of demand')
   await expect(back.locator('.that-tray .that-chip', { hasText: 'p.1' })).toBeVisible()
+  await place(back, 'Notes')
   await expect(back.locator('[aria-label="Notes"] .row.note')).toHaveCount(2)
   await back.getByRole('button', { name: NOTE_TITLE, exact: true }).click()
   // From the sidebar, a note opens on its own page.

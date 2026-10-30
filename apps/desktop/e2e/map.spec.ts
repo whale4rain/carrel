@@ -73,8 +73,10 @@ test.afterAll(async () => {
 
 test('the map shows pieces by day, lists a piece’s lines, removes one for good, and finds by cues', async () => {
   const { app, page } = await start(home)
-  await page.getByRole('button', { name: 'Map of what you learned' }).click()
+  // With pieces on it, the map is the start page, and its place is picked on the rail.
   const map = page.getByRole('region', { name: 'Map', exact: true })
+  await expect(map).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Places' }).getByRole('button', { name: 'Map of what you learned' })).toHaveAttribute('aria-current', 'page')
   await expect(map.getByRole('heading', { name: 'What you’ve learned' })).toBeVisible()
   await expect(map.getByRole('button', { name: /How attention compares every token/ })).toBeVisible()
   await expect(map.getByRole('button', { name: /Binary search on the answer/ })).toHaveCount(0)

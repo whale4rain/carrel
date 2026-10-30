@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Option B: first run</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600&amp;family=Literata:ital,opsz,wght@0,7..72,400;0,7..72,500;1,7..72,400&amp;family=JetBrains+Mono:wght@500&amp;display=swap">
+<style>
+body{margin:0}
+.stage{position:relative;width:1600px;height:1000px;overflow:hidden;background:#33413a;font-family:'Instrument Sans',system-ui,sans-serif;color:#1b1f24}
+.win{position:absolute;left:60px;top:50px;width:1480px;height:900px;border-radius:12px;overflow:hidden;background:#cfd8d1;
+ background-image:linear-gradient(#bcc7bf 1px,transparent 1px),linear-gradient(90deg,#bcc7bf 1px,transparent 1px);background-size:24px 24px;
+ box-shadow:0 0 0 1px rgba(0,0,0,.25),0 30px 80px rgba(0,0,0,.45)}
+.lights{position:absolute;left:20px;top:20px;display:flex;gap:8px;z-index:5}
+.lights span{width:12px;height:12px;border-radius:6px}
+.tag{position:absolute;left:60px;top:12px;font-size:13px;color:#cfd8d1;letter-spacing:.3px}
+.tag b{color:#ffe14d;font-weight:600;margin-right:8px}
+.side{position:absolute;left:0;top:0;bottom:0;box-sizing:border-box;background:#e8ede9;border-right:1px solid #c9d1cb;font-size:13px;display:flex;flex-direction:column}
+.row{display:flex;align-items:center;gap:8px;padding:6px 10px;border-radius:6px;color:#1b1f24;font-size:13px;line-height:18px}
+.row .grow{flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row .n{font-family:'JetBrains Mono',monospace;font-size:11px;color:#59616a}
+.row.cur{background:#1b1f24;color:#fcfcf9}
+.row.cur .n{color:#cfd8d1}
+.row.sub{padding-left:32px;font-size:12.5px}
+.row.muted{color:#59616a}
+.row svg{flex:none;color:#3a4148}
+.row.cur svg{color:#fcfcf9}
+.layer{display:flex;flex-direction:column;gap:1px}
+.lh{display:flex;align-items:center;gap:6px;padding:0 10px 5px;font-size:10.5px;font-weight:600;letter-spacing:.7px;color:#59616a;text-transform:uppercase}
+.lh .hint{margin-left:auto;font-weight:400;letter-spacing:0;text-transform:none;font-size:11px}
+.kbd{font-family:'JetBrains Mono',monospace;font-size:10.5px;color:#59616a}
+.dot{width:6px;height:6px;border-radius:3px;background:#ffe14d;box-shadow:0 0 0 1px rgba(0,0,0,.15)}
+.seat{flex:none;width:22px;height:22px;border-radius:11px;background:#fcfcf9;color:#2457c5;font-family:Literata,Georgia,serif;font-style:italic;font-size:12px;display:flex;align-items:center;justify-content:center;box-shadow:inset 0 0 0 1.5px #2457c5}
+.seat.big{width:34px;height:34px;border-radius:17px;font-size:17px;box-shadow:inset 0 0 0 2px #2457c5}
+.seat.huge{width:52px;height:52px;border-radius:26px;font-size:26px;box-shadow:inset 0 0 0 2px #2457c5}
+.chip{font-family:'JetBrains Mono',monospace;font-size:10.5px;font-weight:500;padding:1px 5px;border-radius:2px;background:#ffe14d;color:#1b1f24;white-space:nowrap}
+.top{position:absolute;top:0;height:52px;right:0;box-sizing:border-box;display:flex;align-items:center;gap:12px;padding:0 16px 0 18px;border-bottom:1px solid #bcc7bf;background:rgba(207,216,209,.92)}
+.top h1{margin:0;font-family:Literata,Georgia,serif;font-weight:500;font-size:17px}
+.top .crumb{font-size:12px;color:#59616a}
+.btn{height:28px;padding:0 10px;border-radius:8px;border:1px solid #9aa59d;background:transparent;color:#1b1f24;font:500 12px 'Instrument Sans',sans-serif;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn.dark{background:#1b1f24;color:#fcfcf9;border-color:#1b1f24}
+.btn.pencil{border-color:#2457c5;color:#2457c5;background:#fcfcf9}
+.btn.paper{background:#fcfcf9;border-color:#c3cac5}
+.sheet{position:absolute;background:#fcfcf9;border-radius:4px;box-shadow:0 1px 0 rgba(18,30,24,.10),0 2px 6px rgba(18,30,24,.10);overflow:hidden}
+.sheet .lab{display:flex;align-items:center;gap:6px;padding:7px 10px;border-bottom:1px solid #e2e5df;font-size:11.5px;color:#59616a}
+.sheet .lab b{color:#1b1f24;font-weight:500}
+.read{font-family:Literata,Georgia,serif;font-size:14px;line-height:23px;color:#1b1f24}
+.hl{background:#fff2a8;border-radius:2px}
+.agent{position:absolute;right:0;top:52px;bottom:0;box-sizing:border-box;display:flex;flex-direction:column;background:#fcfcf9;border-left:1px solid #d5dcd7;box-shadow:-12px 0 30px rgba(18,30,24,.12)}
+.ahead{display:flex;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid #e2e5df}
+.ahead .t{flex:1;display:flex;flex-direction:column}
+.ahead .t b{font-size:13.5px;font-weight:600}
+.ahead .t span{font-size:11px;color:#59616a}
+.abody{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column;gap:14px;padding:14px 16px}
+.you{align-self:flex-end;max-width:85%;padding:8px 12px;border-radius:8px;background:#f1f3ee;font-size:13px;line-height:19px;display:flex;flex-direction:column;gap:5px}
+.steps{font-family:'JetBrains Mono',monospace;font-size:11px;color:#59616a}
+.ans{margin:0;font-family:Literata,Georgia,serif;font-size:14px;line-height:22px}
+.marg{margin:0;font-family:Literata,Georgia,serif;font-style:italic;font-size:13px;line-height:20px;color:#2457c5}
+.prop{border:1.5px dashed #2457c5;background:#e8efff;border-radius:4px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.prop .k{font-size:11px;font-weight:600;color:#2457c5;letter-spacing:.3px}
+.prop p{margin:0;font-family:Literata,Georgia,serif;font-style:italic;font-size:13px;line-height:20px;color:#2457c5}
+.prop .acts{display:flex;gap:6px;align-items:center;font-size:11px;color:#59616a}
+.comp{display:flex;flex-direction:column;gap:7px;padding:10px 12px 12px;border-top:1px solid #e2e5df}
+.field{display:flex;align-items:center;gap:8px;padding:4px 4px 4px 12px;border-radius:8px;background:#f1f3ee;font-size:13px;color:#59616a}
+.field .go{width:30px;height:30px;border-radius:7px;background:#1b1f24;color:#fcfcf9;display:flex;align-items:center;justify-content:center;flex:none}
+.sugg{display:flex;flex-wrap:wrap;gap:6px}
+.sg{padding:4px 9px;border-radius:999px;border:1px solid #c7d3ef;background:#fcfcf9;color:#2457c5;font-family:Literata,Georgia,serif;font-style:italic;font-size:12px;line-height:16px;white-space:nowrap}
+.cap{display:flex;gap:10px;align-items:flex-start;padding:9px 10px;border-radius:6px;background:#f6f8f5;font-size:12.5px;line-height:17px}
+.cap svg{flex:none;margin-top:1px;color:#2457c5}
+.cap b{font-weight:600}
+.cap span{color:#59616a}
+.ctx{display:flex;align-items:center;gap:6px;flex-wrap:wrap;font-size:11px;color:#59616a}
+.ctx i{font-family:Literata,Georgia,serif}
+.pill{display:inline-flex;align-items:center;gap:4px;padding:1px 6px;border-radius:4px;background:#f1f3ee;color:#1b1f24;font-size:11px}
+.card{background:#fcfcf9;border-radius:4px;box-shadow:0 1px 0 rgba(18,30,24,.10),0 2px 6px rgba(18,30,24,.10)}
+.piece{position:absolute;width:132px;box-sizing:border-box;padding:6px 8px 8px;background:#fcfcf9;border-radius:3px;box-shadow:0 1px 0 rgba(18,30,24,.10),0 2px 6px rgba(18,30,24,.10);font-size:11.5px;line-height:15px}
+.piece .m{display:flex;justify-content:space-between;color:#59616a;font-size:10.5px;margin-bottom:3px}
+.piece .m span:last-child{font-family:'JetBrains Mono',monospace}
+.piece.today{box-shadow:0 0 0 2px #ffe14d,0 2px 6px rgba(18,30,24,.18)}
+.band{position:absolute;font-size:10.5px;font-weight:600;letter-spacing:.7px;color:#3a4148}
+.note{position:absolute;font-size:12px;line-height:17px;color:#fcfcf9;width:300px}
+.callout{position:absolute;display:flex;gap:8px;align-items:flex-start;font-size:12px;line-height:16px;color:#fcfcf9;background:#33413a;padding:7px 10px 7px 7px;border-radius:8px;box-shadow:0 4px 14px rgba(0,0,0,.35);max-width:250px;z-index:9}
+.callout b{flex:none;width:18px;height:18px;border-radius:9px;background:#ff8a4c;color:#1b1f24;font-size:11px;display:flex;align-items:center;justify-content:center}
+</style>
+</helmet>
+<div class="stage">
+<div class="tag"><b>B · First run</b> The agent asks one question and sets things up.</div>
+<div class="win">
+<div class="lights"><span style="background:#ff5f57"></span><span style="background:#febc2e"></span><span style="background:#28c840"></span></div>
+<nav class="side" style="width:68px;padding:46px 6px 12px;gap:4px;align-items:center;background:#dfe5e0"><div style="width:56px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;border-radius:8px;color:#3a4148;font-size:10.5px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7.5l8-1M7 9l4 6.5M17 8l-4 7.5"/></svg><span>Map</span></div><div style="width:56px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;border-radius:8px;color:#3a4148;font-size:10.5px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4L7 17M17 7l1.4-1.4"/></svg><span>Today</span></div><div style="width:56px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;border-radius:8px;color:#3a4148;font-size:10.5px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="8" height="10" rx="1"/><rect x="13" y="8" width="8" height="11" rx="1"/></svg><span>Desks</span></div><div style="width:56px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;border-radius:8px;color:#3a4148;font-size:10.5px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5M9 12h7M9 16h5"/></svg><span>Notes</span></div><div style="width:56px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;border-radius:8px;color:#3a4148;font-size:10.5px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 012-2h13v16H6a2 2 0 00-2 2z"/><path d="M4 21V5"/></svg><span>Sources</span></div><div style="width:36px;height:1px;background:#c9d1cb;margin:6px 0"></div><div style="width:56px;display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0;font-size:10.5px;color:#2457c5;background:#fcfcf9;border-radius:8px;box-shadow:inset 0 0 0 1.5px #2457c5"><span class="seat big">a</span><span style="font-family:Literata,Georgia,serif;font-style:italic">Agent</span></div><div style="flex:1"></div><div style="color:#59616a;padding:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg></div><div style="color:#59616a;padding:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg></div></nav><div style="position:absolute;left:68px;right:0;top:0;bottom:0;background:#fcfcf9"></div><div class="top" style="left:68px;padding-left:40px;background:#fcfcf9;border-color:#e2e5df"><h1>Agent</h1><span class="crumb">first run</span></div><div style="position:absolute;left:444px;top:120px;width:660px;display:flex;flex-direction:column;gap:18px"><div style="display:flex;gap:14px;align-items:center"><span class="seat huge">a</span><div style="font-family:Literata,Georgia,serif;font-size:28px;line-height:34px;font-weight:500">What are you learning?</div></div><p class="ans" style="font-size:16px;line-height:26px">I keep what you read and ask each day and draw lines between days, so it adds up. Tell me in a sentence and I’ll set up a place for it.</p><div class="field" style="padding:6px 6px 6px 14px;background:#f1f3ee;box-shadow:inset 0 0 0 1.5px #1b1f24"><span style="flex:1;font-size:15px;color:#1b1f24">I’m reading Mankiw’s Principles and watching the MIT lectures<span style="border-left:1.5px solid #1b1f24;margin-left:1px"></span></span><span class="go" style="width:34px;height:34px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></span></div><div class="sugg"><span class="sg">Import my ChatGPT history</span><span class="sg">Open a PDF</span><span class="sg">Just look around</span></div><div style="margin-top:14px;display:grid;grid-template-columns:1fr 1fr;gap:10px"><div class="cap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12M7 10l5 5 5-5M4 21h16"/></svg><div><b>I’ll set it up</b><br><span>A project, a first desk with your book and lecture, and a note to write in.</span></div></div><div class="cap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="7" r="2"/><circle cx="18" cy="6" r="2"/><circle cx="12" cy="17" r="2"/><path d="M8 7.5l8-1M7 9l4 6.5M17 8l-4 7.5"/></svg><div><b>Then the Map opens</b><br><span>Tomorrow it shows today’s pieces and the first lines.</span></div></div><div class="cap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><div><b>Ask me anything later</b><br><span>⌘J from any place; I see what you see.</span></div></div><div class="cap"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 3h12v18l-6-4-6 4z"/></svg><div><b>Keep from anywhere</b><br><span>⌘⇧K saves the page or selection you are on.</span></div></div></div></div><div class="callout" style="left:444px;top:70px"><b>4</b><span>First run opens the Agent place full width: you answer one question and it sets up the project and desk for you.</span></div></div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1600,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() { return {}; }
+}
+</script>
+</body>
+</html>

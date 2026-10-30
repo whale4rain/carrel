@@ -6,7 +6,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
 import { tinyPdf } from '../scripts/tiny-pdf.mjs'
-import { quit, start } from './app.js'
+import { place, quit, start } from './app.js'
 
 let home: string
 
@@ -40,9 +40,11 @@ test('browse the library and put a source back on the desk', async () => {
   await page.keyboard.type('Costs')
   await editor.locator('p').click()
   await page.keyboard.type('Rising at the margin #econ ')
+  await place(page, 'Notes')
   await expect(page.locator('[aria-label="Notes"] .row.note')).toHaveText(['Costs'])
 
-  const sidebar = page.getByRole('navigation', { name: 'Project' })
+  const sidebar = page.getByRole('navigation', { name: 'Sidebar' })
+  await place(page, 'Sources')
   await sidebar.getByRole('button', { name: /Books & papers/ }).click()
   const library = page.getByRole('dialog', { name: 'Library' })
   await expect(library.getByRole('tab', { selected: true })).toContainText('Books & papers')
@@ -61,6 +63,7 @@ test('browse the library and put a source back on the desk', async () => {
   // Esc closes; All notes opens the Notes shelf.
   await page.keyboard.press('Escape')
   await expect(library).toHaveCount(0)
+  await place(page, 'Notes')
   await sidebar.getByRole('button', { name: /All notes/ }).click()
   await expect(library.getByRole('tab', { selected: true })).toContainText('Notes')
 
@@ -69,6 +72,7 @@ test('browse the library and put a source back on the desk', async () => {
   await row.click()
   await expect(library).toHaveCount(0)
   await expect(paper.locator('.textLayer')).toHaveText('Marginal cost')
+  await place(page, 'Sources')
   await sidebar.getByRole('button', { name: /Books & papers/ }).click()
   await expect(row.locator('.library-where')).toHaveText('On this desk')
   await quit(app)

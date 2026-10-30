@@ -55,7 +55,7 @@ kbd {
 .shell {
   display: grid;
   height: 100%;
-  grid-template-columns: 240px 1fr;
+  grid-template-columns: 288px 1fr;
   grid-template-rows: 52px 1fr;
   grid-template-areas:
     'sidebar topbar'
@@ -72,7 +72,7 @@ kbd {
 
 /* The agent's thread docks on the right, under the top bar; the desk gives it room. */
 .shell[data-agent] {
-  grid-template-columns: 240px 1fr 380px;
+  grid-template-columns: 288px 1fr 380px;
   grid-template-areas:
     'sidebar topbar topbar'
     'sidebar desk agent';
@@ -120,25 +120,148 @@ kbd {
   color: var(--ink-muted);
 }
 
-/* ---- Sidebar ---------------------------------------------------------- */
+/* ---- Sidebar: a rail of places, and the picked place's column --------- */
 
 .sidebar {
   grid-area: sidebar;
   position: relative;
   display: flex;
+  min-height: 0;
+  background: var(--paper-2);
+  border-right: 1px solid var(--rule);
+}
+
+.rail {
+  display: flex;
+  flex: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  width: 68px;
+  padding: 14px 6px 10px;
+  box-sizing: border-box;
+  background: color-mix(in srgb, var(--paper-2) 82%, var(--mat));
+  border-right: 1px solid var(--rule);
+}
+
+.rail-place {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  width: 56px;
+  padding: 7px 0 6px;
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font: var(--text-caption);
+  font-size: 10.5px;
+  line-height: 13px;
+}
+
+.rail-place:hover {
+  background: var(--rule);
+}
+
+.rail-place[aria-current='page'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+/* On Windows the picked place is a light tile with an ink bar, like the open desk. */
+.shell[data-frame='windows'] .rail-place[aria-current='page'] {
+  background: var(--paper);
+  color: var(--ink);
+  box-shadow: inset 3px 0 0 var(--ink);
+}
+
+.rail-rule {
+  width: 36px;
+  height: 1px;
+  margin: 6px 0;
+  background: var(--rule);
+}
+
+/* The agent is a place too, in its own blue pencil. */
+.rail-agent {
+  color: var(--pencil);
+  font-family: var(--font-read);
+  font-style: italic;
+}
+
+.rail-agent[aria-pressed='true'] {
+  background: var(--paper);
+  box-shadow: inset 0 0 0 1.5px var(--pencil);
+}
+
+.rail-agent:disabled {
+  opacity: 0.45;
+}
+
+.rail .rail-seat {
+  width: 30px;
+  height: 30px;
+  font-size: 15px;
+  box-shadow: inset 0 0 0 2px var(--pencil);
+}
+
+.rail-tool {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 34px;
+  border-radius: var(--radius-control);
+  color: var(--ink-muted);
+}
+
+.rail-tool:hover {
+  background: var(--rule);
+  color: var(--ink);
+}
+
+.place-column {
+  display: flex;
+  flex: 1;
   flex-direction: column;
   gap: var(--space-4);
+  min-width: 0;
   min-height: 0;
   overflow-y: auto;
   padding: 14px 10px;
-  background: var(--paper-2);
-  border-right: 1px solid var(--rule);
   font: var(--text-label);
   font-weight: 400;
 }
 
-/* On Mac the traffic lights sit at the top of the sidebar. */
-.shell[data-frame='mac'] .sidebar {
+.place-column .row kbd {
+  flex: none;
+}
+
+.place-column .row .grow {
+  min-width: 0;
+}
+
+.column-title {
+  margin: 0;
+  padding: 2px 10px 0;
+  font-family: var(--font-read);
+  font-size: 17px;
+  font-weight: 500;
+}
+
+.column-hint {
+  margin: 0;
+  padding: 4px 10px;
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+.kept-row .count {
+  min-width: 34px;
+}
+
+/* On Mac the traffic lights sit at the top of the rail. */
+.shell[data-frame='mac'] .rail,
+.shell[data-frame='mac'] .place-column {
   padding-top: 48px;
 }
 
@@ -298,15 +421,6 @@ kbd {
   color: var(--paper);
   font-family: var(--font-mono);
   font-size: 11px;
-}
-
-.sidebar-foot {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  margin-top: auto;
-  padding-top: 10px;
-  border-top: 1px solid var(--rule);
 }
 
 /* ---- Top bar ---------------------------------------------------------- */
@@ -2501,18 +2615,13 @@ kbd {
   font: var(--text-body);
 }
 
-/* The sidebar folds away; the desk takes its column. On Mac the traffic lights
-   then sit over the top bar, so it leaves room for them. */
+/* The place's column folds away; the rail stays, with the traffic lights over it on Mac. */
 .shell[data-sidebar='hidden'] {
-  grid-template-columns: 0 1fr;
+  grid-template-columns: 68px 1fr;
 }
 
 .shell[data-sidebar='hidden'][data-agent] {
-  grid-template-columns: 0 1fr 380px;
-}
-
-.shell[data-sidebar='hidden'][data-frame='mac'] .topbar {
-  padding-left: 84px;
+  grid-template-columns: 68px 1fr 380px;
 }
 
 .sidebar-button {
@@ -2780,12 +2889,6 @@ kbd {
   border-radius: 4px;
   background: var(--paper-2);
   color: var(--ink);
-}
-
-/* The sidebar's way to the shortcuts, with its own shortcut beside it. */
-.sidebar-foot .row kbd {
-  margin-left: auto;
-  color: var(--ink-muted);
 }
 
 /* Bookmarks: a ribbon on the reading strip and on each kept page, and a list in Contents. */

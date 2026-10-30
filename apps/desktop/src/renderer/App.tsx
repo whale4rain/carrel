@@ -13,7 +13,7 @@ import { NotePage } from './NotePage.js'
 import { NotesView } from './NotesView.js'
 import { QuickOpen } from './QuickOpen.js'
 import { SearchPalette } from './SearchPalette.js'
-import { Sidebar, type WorkspaceActions } from './Sidebar.js'
+import { Sidebar, type Place, type WorkspaceActions } from './Sidebar.js'
 import { TopBar } from './TopBar.js'
 import { ShortcutSheet } from './ShortcutSheet.js'
 import { MapView } from './MapView.js'
@@ -39,12 +39,31 @@ export function App() {
   // The map of what you learned, open in place of the desk; and what was kept today, for the sidebar.
   const [map, setMap] = useState(false)
   const [kept, setKept] = useState<KeptToday>()
+  // The place picked on the rail. The map is the start page once it has pieces on it.
+  const [place, setPlace] = useState<Place>('desks')
+  // Anything opened before the map answers (a place, desk, note or view) wins over the start page.
+  const placePicked = useRef(false)
+  useEffect(() => {
+    void window.carrel.memory.map('2w').then(
+      (data) => {
+        if (data.pieces.length === 0 || placePicked.current) return
+        setMap(true)
+        setPlace('map')
+      },
+      () => undefined,
+    )
+  }, [])
+  // Leaving the map for a desk, a note or a view leaves its place too.
+  useEffect(() => {
+    if (!map) setPlace((now) => (now === 'map' ? 'desks' : now))
+  }, [map])
   useEffect(() => {
     const read = (): void => void window.carrel.memory.today().then(setKept, () => undefined)
     read()
     return window.carrel.memory.onKept(read)
   }, [])
   const openPage = (note: string, write = false): void => {
+    placePicked.current = true
     setMap(false)
     setShow(undefined)
     setViewId(undefined)
@@ -52,6 +71,7 @@ export function App() {
   }
   // Something to show on the desk brings the desk back.
   const showOnDesk = (request: ShowRequest): void => {
+    placePicked.current = true
     setMap(false)
     setPage(undefined)
     setViewId(undefined)
@@ -217,19 +237,23 @@ export function App() {
     openProject: async (name) => setState(await api.openProject(name)),
     createProject: async (name) => setState(await api.createProject(name)),
     openDesk: async (id) => {
+      placePicked.current = true
       setMap(false)
       setPage(undefined)
       setViewId(undefined)
+      setShow(undefined)
       setState(await api.openDesk(id))
     },
     createDesk: async (name) => setState(await api.createDesk(name)),
     createNote: async (folder) => {
+      placePicked.current = true
       const note = await api.createNote(folder)
       addItems([note])
       openPage(note.id, true)
     },
     openNote: (id) => openPage(id),
     dailyNote: async () => {
+      placePicked.current = true
       const today = await api.dailyNote()
       addItems([today])
       openPage(today.id, true)
@@ -248,11 +272,13 @@ export function App() {
       addItems([await api.moveNote(id, folder)])
     },
     openView: (id) => {
+      placePicked.current = true
       setMap(false)
       setPage(undefined)
       setViewId(id)
     },
     createView: async (name) => {
+      placePicked.current = true
       const made = await api.createView(name)
       setViews((known) => [...known, made])
       setMap(false)
@@ -266,7 +292,24 @@ export function App() {
       setThreadId(id)
       setTalking(true)
     },
-    openMap: () => setMap(true),
+    openMemorySettings: () => setMemorySettings((now) => now ?? {}),
+    keep: () => void window.carrel.memory.openKeep(),
+    toggleAgent: () => setTalking((now) => !now),
+    openPlace: (next) => {
+      placePicked.current = true
+      setSidebar(true)
+      setPlace(next)
+      if (next === 'map') setMap(true)
+      // Desks brings the open desk back from the map, a note or a view, and drops a stale show request.
+      else if (next === 'desks') {
+        setShow(undefined)
+        if (map || page || viewId) {
+          setMap(false)
+          setPage(undefined)
+          setViewId(undefined)
+        }
+      }
+    },
   }
   // A piece becomes a note: its words, and where it came from.
   const writeMore = async (piece: Piece): Promise<void> => {
@@ -306,7 +349,7 @@ export function App() {
       )}
       {state && (
         <>
-          {sidebar && <Sidebar frame={frame} state={state} actions={actions} items={[...items.values()]} folders={folders} note={note?.id} views={views} view={view?.id} sides={sides} thread={talking ? threadId : undefined} map={map} kept={kept} />}
+          <Sidebar frame={frame} state={state} actions={actions} place={place} folded={!sidebar} items={[...items.values()]} folders={folders} note={note?.id} views={views} view={view?.id} talking={talking && open !== undefined} map={map} kept={kept} />
           <TopBar frame={frame} project={open?.project} desk={note ? note.title : view ? view.name : desk?.name} place={map ? 'map' : note ? 'note' : view ? 'view' : 'desk'} agentOpen={talking} onAgent={() => setTalking((now) => !now)} sidebarOpen={sidebar} onSidebar={() => setSidebar((now) => !now)} />
           {map ? (
             <MapView frame={frame} canWrite={open !== undefined} onWriteMore={(piece) => void writeMore(piece)} onOpenUrl={(url) => void openUrl(url)} />
