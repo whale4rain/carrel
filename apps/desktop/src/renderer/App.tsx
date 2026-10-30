@@ -300,11 +300,14 @@ export function App() {
       setSidebar(true)
       setPlace(next)
       if (next === 'map') setMap(true)
-      // Desks brings the open desk back from the map, a note or a view.
-      else if (next === 'desks' && (map || page || viewId)) {
-        setMap(false)
-        setPage(undefined)
-        setViewId(undefined)
+      // Desks brings the open desk back from the map, a note or a view, and drops a stale show request.
+      else if (next === 'desks') {
+        setShow(undefined)
+        if (map || page || viewId) {
+          setMap(false)
+          setPage(undefined)
+          setViewId(undefined)
+        }
       }
     },
   }

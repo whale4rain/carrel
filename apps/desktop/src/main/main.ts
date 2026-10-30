@@ -531,6 +531,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     // Through the same bridge the sidebar uses, then wait for the shell to show it.
     await page("window.carrel.workspace.createProject('Smoke test').then(() => window.carrel.workspace.createDesk('Second desk'))")
     await reload()
+    if (!(await toDesk())) return fail('the desk did not come back after a reload')
     if (!(await waitFor(`${openDesk} === 'Second desk'`))) return fail('the new desk did not open')
     const problem = await deskInteractions(window, page, waitFor)
     if (problem) return fail(problem)
