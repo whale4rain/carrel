@@ -241,16 +241,19 @@ export function App() {
       setMap(false)
       setPage(undefined)
       setViewId(undefined)
+      setShow(undefined)
       setState(await api.openDesk(id))
     },
     createDesk: async (name) => setState(await api.createDesk(name)),
     createNote: async (folder) => {
+      placePicked.current = true
       const note = await api.createNote(folder)
       addItems([note])
       openPage(note.id, true)
     },
     openNote: (id) => openPage(id),
     dailyNote: async () => {
+      placePicked.current = true
       const today = await api.dailyNote()
       addItems([today])
       openPage(today.id, true)
@@ -275,9 +278,9 @@ export function App() {
       setViewId(id)
     },
     createView: async (name) => {
+      placePicked.current = true
       const made = await api.createView(name)
       setViews((known) => [...known, made])
-      placePicked.current = true
       setMap(false)
       setPage(undefined)
       setViewId(made.id)
