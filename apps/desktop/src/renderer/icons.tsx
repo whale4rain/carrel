@@ -117,3 +117,52 @@ export const LinesIcon = () => (
     <path d="M6.5 15.5 10.5 8.5M13.8 8.2l3.6 5.4" />
   </svg>
 )
+
+// The rail's icons: larger, and a little lighter, as in the MarginNavB mockup.
+const rail = { ...line, width: 18, height: 18, strokeWidth: 1.75 } as const
+
+/** One icon per place on the rail. */
+export const PlaceIcon = ({ place }: { place: 'map' | 'today' | 'desks' | 'notes' | 'sources' | 'search' | 'settings' | 'keys' }) => (
+  <svg {...rail}>
+    {place === 'map' && (
+      <>
+        <circle cx="6" cy="7" r="2" />
+        <circle cx="18" cy="6" r="2" />
+        <circle cx="12" cy="17" r="2" />
+        <path d="M8 7.5l8-1M7 9l4 6.5M17 8l-4 7.5" />
+      </>
+    )}
+    {place === 'today' && (
+      <>
+        <circle cx="12" cy="12" r="4" />
+        <path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4" />
+      </>
+    )}
+    {place === 'desks' && (
+      <>
+        <rect x="3" y="5" width="8" height="10" rx="1" />
+        <rect x="13" y="8" width="8" height="11" rx="1" />
+      </>
+    )}
+    {place === 'notes' && <path d="M6 3h9l4 4v14H6zM14 3v5h5M9 12h7M9 16h5" />}
+    {place === 'sources' && <path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2zM4 21V5" />}
+    {place === 'search' && (
+      <>
+        <circle cx="11" cy="11" r="6" />
+        <path d="M20 20l-4.5-4.5" />
+      </>
+    )}
+    {place === 'settings' && (
+      <>
+        <circle cx="12" cy="12" r="3" />
+        <path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9 7 7M17 17l2.1 2.1M4.9 19.1 7 17M17 7l2.1-2.1" />
+      </>
+    )}
+    {place === 'keys' && (
+      <>
+        <rect x="2" y="6" width="20" height="12" rx="2" />
+        <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M7 14h10" />
+      </>
+    )}
+  </svg>
+)

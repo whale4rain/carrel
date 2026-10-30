@@ -70,7 +70,9 @@ Both are actions on sheets, never tabs at the top of the window.
 
 ## Sidebar
 
-Top to bottom: project switcher, Search everything (⌘K / Ctrl+K), Desks, Notes (pinned notes, All notes, tags), Conversations (the project thread with an unread count, then side threads), Library (by type, link icon for linked items), and at the foot All projects and Global library. The open desk is an `ink` row with a small `highlight` dot.
+A rail of places on the far left (since 30 Oct, mockup `MarginNavB`): Map, Today, Desks, Notes, Sources, a rule, then the Agent in `pencil` with its seat marker. Search everything (⌘K / Ctrl+K), Keyboard shortcuts and Settings sit at the foot as icons. The picked place is an `ink` tile (on Windows a `paper` tile with an `ink` bar).
+
+Beside the rail, one column shows only the picked place. Desks, Notes and Sources open with the project switcher. Notes holds pinned notes and Today's note, saved views, the folder tree, All notes and tags. Sources holds the library by type (link icon for linked items). Conversations live in the agent, not the sidebar. ⌘\ / Ctrl+\ folds the column; the rail stays. The open desk is an `ink` row with a small `highlight` dot.
 
 ## Color
 

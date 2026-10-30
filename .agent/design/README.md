@@ -17,7 +17,7 @@ the live one wins.
 | [`margin/components/`](margin/components/) | One guideline (`README.md`) and an HTML sample (`preview.html`) per component | When your sheet needs a button, a *that.* chip, a proposal, and so on |
 | [`mockups/`](mockups/) | The baseline app screens, as PNG and source HTML | To see how a sheet sits on the desk |
 
-The mockups: `MarginMac2` (sidebar, desk, agent panel), `MarginFocus` (one sheet
+The mockups: `MarginNavB` and `MarginNavB1` (the rail of places and the first run, from 30 Oct; they replace the sidebar in `MarginMac2`), `MarginMac2` (desk, agent panel), `MarginFocus` (one sheet
 in Focus), `MarginCompare` (two sheets side by side), `MarginMac` and
 `MarginWin` (free layout on each platform). Open the `.png` to look; the
 `.dc.html` files open in a browser and carry exact values in inline styles.

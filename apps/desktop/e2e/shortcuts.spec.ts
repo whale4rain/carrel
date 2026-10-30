@@ -46,9 +46,9 @@ test('the shortcut card, and shortcuts in the menu bar', async () => {
   await page.keyboard.press('Escape')
   await expect(card).toHaveCount(0)
 
-  // The sidebar has a way there too, with its shortcut beside it.
-  const button = page.getByRole('navigation', { name: 'Project' }).getByRole('button', { name: /Keyboard shortcuts/ })
-  await expect(button.locator('kbd')).toHaveText(`${ctrl}/`)
+  // The rail has a way there too, with its shortcut in the tooltip.
+  const button = page.getByRole('navigation', { name: 'Places' }).getByRole('button', { name: 'Keyboard shortcuts' })
+  await expect(button).toHaveAttribute('title', `Keyboard shortcuts (${ctrl}/)`)
   await button.click()
   await expect(card).toBeVisible()
   await page.keyboard.press('Escape')

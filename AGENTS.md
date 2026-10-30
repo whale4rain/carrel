@@ -29,6 +29,14 @@ design doc's "Plan from 28 Oct" section; mockup: `MarginMap` in the canvas
 | 3. The map | Pieces by day, earlier lines grey, today's new lines highlighted; detail panel to remove a line; search that finds unsaved things; 2 weeks, month, all |
 | 4. Going deeper | Open the source, write more as a note, ask the agent, open a cluster on a desk |
 
+**Rail of places (30 Oct):** the sidebar is a rail of places (Map, Today,
+Desks, Notes, Sources, then the Agent) with one column beside it for the picked
+place; conversations live in the agent. The Map is the start page once it has
+pieces. Mockups `MarginNavB` and `MarginNavB1` (copies in
+[`.agent/design/mockups/`](.agent/design/mockups/MarginNavB.png)); code in
+`src/renderer/Sidebar.tsx`. e2e tests pick a place with `place(page, 'Notes')`
+from `e2e/app.ts` before using its column.
+
 **Memory on disk:** `~/Carrel/Memory/` (not a project; the name is reserved)
 holds `kept/YYYY-MM-DD.jsonl` (captures; a later line with the same key wins),
 `kept/files/` (screenshots), `pieces/YYYY-MM-DD.json`, `lines.json` (removed

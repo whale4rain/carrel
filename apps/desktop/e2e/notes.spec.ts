@@ -7,7 +7,7 @@ import { mkdtemp, readdir, readFile, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { mod, quit, start } from './app.js'
+import { mod, place, quit, start } from './app.js'
 
 let home: string
 
@@ -23,7 +23,8 @@ test('write notes on their own page and file them in folders', async () => {
   const { app, page } = await start(home)
   await page.getByLabel('Project name').fill('Notes home')
   await page.getByRole('button', { name: 'Create project' }).click()
-  const tree = page.locator('.sidebar [aria-label="Notes"]')
+  await place(page, 'Notes')
+  const tree = page.locator('.place-column [aria-label="Notes"]')
   const notesDir = join(home, 'Carrel', 'Notes home', 'notes')
 
   // A folder, and a note made in it: the note opens on its own page, ready to write.
@@ -74,7 +75,8 @@ test('write notes on their own page and file them in folders', async () => {
 
 test('link notes with [[ and see who links back', async () => {
   const { app, page } = await start(home)
-  const tree = page.locator('.sidebar [aria-label="Notes"]')
+  await place(page, 'Notes')
+  const tree = page.locator('.place-column [aria-label="Notes"]')
   const editor = page.locator('.note-page .ProseMirror')
   const newNote = async (title: string, body: string): Promise<void> => {
     await tree.getByRole('button', { name: '+ New note' }).click()
@@ -130,7 +132,8 @@ test('link notes with [[ and see who links back', async () => {
 
 test('open a note by name, pin it, and write today’s note', async () => {
   const { app, page } = await start(home)
-  const pinned = page.locator('.sidebar [aria-label="Pinned"]')
+  await place(page, 'Notes')
+  const pinned = page.locator('.place-column [aria-label="Pinned"]')
 
   // ⌘O / Ctrl+O finds a note by part of its name; Enter opens it on its page.
   await page.keyboard.press(`${mod}+KeyO`)
@@ -163,14 +166,15 @@ test('open a note by name, pin it, and write today’s note', async () => {
   await expect(page.locator('.note-page .ProseMirror h1')).toHaveText(today)
   await expect(page.locator('.note-page-path')).toContainText('Daily')
   await pinned.getByRole('button', { name: /Today’s note/ }).click()
-  await expect(page.locator('.sidebar [aria-label="Notes"]').getByRole('group', { name: 'Daily' }).locator('.row.note')).toHaveText([today])
+  await expect(page.locator('.place-column [aria-label="Notes"]').getByRole('group', { name: 'Daily' }).locator('.row.note')).toHaveText([today])
   await page.evaluate(() => window.carrel.workspace.state())
   await quit(app)
 })
 
 test('give a note properties under its title', async () => {
   const { app, page } = await start(home)
-  const tree = page.locator('.sidebar [aria-label="Notes"]')
+  await place(page, 'Notes')
+  const tree = page.locator('.place-column [aria-label="Notes"]')
   await tree.getByRole('button', { name: '+ New note' }).click()
   const editor = page.locator('.note-page .ProseMirror')
   await expect(editor).toBeFocused()
@@ -191,7 +195,7 @@ test('give a note properties under its title', async () => {
   await props.getByLabel('Add to tags').fill('exam')
   await props.getByLabel('Add to tags').press('Enter')
   await expect(props.locator('.note-prop-chip')).toHaveText(['exam×'])
-  await expect(page.locator('.sidebar .tag', { hasText: '#exam' })).toHaveCount(1)
+  await expect(page.locator('.place-column .tag', { hasText: '#exam' })).toHaveCount(1)
   // A checkbox.
   await props.getByRole('button', { name: '+ Add a property' }).click()
   await props.getByLabel('Property name').fill('done')
@@ -218,7 +222,8 @@ test('give a note properties under its title', async () => {
 
 test('see notes in a saved view, as a table or as cards', async () => {
   let { app, page } = await start(home)
-  const views = page.locator('.sidebar [aria-label="Views"]')
+  await place(page, 'Notes')
+  const views = page.locator('.place-column [aria-label="Views"]')
   await views.getByRole('button', { name: '+ New view' }).click()
   await page.getByLabel('New view name').fill('Studying')
   await page.getByLabel('New view name').press('Enter')
@@ -258,7 +263,8 @@ test('see notes in a saved view, as a table or as cards', async () => {
   await page.evaluate(() => window.carrel.workspace.state())
   await quit(app)
   ;({ app, page } = await start(home))
-  await page.locator('.sidebar [aria-label="Views"]').getByRole('button', { name: 'Studying' }).click()
+  await place(page, 'Notes')
+  await page.locator('.place-column [aria-label="Views"]').getByRole('button', { name: 'Studying' }).click()
   const again = page.getByRole('main', { name: 'View: Studying' })
   await expect(again.locator('.view-card-title')).toHaveText(['Supply shocks'])
   await expect(again.locator('.view-chip')).toContainText('status is Learning')
