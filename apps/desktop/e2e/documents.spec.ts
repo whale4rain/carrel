@@ -76,7 +76,7 @@ test('read a Markdown file by sections', async () => {
   await expect(sheet.getByRole('list', { name: 'Bookmarks' }).locator('li > button:first-child')).toHaveText(['Memory3'])
   await sheet.getByRole('button', { name: 'Contents' }).click()
 
-  // that.: select the bold words and press ⌘. (Ctrl+.); the chip names the section.
+  // Select the bold words and press ⌘. (Ctrl+.): a note in the margin points at them, named by the section.
   await jump.click()
   await page.keyboard.type('2')
   await page.keyboard.press('Enter')
@@ -84,7 +84,9 @@ test('read a Markdown file by sections', async () => {
   await sheet.locator('.doc-section[data-page="2"] strong').evaluate((element) => getSelection()?.selectAllChildren(element))
   expect(await page.evaluate(() => getSelection()?.toString())).toBe('one passage')
   await page.keyboard.press(`${mod}+Period`)
-  await expect(page.locator('.that-tray .that-chip', { hasText: '§2' })).toBeVisible()
+  await page.locator('.margin-box textarea').fill('A passage')
+  await page.locator('.margin-box textarea').press(`${mod}+Enter`)
+  await expect(page.locator('.margin-note .margin-ink')).toHaveText('A passage')
   await expect.poll(() => page.evaluate(() => window.carrel.workspace.thats().then((thats) => thats.map((that) => `${that.label} ${that.text}`)))).toEqual(['§2 one passage'])
   // Its band sits under the words.
   await expect.poll(() => page.evaluate(() => [...(CSS.highlights.get('that') ?? [])].map((range) => (range as Range).toString()))).toEqual(['one passage'])

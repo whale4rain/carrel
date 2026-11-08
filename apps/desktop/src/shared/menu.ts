@@ -32,7 +32,7 @@ export function isMenuEntries(value: unknown): value is MenuEntry[] {
 
 /** What a right-click on selected words offers, in pages and on the desk alike. */
 export const TEXT_COMMANDS: readonly MenuEntry[] = [
-  { id: 'that', label: 'that.', accelerator: 'CommandOrControl+.' },
+  { id: 'that', label: 'Write in the Margin', accelerator: 'CommandOrControl+.' },
   { id: 'ask', label: 'Ask the agent about this…' },
   { id: 'explain', label: 'Explain this' },
 ]

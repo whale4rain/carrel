@@ -56,7 +56,7 @@ import { MarginLayer, type MarginDraft } from './Margin.js'
 import { DESK_COMMAND, frame } from './platform.js'
 import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
 import { TEXT_COMMANDS, type AgentAsk, type MenuEntry } from '../shared/menu.js'
-import { SavedThat, ThatTray } from './ThatTray.js'
+import { chipLabel, SavedThat } from './ThatTray.js'
 import { asWebPage, embedded } from './video.js'
 import { seekVideo, VideoView, videoMoment } from './VideoView.js'
 import { pageZoomStep, useWebSheets, WebPage } from './web-sheets.js'
@@ -116,7 +116,6 @@ export function DeskPlane({
   items,
   onItemsAdded,
   show,
-  onPointed,
   onContext,
   onAsk,
   onOpenLink,
@@ -128,18 +127,18 @@ export function DeskPlane({
   onItemsAdded: (items: ItemView[]) => void
   /** An item asked for from outside the desk (the sidebar, search): brought into view, or put on the desk. */
   show?: ShowRequest | undefined
-  /** You made a *that.*: the agent's composer points at it. */
-  onPointed?: (that: ThatView) => void
   /** What is on this desk and selected, for the agent. */
   onContext?: (context: { name: string; items: string[]; selected: string[] }) => void
-  /** Something right-clicked to ask the agent about, with the *that.* made of it. */
-  onAsk?: (ask: AgentAsk, that?: ThatView) => void
+  /** Words in a note right-clicked to ask the agent about. */
+  onAsk?: (ask: AgentAsk) => void
   /** A [[link]] in a note was clicked. */
   onOpenLink?: (target: string) => void
 }) {
   const [sheets, setSheets] = useState<Sheet[]>([])
   const [loaded, setLoaded] = useState(false)
   const [selected, setSelected] = useState<Set<string>>(new Set())
+  const selectedRef = useRef(selected)
+  selectedRef.current = selected
   const [guides, setGuides] = useState<Guide[]>([])
   const [gesture, setGesture] = useState<Gesture>()
   const [marquee, setMarquee] = useState<Rect>()
@@ -148,7 +147,7 @@ export function DeskPlane({
   const [capturing, setCapturing] = useState(false)
   const [scaling, setScaling] = useState(false)
   const [error, setError] = useState<string>()
-  // The project's *that.*s; those on this desk's sources are chips on the tray.
+  // The project's *that.*s: what margin lines and citations point at, kept out of sight.
   const [thats, setThats] = useState<readonly ThatView[]>([])
   useEffect(() => {
     let current = true
@@ -173,20 +172,23 @@ export function DeskPlane({
     }
   }, [])
   const world = useRef<HTMLDivElement>(null)
-  const pointed = useRef(onPointed)
-  pointed.current = onPointed
-  const addToTray = useCallback(
-    (that: ThatView): void => {
+  // Something pointed at that isn't words drawn on a sheet (a moment, a region, words in
+  // a web page) opens the margin's box at the sheet's edge, on the sheet that shows it.
+  const intoMargin = useCallback(
+    (that: ThatView, start: MarginDraft['start'] = 'ask'): void => {
       keepThat(that)
-      pointed.current?.(that)
+      const onIt = latest.current.filter((sheet) => sheet.itemId === that.itemId)
+      const sheet = onIt.find((one) => selectedRef.current.has(one.id)) ?? onIt[0]
+      if (!sheet) return
+      setBands(DRAFT_BAND, [])
+      setDraft({ sheet: sheet.id, itemId: that.itemId, point: () => Promise.resolve({ that: that.id }), edge: aboutThat(that), start })
     },
     [keepThat],
   )
-  useEffect(() => window.carrel.web.onThat(addToTray), [addToTray])
+  useEffect(() => window.carrel.web.onThat((that) => intoMargin(that)), [intoMargin])
+  useEffect(() => window.carrel.web.onAsk((ask, that) => intoMargin(that, ask.kind === 'explain' ? 'explain' : 'ask')), [intoMargin])
   // The agent's *that.*s open like yours, but you weren't the one pointing.
   useEffect(() => window.carrel.agent.onThat(keepThat), [keepThat])
-  // Chips taken off the tray this session (the that.s themselves are kept).
-  const [offTray, setOffTray] = useState<ReadonlySet<string>>(new Set())
   // The that. being opened, and those whose words are gone from their source.
   const [focus, setFocus] = useState<Focus & { sheet: string }>()
   const [lost, setLost] = useState<ReadonlySet<string>>(new Set())
@@ -644,14 +646,35 @@ export function DeskPlane({
     setSelected(new Set())
   }, [save, selected])
 
-  // ⌘. points at what is selected: text in a PDF, or the moment a selected video is at.
-  const pointAt = useCallback(async (): Promise<ThatView | undefined> => {
+  // Words selected in a PDF or a document open the margin's box, with a line from them.
+  const draftWords = useCallback(
+    (start?: MarginDraft['start']): boolean => {
+      const picked = pdfSelection(window.getSelection())
+      const sheet = picked && latest.current.find((candidate) => candidate.id === picked.sheet)
+      const itemId = sheet?.itemId
+      if (!picked || !itemId) return false
+      setBands(DRAFT_BAND, [window.getSelection()!.getRangeAt(0).cloneRange()])
+      setDraft({
+        sheet: picked.sheet,
+        itemId,
+        point: async () => {
+          const that = await api.makeThat({ itemId, ...picked.request })
+          keepThat(that)
+          return { that: that.id }
+        },
+        ...(start ? { start } : {}),
+      })
+      return true
+    },
+    [keepThat],
+  )
+
+  // ⌘. writes in the margin about what is selected: words, a region, or the moment a selected video is at.
+  const pointAt = useCallback(async (start: MarginDraft['start'] = 'ask'): Promise<void> => {
+    if (draftWords(start)) return
     const itemOf = (id: string): string | undefined => latest.current.find((sheet) => sheet.id === id)?.itemId ?? undefined
     let request: ThatRequest | undefined
-    const text = pdfSelection(window.getSelection())
-    const textItem = text && itemOf(text.sheet)
-    if (text && textItem) request = { itemId: textItem, ...text.request }
-    else if (region) request = await regionRequest(region)
+    if (region) request = await regionRequest(region)
     else {
       const [only] = selected.size === 1 ? [...selected] : []
       const item = only === undefined ? undefined : items.get(itemOf(only) ?? '')
@@ -664,20 +687,18 @@ export function DeskPlane({
       }
     }
     if (!request) {
-      setError(`Select some text, a playing video, or ${frame === 'mac' ? '⌥' : 'Alt+'}drag a region, then press that. (${shortcutLabel(frame, 'that')}) to point at it.`)
-      return undefined
+      setError(`Select some words, a playing video, or ${frame === 'mac' ? '⌥' : 'Alt+'}drag a region, then press ${shortcutLabel(frame, 'that')} to write beside it.`)
+      return
     }
     try {
       const that = await api.makeThat(request)
-      addToTray(that)
+      intoMargin(that, start)
       setRegion(undefined)
       setError(undefined)
-      return that
     } catch (reason) {
       setError(message(reason))
-      return undefined
     }
-  }, [addToTray, items, region, selected])
+  }, [draftWords, intoMargin, items, region, selected])
 
   // A region becomes a box in percent of the PDF page under it, or of the
   // sheet's source, with a picture of it taken without the dashed outline.
@@ -721,7 +742,7 @@ export function DeskPlane({
     }
     const box = footprint(sheet)
     const origin = mat.current?.getBoundingClientRect()
-    const below = [...(mat.current?.querySelectorAll('.desk-nav, .that-tray') ?? [])].map((element) => element.getBoundingClientRect().top - (origin?.top ?? 0))
+    const below = [...(mat.current?.querySelectorAll('.desk-nav') ?? [])].map((element) => element.getBoundingClientRect().top - (origin?.top ?? 0))
     const clear = Math.min(screen.h, ...below) - 8
     setView((now) => showIn(now, box, { x: 0, y: 0, w: screen.w, h: clear }))
     setSelected(new Set([sheet.id]))
@@ -804,8 +825,6 @@ export function DeskPlane({
     }
   }
   const thatsOf = (itemId: string): ThatView[] => thats.filter((that) => that.itemId === itemId)
-  const onDesk = new Set(sheets.flatMap((sheet) => (sheet.itemId === null ? [] : [sheet.itemId])))
-  const tray = thats.filter((that) => onDesk.has(that.itemId) && !offTray.has(that.id))
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -948,11 +967,9 @@ export function DeskPlane({
     else return
     event.preventDefault()
     const picked = await window.carrel.menu(entries)
-    if (inPdf && picked === 'that') void pointAt()
-    else if (inPdf && (picked === 'ask' || picked === 'explain')) {
-      const that = await pointAt()
-      if (that) onAsk?.({ kind: picked }, that)
-    } else if (inNote && item && (picked === 'ask' || picked === 'rewrite')) onAsk?.({ kind: picked, quote: words, note: item.title })
+    if (inPdf && (picked === 'that' || picked === 'ask')) draftWords('ask')
+    else if (inPdf && picked === 'explain') draftWords('explain')
+    else if (inNote && item && (picked === 'ask' || picked === 'rewrite')) onAsk?.({ kind: picked, quote: words, note: item.title })
   }
 
   return (
@@ -973,26 +990,12 @@ export function DeskPlane({
         // Words selected in a PDF or a document open the margin's box, with a line to it.
         // Only a press that ends on a sheet's pages: buttons elsewhere leave a selection as it was.
         if (event.button !== 0 || !(event.target as HTMLElement).closest('.sheet .pdf-view, .sheet .doc-view')) return
-        const picked = pdfSelection(window.getSelection())
-        const sheet = picked && latest.current.find((candidate) => candidate.id === picked.sheet)
-        const itemId = sheet?.itemId
-        if (!picked || !itemId) return
-        const range = window.getSelection()!.getRangeAt(0).cloneRange()
-        setBands(DRAFT_BAND, [range])
-        setDraft({
-          sheet: picked.sheet,
-          itemId,
-          point: async () => {
-            const that = await api.makeThat({ itemId, ...picked.request })
-            keepThat(that)
-            return { that: that.id }
-          },
-        })
+        draftWords()
       }}
       onPointerDownCapture={(event) => {
         // With the hand on, a drag anywhere on the desk moves it, over sheets too.
         if (!hand || inFocus || event.button !== 0) return
-        if ((event.target as HTMLElement).closest('.desk-nav, .selection-bar, .that-tray, .desk-error')) return
+        if ((event.target as HTMLElement).closest('.desk-nav, .selection-bar, .desk-error')) return
         event.preventDefault()
         event.stopPropagation()
         setGesture({ kind: 'pan', from: onScreen(event), start: view })
@@ -1278,15 +1281,24 @@ export function DeskPlane({
           zoom={shownView.zoom}
           sheets={mounted.flatMap((sheet) => {
             const item = sheet.itemId === null ? undefined : items.get(sheet.itemId)
-            return item?.file && !sheet.folded ? [{ id: sheet.id, itemId: item.id }] : []
+            return item && !['note', 'kit'].includes(item.kind) && !sheet.folded ? [{ id: sheet.id, itemId: item.id }] : []
           })}
           lines={marginLines}
           draft={draft}
-          anchor={(line, sheet) => (line.that ? bandRanges(bandKey(sheet, line.that)) : [])}
+          anchor={(line, sheet) => {
+            if (!line.that) return []
+            const that = thats.find((one) => one.id === line.that)
+            // Words drawn on a PDF or a document; anything else starts at the sheet's edge.
+            return that?.text !== undefined && items.get(line.itemId)?.file !== undefined ? bandRanges(bandKey(sheet, line.that)) : 'edge'
+          }}
           onLines={setMarginLines}
           onDraftDone={() => setDraft(undefined)}
           onKept={(note) => onItemsAdded([note])}
           onError={setError}
+          cite={(id) => {
+            const that = thats.find((one) => one.id === id)
+            return that && { id, label: chipLabel(that, items.get(that.itemId)) }
+          }}
         />
         {guides.map((guide, i) => (
           <span
@@ -1362,8 +1374,8 @@ export function DeskPlane({
           </button>
           {chosen.length === 1 && chosen[0]?.itemId != null && !['note', 'kit'].includes(items.get(chosen[0].itemId)?.kind ?? '') && !chosen[0].folded && (
             // Pressing it mustn't clear the text selection it points at.
-            <button type="button" className="that" title={withShortcut(frame, 'Point at the selected words, the moment or the region', 'that')} onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
-              that.
+            <button type="button" className="that" title={withShortcut(frame, 'Write in the margin about the selected words, the moment or the region', 'that')} onPointerDown={(event) => event.preventDefault()} onMouseDown={(event) => event.preventDefault()} onClick={() => void pointAt()}>
+              Margin
             </button>
           )}
         </div>
@@ -1432,7 +1444,6 @@ export function DeskPlane({
           onAddKit={addKit}
         />
       )}
-      <ThatTray thats={tray} items={items} lost={lost} onOpen={openThat} onRemove={(that) => setOffTray((known) => new Set(known).add(that.id))} />
       {savedCopy && (
         <SavedThat that={savedCopy} item={items.get(savedCopy.itemId)} changed={lost.has(savedCopy.id) || !items.has(savedCopy.itemId)} onClose={() => setSavedCopy(undefined)} />
       )}
@@ -1485,6 +1496,12 @@ function percentOf(inner: DOMRect, outer: DOMRect): { x: number; y: number; w: n
   const right = Math.max(0, Math.min(100, ((inner.right - outer.left) / outer.width) * 100))
   const bottom = Math.max(0, Math.min(100, ((inner.bottom - outer.top) / outer.height) * 100))
   return { x, y, w: right - x, h: bottom - y }
+}
+
+/** What a line at a sheet's edge is about, written above the margin's box. */
+function aboutThat(that: ThatView): string {
+  if (that.text) return `“${that.text.length > 90 ? `${that.text.slice(0, 88).trimEnd()}…` : that.text}”`
+  return that.label ? `At ${that.label}` : 'Here'
 }
 
 function message(reason: unknown): string {

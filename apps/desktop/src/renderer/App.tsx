@@ -119,7 +119,6 @@ export function App() {
     else if (ask.kind === 'rewrite') setPrompt({ text: `In the note "${ask.note}", rewrite this: "${ask.quote}"\n\n`, send: false, nonce })
     else setPrompt({ text: ask.quote && ask.note ? `About this in the note "${ask.note}": "${ask.quote}"\n\n` : '', send: false, nonce })
   }
-  useEffect(() => window.carrel.web.onAsk((ask, that) => askAgent(ask, that)), [])
 
   // ⌘K / Ctrl+K searches, ⌘J / Ctrl+J opens the agent, ⌘\\ folds the sidebar and ⌘/ lists
   // the shortcuts, from anywhere, even while writing.
@@ -411,7 +410,6 @@ export function App() {
               items={items}
               onItemsAdded={addItems}
               show={show}
-              onPointed={(that) => setPointing((now) => [...now.filter((other) => other.id !== that.id), that])}
               onContext={(context) => (deskContext.current = context)}
               onAsk={askAgent}
               onOpenLink={(target) => void openLink(target)}

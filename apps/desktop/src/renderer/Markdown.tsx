@@ -34,7 +34,7 @@ function drawInlines(content: readonly NoteInline[], onThat: ((id: string) => vo
   return content.map((node, at) => {
     if (node.type === 'hardBreak') return <br key={at} />
     if (node.type === 'that') {
-      const label = node.attrs.label || 'that.'
+      const label = node.attrs.label || 'source'
       return onThat ? (
         <button key={at} type="button" className="that-chip" data-that={node.attrs.id} onClick={() => onThat(node.attrs.id)}>
           {label}

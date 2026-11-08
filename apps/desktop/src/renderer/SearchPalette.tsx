@@ -119,7 +119,7 @@ export function SearchPalette({
 /** What kind of thing a result is: a note, a book, a link, or a *that.* chip. */
 function markOf(hit: SearchHitView, items: ReadonlyMap<string, ItemView>): ReactNode {
   if (hit.kind === 'note') return <NoteIcon />
-  if (hit.kind === 'that') return <span className="that-chip search-that">that.</span>
+  if (hit.kind === 'that') return <span className="that-chip search-that">passage</span>
   const item = items.get(hit.itemId ?? hit.id)
   return item?.url ? <LinkIcon /> : <BookIcon />
 }

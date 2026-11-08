@@ -371,8 +371,8 @@ export function AgentPanel({
             <span className="agent-lead">pointing at</span>
             {pointing.map((that) => (
               <span key={that.id} className="that-chip agent-point">
-                {that.label || 'that.'}
-                <button type="button" aria-label={`Stop pointing at ${that.label || 'that.'}`} onClick={() => onUnpoint(that.id)}>
+                {that.label || 'source'}
+                <button type="button" aria-label={`Stop pointing at ${that.label || 'source'}`} onClick={() => onUnpoint(that.id)}>
                   ×
                 </button>
               </span>
@@ -508,7 +508,7 @@ function Mine({
       {kit ? <span className="agent-kit">{kit} kit asked</span> : null}
       {points.map((id) => (
         <button key={id} type="button" className="that-chip" data-that={id} onClick={() => onOpenThat(id)}>
-          {labels.get(id) || 'that.'}
+          {labels.get(id) || 'source'}
         </button>
       ))}
       {points.length > 0 ? ' ' : ''}

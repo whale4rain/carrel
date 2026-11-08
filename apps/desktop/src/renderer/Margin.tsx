@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObje
 import type { ItemView, MarginLine } from '../shared/workspace-api.js'
 import { bandRanges, DRAFT_BAND, onBands, setBands } from './bands.js'
 import { Markdown } from './Markdown.js'
+import { THAT_DRAG } from './ThatTray.js'
 
 const api = window.carrel.workspace
 const agent = window.carrel.agent
@@ -20,7 +21,17 @@ export interface MarginDraft {
   point: () => Promise<{ that?: string; quote?: string }>
   /** The note the words are in, for the agent. */
   title?: string
+  /**
+   * What was pointed at when it isn't words drawn on the sheet (a moment in a
+   * video, a region, words in a web page): the line starts at the sheet's edge.
+   */
+  edge?: string
+  /** Asked for with a command: the box takes the keyboard, or explains at once. */
+  start?: 'ask' | 'explain'
 }
+
+/** Where a line starts: words drawn on the sheet, or the sheet's edge. */
+export type MarginAnchor = readonly Range[] | 'edge'
 
 /** A sheet on the desk that can have lines: its id and the item on it. */
 export interface MarginSheet {
@@ -60,6 +71,7 @@ export function MarginLayer({
   onDraftDone,
   onKept,
   onError,
+  cite,
 }: {
   world: RefObject<HTMLDivElement | null>
   zoom: number
@@ -67,12 +79,14 @@ export function MarginLayer({
   lines: readonly MarginLine[]
   draft: MarginDraft | undefined
   /** Where a line's words are on a sheet now (empty when they aren't drawn). */
-  anchor: (line: MarginLine, sheet: string) => readonly Range[]
+  anchor: (line: MarginLine, sheet: string) => MarginAnchor
   onLines: (change: (lines: MarginLine[]) => MarginLine[]) => void
   onDraftDone: () => void
   /** An answer was kept as a note. */
   onKept: (note: ItemView) => void
   onError: (message: string) => void
+  /** How a line's *that.* is cited when its note is dragged into a note. */
+  cite?: (that: string) => { id: string; label: string } | undefined
 }) {
   const [placed, setPlaced] = useState<Placed[]>([])
   const [active, setActive] = useState<string>()
@@ -133,7 +147,9 @@ export function MarginLayer({
       const box = paper.getBoundingClientRect()
       const right = toWorld(box.right, box.top)
       const wanted: Array<{ key: string; x: number; y: number }> = []
-      const startOf = (ranges: readonly Range[]): { x: number; y: number } | undefined => {
+      const startOf = (ranges: MarginAnchor): { x: number; y: number } | undefined => {
+        // Not words on the page: a short stroke in from the sheet's top corner.
+        if (ranges === 'edge') return { x: right.x - 14, y: right.y + 30 }
         const rects = ranges.flatMap((range) => [...range.getClientRects()]).filter((rect) => rect.width > 0)
         const last = rects.at(-1)
         // Words scrolled out of their sheet have no line.
@@ -146,7 +162,7 @@ export function MarginLayer({
         if (at) wanted.push({ key: line.id, ...at })
       }
       if (draft?.sheet === sheet.id) {
-        const at = startOf(bandRanges(DRAFT_BAND))
+        const at = startOf(draft.edge !== undefined ? 'edge' : bandRanges(DRAFT_BAND))
         if (at) wanted.push({ key: DRAFT_BAND, ...at })
       }
       // Notes sit level with their words, pushed down so none overlap.
@@ -201,6 +217,14 @@ export function MarginLayer({
       onError(reason instanceof Error ? reason.message : String(reason))
     }
   }
+
+  // Explain, asked for with a command, starts the line and asks at once.
+  const explained = useRef<MarginDraft>(undefined)
+  useEffect(() => {
+    if (!draft || draft.start !== 'explain' || explained.current === draft) return
+    explained.current = draft
+    void startLine('', true)
+  })
 
   const reply = async (line: MarginLine, text: string, asking: boolean): Promise<void> => {
     const words = text.trim()
@@ -257,7 +281,7 @@ export function MarginLayer({
       </svg>
       {placed.map((one) => {
         if (one.key === DRAFT_BAND) {
-          return draft ? <DraftBox key={draft.sheet + DRAFT_BAND} at={one} refer={keep2(DRAFT_BAND)} onDone={(text, asking) => void startLine(text, asking)} onCancel={() => (setBands(DRAFT_BAND, []), onDraftDone())} /> : null
+          return draft ? <DraftBox key={draft.sheet + DRAFT_BAND} at={one} about={draft.edge} focus={draft.start === 'ask' || draft.edge !== undefined} refer={keep2(DRAFT_BAND)} onDone={(text, asking) => void startLine(text, asking)} onCancel={() => (setBands(DRAFT_BAND, []), onDraftDone())} /> : null
         }
         const line = byId.get(one.key)
         if (!line) return null
@@ -270,6 +294,7 @@ export function MarginLayer({
             active={active === line.id}
             answer={answering.get(line.id)}
             kept={kept.get(line.id)}
+            cite={line.that ? cite?.(line.that) : undefined}
             onActivate={() => setActive(line.id)}
             onClose={() => setActive(undefined)}
             onReply={(text, asking) => void reply(line, text, asking)}
@@ -282,11 +307,31 @@ export function MarginLayer({
   )
 }
 
-function DraftBox({ at, refer, onDone, onCancel }: { at: Placed; refer: (element: HTMLElement | null) => void; onDone: (text: string, asking: boolean) => void; onCancel: () => void }) {
+function DraftBox({
+  at,
+  about,
+  focus,
+  refer,
+  onDone,
+  onCancel,
+}: {
+  at: Placed
+  /** What the line points at, when it isn't words on the sheet. */
+  about: string | undefined
+  focus: boolean
+  refer: (element: HTMLElement | null) => void
+  onDone: (text: string, asking: boolean) => void
+  onCancel: () => void
+}) {
   const [text, setText] = useState('')
   const input = useRef<HTMLTextAreaElement>(null)
+  // Asked for with a command, the box takes the keyboard (the selection's band stays).
+  useEffect(() => {
+    if (focus) input.current?.focus()
+  }, [focus])
   return (
     <div ref={refer} className="margin-box" role="dialog" aria-label="Write in the margin" style={{ left: at.left, top: at.top, width: WIDTH }}>
+      {about && <p className="margin-about">{about}</p>}
       <textarea
         ref={input}
         aria-label="Write a note, or ask"
@@ -331,6 +376,7 @@ function MarginNote({
   onReply,
   onKeep,
   onErase,
+  cite,
 }: {
   at: Placed
   line: MarginLine
@@ -343,6 +389,7 @@ function MarginNote({
   onReply: (text: string, asking: boolean) => void
   onKeep: () => void
   onErase: () => void
+  cite: { id: string; label: string } | undefined
 }) {
   const [text, setText] = useState('')
   const answered = line.entries.some((entry) => entry.by === 'agent' && entry.turnId)
@@ -353,6 +400,15 @@ function MarginNote({
       data-by={line.by}
       data-active={active || undefined}
       style={{ left: at.left, top: at.top, width: WIDTH }}
+      // Dragged into a note, it cites what the line points at.
+      draggable={cite !== undefined && !active}
+      title={cite && !active ? 'Drag into a note to cite it' : undefined}
+      onDragStart={(event) => {
+        if (!cite) return
+        event.dataTransfer.setData(THAT_DRAG, JSON.stringify(cite))
+        event.dataTransfer.setData('text/plain', cite.label)
+        event.dataTransfer.effectAllowed = 'copy'
+      }}
       onClick={() => {
         if (!active) onActivate()
       }}

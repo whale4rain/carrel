@@ -59,7 +59,7 @@ test('focus a sheet, swap from the shelf, and go back', async () => {
   const screen = (await page.locator('.desk-mat').boundingBox())!
   expect((await paper.boundingBox())!.width).toBeGreaterThan(screen.width / 2)
 
-  // Its words can still be pointed at.
+  // Its words can still have a line into the margin.
   const words = (await paper.locator('.textLayer span').first().boundingBox())!
   await page.mouse.move(words.x + 1, words.y + words.height / 2)
   await page.mouse.down()
@@ -68,7 +68,9 @@ test('focus a sheet, swap from the shelf, and go back', async () => {
   })
   await page.mouse.up()
   await page.keyboard.press(`${mod}+Period`)
-  await expect(page.locator('.that-tray .that-chip', { hasText: 'p.1' })).toBeVisible()
+  await expect(page.locator('.margin-box textarea')).toBeFocused()
+  await page.keyboard.press('Escape')
+  await expect(page.locator('.margin-box')).toHaveCount(0)
 
   // A card on the shelf swaps in.
   await cards.filter({ hasText: 'Blank sheet' }).click()

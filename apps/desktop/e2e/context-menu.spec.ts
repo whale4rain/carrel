@@ -37,31 +37,35 @@ test('right-click points at words and asks the agent about them', async () => {
   const paper = page.locator('.sheet[data-kind="paper"]')
   await expect(paper.locator('.textLayer')).toHaveText('Opportunity cost')
 
-  // Select the words, right-click them: that., the agent, and Copy.
+  // Select the words, right-click them: the margin, the agent, and Copy.
   const words = (await paper.locator('.textLayer span').first().boundingBox())!
   const middle = words.y + words.height / 2
-  await page.mouse.move(words.x + 1, middle)
-  await page.mouse.down()
-  await page.mouse.move(words.x + words.width - 1, middle, { steps: 5 })
-  await page.mouse.up()
+  const select = async (): Promise<void> => {
+    await page.mouse.move(words.x + 1, middle)
+    await page.mouse.down()
+    await page.mouse.move(words.x + words.width - 1, middle, { steps: 5 })
+    await page.mouse.up()
+  }
+  await select()
   expect(await menuAt(app, page, words.x + words.width / 2, middle)).toEqual([
-    'that. [CommandOrControl+.]',
+    'Write in the Margin [CommandOrControl+.]',
     'Ask the agent about this…',
     'Explain this',
     '—',
     'copy',
   ])
-  await pick(app, 'that.')
-  await expect(page.locator('.that-tray .that-chip', { hasText: 'p.1' })).toBeVisible()
+  await pick(app, 'Write in the Margin')
+  await expect(page.locator('.margin-box textarea')).toBeFocused()
 
-  // Explain this: the agent opens and answers about those words.
+  // Explain this: the agent answers in the margin, at the end of a line from those words.
+  await page.keyboard.press('Escape')
+  await select()
   await menuAt(app, page, words.x + words.width / 2, middle)
   await pick(app, 'Explain this')
-  const panel = page.locator('.agent-panel')
-  await expect(panel.locator('.agent-me').last()).toContainText('Explain this')
-  await expect(panel.locator('.agent-answer[data-live]')).toHaveCount(0)
-  await expect(panel.locator('.agent-answer .agent-text').last()).toContainText('You are pointing at')
-  await panel.locator('.agent-input textarea').press('Escape').catch(() => undefined)
+  const note = page.locator('.margin-note')
+  await expect(note.locator('.margin-ink')).toHaveText('Explain this.')
+  await expect(note.locator('.margin-pencil')).toContainText('You are pointing at')
+  await expect(page.locator('.that-tray')).toHaveCount(0)
 
   // In a note: ask the agent to rewrite the selected words; you finish the question.
   await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
@@ -82,6 +86,7 @@ test('right-click points at words and asks the agent about them', async () => {
     'paste',
   ])
   await pick(app, 'Rewrite with the agent…')
+  const panel = page.locator('.agent-panel')
   const input = panel.locator('.agent-input textarea')
   await expect(input).toBeFocused()
   await expect(input).toHaveValue(/rewrite this: "Costs are what you give up\."/)
