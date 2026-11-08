@@ -132,7 +132,7 @@ export function MapView({ frame, canWrite, onWriteMore, onOpenUrl }: Props) {
                 </div>
                 <svg className="map-lines" width={layout.width} height={layout.height} aria-hidden>
                   {layout.lines.map(({ line, d, fresh }) => (
-                    <path key={line.id} d={d} data-fresh={fresh || undefined} data-selected={line.from === selected || line.to === selected || undefined} />
+                    <path key={line.id} d={d} pathLength={1} data-fresh={fresh || undefined} data-selected={line.from === selected || line.to === selected || undefined} />
                   ))}
                 </svg>
                 {layout.cards.map((card) => (
