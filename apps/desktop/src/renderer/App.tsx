@@ -333,6 +333,15 @@ export function App() {
   const desk = open?.desks.find((entry) => entry.id === open.desk)
   const note = page ? items.get(page.note) : undefined
   const view = note ? undefined : views.find((known) => known.id === viewId)
+  // What the agent sees beside it, and next steps that fit.
+  const seeing = map ? 'the Map' : note ? `the note “${note.title}”` : view ? `the view “${view.name}”` : desk ? `the desk “${desk.name}”` : undefined
+  const suggestions = map
+    ? ['How does today’s reading fit with earlier days?', 'What did I keep today?']
+    : note
+      ? ['Which of my sources back this note?', 'What else have I noted on this?']
+      : view
+        ? ['What do these notes have in common?']
+        : [...(pointing.length > 0 ? ['Explain what I’m pointing at'] : []), 'What’s on this desk, in a few lines?', 'What did I read about this before?']
   const setProperty = async (id: string, key: string, value: PropertyValue | null): Promise<void> => addItems([await api.setProperty(id, key, value)])
 
   return (
@@ -430,6 +439,8 @@ export function App() {
               }}
               focusTurn={focusTurn}
               prompt={prompt}
+              seeing={seeing}
+              suggestions={suggestions}
               onAddToNote={async (turnId, thread) => {
                 // The note selected on the desk, or a new one laid on the desk.
                 const selected = note?.id ?? deskContext.current?.selected.find((id) => items.get(id)?.kind === 'note')

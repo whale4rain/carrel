@@ -28,6 +28,21 @@ const tool = (name: string) => {
 }
 
 describe('carrelTools', () => {
+  it('recalls from memory only when it is given, by cues, at most eight', async () => {
+    expect(carrelTools(access).some((candidate) => candidate.schema.name === 'recall_memory')).toBe(false)
+    const asked: string[] = []
+    const recall = async (query: string) => {
+      asked.push(query)
+      return Array.from({ length: 10 }, (_, n) => ({ type: n === 0 ? ('capture' as const) : ('piece' as const), day: '2026-10-26', title: `Paged attention ${n}`, label: 'Paper', snippet: 'KV in fixed-size blocks', ...(n === 0 ? { url: 'https://arxiv.org/abs/2309.06180' } : {}) }))
+    }
+    const found = carrelTools({ ...access, recall }).find((candidate) => candidate.schema.name === 'recall_memory')!
+    const result = (await found.execute({ query: 'KV cache last week' }, {} as never)) as { found: Array<Record<string, unknown>> }
+    expect(asked).toEqual(['KV cache last week'])
+    expect(result.found).toHaveLength(8)
+    expect(result.found[0]).toEqual({ type: 'kept', day: '2026-10-26', title: 'Paged attention 0', from: 'Paper', text: 'KV in fixed-size blocks', url: 'https://arxiv.org/abs/2309.06180' })
+    expect(describeStep('recall_memory', { query: 'KV cache' })).toBe('Recalled “KV cache”')
+  })
+
   it('searches, with the ids the other tools take and no match marks', async () => {
     expect(await tool('search_project')({ query: 'elasticity' })).toEqual({
       hits: [

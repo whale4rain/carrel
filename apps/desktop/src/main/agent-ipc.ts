@@ -1,4 +1,4 @@
-import { carrelTools, chip, ProjectAgent } from '@carrel/agent'
+import { carrelTools, chip, ProjectAgent, type RecalledText } from '@carrel/agent'
 import type { Workspace } from '@carrel/core'
 import { totalCost } from '@carrel/core'
 import { BrowserWindow, ipcMain, safeStorage } from 'electron'
@@ -20,8 +20,9 @@ const MODEL = process.env.CARREL_LLM_MODEL ?? 'deepseek-flash'
  * A key comes from `CARREL_LLM_API_KEY`, or is typed once in the panel and
  * kept in ~/.carrel/model.json, encrypted by the system keychain.
  * `CARREL_LLM=scripted` answers with a stand-in model, for checks.
+ * `recall` lets it look in the person's memory (the map), across projects.
  */
-export function serveAgent(workspace: Workspace, controller: ShellController): { stop: () => Promise<void>; model: () => LLMAdapter; ready: Promise<void> } {
+export function serveAgent(workspace: Workspace, controller: ShellController, recall?: (query: string) => Promise<RecalledText[]>): { stop: () => Promise<void>; model: () => LLMAdapter; ready: Promise<void> } {
   const keyFile = join(workspace.roots.internal, 'model.json')
   const scripted = process.env.CARREL_LLM === 'scripted'
   let saved: string | undefined
@@ -71,6 +72,7 @@ export function serveAgent(workspace: Workspace, controller: ShellController): {
           for (const window of BrowserWindow.getAllWindows()) window.webContents.send(agentChannels.proposal, proposal)
           return proposal
         },
+        ...(recall ? { recall } : {}),
       }),
   })
   controller.askForKit = async (folder, kit, question) => {

@@ -16,7 +16,23 @@ export interface ProjectAccess {
   makeThat(itemId: string, page: number, quote: string): Promise<{ id: string; label: string }>
   /** Proposes a change for the person to accept or dismiss; nothing is written until they accept. */
   propose(change: ProposalChange, why: string | undefined): Promise<{ id: string }>
+  /** What the person kept on any day, across projects: pieces on their map and the pages and chats they came from. */
+  recall?(query: string): Promise<RecalledText[]>
 }
+
+/** One thing recalled from the person's memory. */
+export interface RecalledText {
+  type: 'piece' | 'capture'
+  day: string
+  title: string
+  /** Where it came from: "Blog", "Chat". */
+  label: string
+  snippet: string
+  url?: string
+}
+
+/** Most things one recall_memory returns. */
+const RECALLED = 8
 
 export interface ItemText {
   title: string
@@ -39,7 +55,36 @@ export const chip = (that: { id: string; label: string }): string => `[${that.la
 
 /** Carrel's tools for the agent: one project's search, reading and pointing. */
 export function carrelTools(access: ProjectAccess): ToolDefinition[] {
-  return [searchProjectTool(access.search), readItemTool(access), resolveThatTool(access), makeThatTool(access), proposeNoteTool(access), proposeSourceTool(access)]
+  const tools = [searchProjectTool(access.search), readItemTool(access), resolveThatTool(access), makeThatTool(access), proposeNoteTool(access), proposeSourceTool(access)]
+  return access.recall ? [...tools, recallMemoryTool(access.recall)] : tools
+}
+
+/**
+ * `recall_memory`: what the person read, kept and asked on earlier days, across
+ * every project, found by cues (a topic, a source, a day). Only reads.
+ */
+export function recallMemoryTool(recall: (query: string) => Promise<RecalledText[]>): ToolDefinition {
+  return {
+    schema: {
+      name: 'recall_memory',
+      description:
+        "Recall what the person read, kept or asked on any day, across all their projects: the pieces on their map and the pages and chats they came from. Use cues in the query: a topic, a source or a day ('KV cache', 'that blog', 'Tuesday', 'last week'). Use it when they ask about something from earlier, or how something fits what they learned before. Only mention what they ask about.",
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', minLength: 1, description: 'Cues to look for: words, a source, a day.' },
+        },
+        required: ['query'],
+        additionalProperties: false,
+      },
+    },
+    execute: async (input: unknown) => {
+      const query = field(input, 'query')
+      if (typeof query !== 'string' || query.trim().length === 0) throw new Error('recall_memory needs a query')
+      const found = (await recall(query)).slice(0, RECALLED)
+      return { found: found.map(({ type, day, title, label, snippet, url }) => ({ type: type === 'piece' ? 'piece' : 'kept', day, title, from: label, text: snippet, ...(url ? { url } : {}) })) }
+    },
+  }
 }
 
 /**
@@ -218,6 +263,7 @@ export function describeStep(tool: string, input: unknown): string {
   const to = number(field(input, 'to_page'))
   const page = number(field(input, 'page'))
   if (tool === 'search_project' && typeof query === 'string') return `Searched for “${query}”`
+  if (tool === 'recall_memory' && typeof query === 'string') return `Recalled “${query}”`
   if (tool === 'read_item') return from === undefined ? 'Read a note or source' : to !== undefined && to !== from ? `Read pages ${from}–${to}` : `Read page ${from}`
   if (tool === 'resolve_that') return 'Looked at a that.'
   if (tool === 'propose_note_edit') return typeof field(input, 'note') === 'string' ? 'Proposed an addition to a note' : 'Proposed a note'

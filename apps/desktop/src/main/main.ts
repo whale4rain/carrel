@@ -481,21 +481,17 @@ async function deskInteractions(
     return `Add to note did not make a note: ${String(await page("document.querySelector('.agent-answer[data-that] .turn-note')?.textContent ?? 'no button'"))}`
   }
   if (!(await waitFor("[...document.querySelectorAll('.sheet[data-kind=\"note\"] .note-chip')].some((chip) => chip.textContent === 'turn')"))) return 'the new note does not cite the turn'
-  // A side thread from the Threads menu: its first question names it, it answers there, and the menu goes back.
-  await page("document.querySelector('.agent-threads').click()")
-  if (!(await waitFor("document.querySelector('.agent-menu-new') !== null"))) return 'the Threads menu did not open'
-  await page("document.querySelector('.agent-menu-new').click()")
-  if (!(await waitFor("document.querySelector('.agent-threads b')?.textContent === 'New side thread'"))) return 'no new side thread'
+  // A side thread from + New: its first question names its tab, it answers there, and the first tab goes back.
+  await page("document.querySelector('.agent-tab-new').click()")
+  if (!(await waitFor("document.querySelector('.agent-tab[aria-selected=\"true\"]')?.textContent === 'New side thread'"))) return 'no new side thread'
   await page("document.querySelector('.agent-input textarea').focus()")
   window.webContents.insertText('Side note on coffee')
   await page("document.querySelector('.agent-send:not(:disabled)')?.click()")
-  if (!(await waitFor(`document.querySelector('.agent-threads b')?.textContent === 'Side note on coffee' && document.querySelectorAll('.agent-panel .agent-answer').length === 1 && (${answer}).includes('Your note')`))) {
+  if (!(await waitFor(`document.querySelector('.agent-tab[aria-selected="true"]')?.textContent === 'Side note on coffee' && document.querySelectorAll('.agent-panel .agent-answer').length === 1 && (${answer}).includes('Your note')`))) {
     return `the side thread did not answer: ${String(await page("document.querySelector('.agent-panel')?.textContent ?? 'no panel'"))}`
   }
-  await page("document.querySelector('.agent-threads').click()")
-  if (!(await waitFor("document.querySelector('.agent-menu [role=\"menuitemradio\"]') !== null"))) return 'the Threads menu did not open again'
-  await page("document.querySelector('.agent-menu [role=\"menuitemradio\"]').click()")
-  if (!(await waitFor("document.querySelector('.agent-threads b')?.textContent === 'Project thread' && document.querySelectorAll('.agent-panel .agent-me').length === 2"))) return 'the project thread did not come back'
+  await page("document.querySelector('.agent-tab').click()")
+  if (!(await waitFor("document.querySelector('.agent-tab[aria-selected=\"true\"]')?.textContent === 'Project thread' && document.querySelectorAll('.agent-panel .agent-me').length === 2"))) return 'the project thread did not come back'
   return undefined
 }
 
@@ -601,9 +597,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor("document.querySelectorAll('.agent-panel .agent-me').length === 2 && document.querySelector('.agent-panel .proposal[data-state=\"accepted\"]') !== null && document.querySelector('.agent-title > span')?.textContent.includes('sent') === true"))) {
       return fail(`the agent's thread did not come back: ${String(await page("document.querySelector('.agent-panel')?.textContent ?? 'no panel'"))}`)
     }
-    await page("document.querySelector('.agent-threads').click()")
-    if (!(await waitFor("[...document.querySelectorAll('.agent-menu [role=\"menuitemradio\"]')].some((item) => item.textContent === 'Side note on coffee')"))) return fail('the side thread was not listed after a restart')
-    await page("document.querySelector('.agent-threads').click()")
+    if (!(await waitFor("[...document.querySelectorAll('.agent-tab')].some((tab) => tab.textContent === 'Side note on coffee')"))) return fail('the side thread was not listed after a restart')
     await page("document.querySelector('.agent-close').click()")
     // The PDF's backlink brings its note forward.
     await page("document.querySelector('.sheet[data-kind=\"paper\"] .cited-by button').click()")
@@ -633,7 +627,7 @@ app.whenReady().then(async () => {
   keepKitsHome(session.defaultSession)
   setAppMenu(process.platform)
   const settled = serveWorkspace(controller)
-  const agent = serveAgent(workspace, controller)
+  const agent = serveAgent(workspace, controller, (query) => memory.engine.recall(query.slice(0, 500), 12))
   // The memory engine asks the agent's model, with its key.
   memory.useModel(agent.model, agent.ready)
   memory.serve()
