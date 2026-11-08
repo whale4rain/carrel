@@ -1,11 +1,15 @@
 name: CI
 
 # Lint, typecheck, unit tests, a build and a start-up check of the desktop
-# app, on Mac and Windows, for every pull request and every push to main.
+# app, on Mac and Windows.
+#
+# Paused: CI runs only when started by hand (Actions tab, "Run workflow"),
+# because the account is out of GitHub Actions minutes. Check PRs locally
+# (pnpm lint && pnpm typecheck && pnpm test) before merging. To turn CI back on, restore:
+#   pull_request:
+#   push:
+#     branches: [main]
 on:
-  pull_request:
-  push:
-    branches: [main]
   workflow_dispatch:
 
 permissions:
