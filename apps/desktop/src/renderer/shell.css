@@ -22,6 +22,33 @@ body {
   user-select: none;
 }
 
+/* Paper grain: a faint tooth over the whole window, so paper and mat read as
+   material rather than flat fills (learned from riddled.ai). It never takes
+   clicks, multiplies in Day and softly lightens in Night. */
+.shell::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  z-index: 2147483000;
+  pointer-events: none;
+  opacity: 0.16;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' seed='11' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.35 0 0 0 0 0.32 0 0 0 0 0.27 0 0 0 0.5 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  background-size: 180px 180px;
+}
+
+[data-theme="night"] .shell::after {
+  opacity: 0.4;
+  mix-blend-mode: soft-light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="day"]) .shell::after {
+    opacity: 0.4;
+    mix-blend-mode: soft-light;
+  }
+}
+
 button {
   font: inherit;
   color: inherit;
