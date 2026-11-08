@@ -43,7 +43,7 @@ import {
   type View,
 } from '@carrel/desk'
 import { useCallback, useEffect, useRef, useState, type MouseEvent as ReactMouseEvent, type PointerEvent as ReactPointerEvent } from 'react'
-import type { ItemView, Sheet, ThatRequest, ThatView, WebLoading } from '../shared/workspace-api.js'
+import type { ItemView, MarginLine, Sheet, ThatRequest, ThatView, WebLoading } from '../shared/workspace-api.js'
 import { DeskNav } from './DeskNav.js'
 import { PdfView, type Focus } from './PdfView.js'
 import { DocView } from './DocView.js'
@@ -51,6 +51,8 @@ import { NoteView } from './NoteView.js'
 import { citesLine, kindLabel, linkIn, sheetFor, sourceLine } from './sources.js'
 import { KitView } from './KitView.js'
 import { pdfSelection } from './that.js'
+import { bandKey, bandRanges, DRAFT_BAND, setBands } from './bands.js'
+import { MarginLayer, type MarginDraft } from './Margin.js'
 import { DESK_COMMAND, frame } from './platform.js'
 import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
 import { TEXT_COMMANDS, type AgentAsk, type MenuEntry } from '../shared/menu.js'
@@ -158,6 +160,19 @@ export function DeskPlane({
     }
   }, [])
   const keepThat = useCallback((that: ThatView): void => setThats((known) => [...known.filter((other) => other.id !== that.id), that]), [])
+  // Lines into the margin, and words just selected that wait in the margin's open box.
+  const [marginLines, setMarginLines] = useState<MarginLine[]>([])
+  const [draft, setDraft] = useState<MarginDraft>()
+  useEffect(() => {
+    let current = true
+    void api.marginLines().then((list) => {
+      if (current) setMarginLines(list)
+    })
+    return () => {
+      current = false
+    }
+  }, [])
+  const world = useRef<HTMLDivElement>(null)
   const pointed = useRef(onPointed)
   pointed.current = onPointed
   const addToTray = useCallback(
@@ -954,6 +969,26 @@ export function DeskPlane({
       }}
       data-hand={hand || undefined}
       onContextMenu={(event) => void contextMenu(event)}
+      onMouseUp={(event) => {
+        // Words selected in a PDF or a document open the margin's box, with a line to it.
+        // Only a press that ends on a sheet's pages: buttons elsewhere leave a selection as it was.
+        if (event.button !== 0 || !(event.target as HTMLElement).closest('.sheet .pdf-view, .sheet .doc-view')) return
+        const picked = pdfSelection(window.getSelection())
+        const sheet = picked && latest.current.find((candidate) => candidate.id === picked.sheet)
+        const itemId = sheet?.itemId
+        if (!picked || !itemId) return
+        const range = window.getSelection()!.getRangeAt(0).cloneRange()
+        setBands(DRAFT_BAND, [range])
+        setDraft({
+          sheet: picked.sheet,
+          itemId,
+          point: async () => {
+            const that = await api.makeThat({ itemId, ...picked.request })
+            keepThat(that)
+            return { that: that.id }
+          },
+        })
+      }}
       onPointerDownCapture={(event) => {
         // With the hand on, a drag anywhere on the desk moves it, over sheets too.
         if (!hand || inFocus || event.button !== 0) return
@@ -1002,6 +1037,7 @@ export function DeskPlane({
       )}
       <div
         className="desk-world"
+        ref={world}
         style={{ transform: `translate(${shownView.x}px, ${shownView.y}px) scale(${shownView.zoom})`, ['--zoom' as string]: shownView.zoom }}
       >
         {mounted.map((sheet) => {
@@ -1237,6 +1273,21 @@ export function DeskPlane({
         {region && !capturing && (
           <div className="that-region" style={{ left: region.rect.x, top: region.rect.y, width: region.rect.w, height: region.rect.h }} />
         )}
+        <MarginLayer
+          world={world}
+          zoom={shownView.zoom}
+          sheets={mounted.flatMap((sheet) => {
+            const item = sheet.itemId === null ? undefined : items.get(sheet.itemId)
+            return item?.file && !sheet.folded ? [{ id: sheet.id, itemId: item.id }] : []
+          })}
+          lines={marginLines}
+          draft={draft}
+          anchor={(line, sheet) => (line.that ? bandRanges(bandKey(sheet, line.that)) : [])}
+          onLines={setMarginLines}
+          onDraftDone={() => setDraft(undefined)}
+          onKept={(note) => onItemsAdded([note])}
+          onError={setError}
+        />
         {guides.map((guide, i) => (
           <span
             key={i}

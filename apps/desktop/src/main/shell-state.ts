@@ -9,6 +9,7 @@ import {
   readDocument,
   sectionTexts,
   Library,
+  Margin,
   Notes,
   NoteViews,
   plainText,
@@ -30,6 +31,9 @@ import {
   type DeskFile,
   type ItemFile,
   type NoteFile,
+  type MarginEntry,
+  type MarginLine,
+  type MarginMode,
   type Mention,
   type NoteDoc,
   type NoteViewSpec,
@@ -63,6 +67,7 @@ export class ShellController {
   private readonly anchors: Anchors
   private readonly notes: Notes
   private readonly views: NoteViews
+  private readonly margin: Margin
   private readonly proposals: Proposals
   private readonly threads: Threads
   private readonly index: SearchIndex
@@ -81,6 +86,7 @@ export class ShellController {
     this.anchors = new Anchors(workspace)
     this.notes = new Notes(workspace)
     this.views = new NoteViews(workspace)
+    this.margin = new Margin(workspace)
     this.proposals = new Proposals(workspace)
     this.threads = new Threads(workspace)
     this.index = new SearchIndex(workspace)
@@ -230,6 +236,40 @@ export class ShellController {
 
   async mentions(id: string): Promise<{ linked: Mention[]; unlinked: Mention[] }> {
     return this.notes.mentions(await this.openFolder(), id)
+  }
+
+  async marginLines(): Promise<MarginLine[]> {
+    return this.margin.lines(await this.openFolder())
+  }
+
+  async drawLine(line: unknown): Promise<MarginLine> {
+    const asked = line as Partial<MarginLine> | null
+    if (typeof asked?.itemId !== 'string') throw new Error('A line has to start in a source or a note.')
+    const entries = Array.isArray(asked.entries) ? asked.entries.filter(isEntry) : []
+    return this.margin.draw(await this.openFolder(), {
+      itemId: asked.itemId,
+      ...(typeof asked.that === 'string' ? { that: asked.that } : {}),
+      ...(typeof asked.quote === 'string' ? { quote: asked.quote } : {}),
+      by: asked.by === 'agent' ? 'agent' : 'user',
+      entries,
+    })
+  }
+
+  async addToLine(id: string, entry: unknown): Promise<MarginLine> {
+    if (!isEntry(entry)) throw new Error('Write something first.')
+    return this.margin.add(await this.openFolder(), id, entry)
+  }
+
+  async eraseLine(id: string): Promise<void> {
+    await this.margin.erase(await this.openFolder(), id)
+  }
+
+  async marginModes(): Promise<Record<string, MarginMode>> {
+    return this.margin.modes(await this.openFolder())
+  }
+
+  async setMarginMode(itemId: string, mode: unknown): Promise<Record<string, MarginMode>> {
+    return this.margin.setMode(await this.openFolder(), itemId, mode as MarginMode)
   }
 
   async noteViews(): Promise<NoteViewSpec[]> {
@@ -711,4 +751,10 @@ function aroundOf(selectors: readonly Selector[]): string | undefined {
   const quote = selectors.find((selector) => selector.type === 'TextQuoteSelector')
   if (!quote) return undefined
   return `${quote.prefix}${quote.exact}${quote.suffix}`.replace(/\s+/g, ' ').trim()
+}
+
+function isEntry(value: unknown): value is Pick<MarginEntry, 'by' | 'text' | 'turnId'> {
+  if (typeof value !== 'object' || value === null) return false
+  const entry = value as Partial<MarginEntry>
+  return (entry.by === 'user' || entry.by === 'agent') && typeof entry.text === 'string' && (entry.turnId === undefined || typeof entry.turnId === 'string')
 }
