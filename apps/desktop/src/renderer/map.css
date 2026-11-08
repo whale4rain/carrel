@@ -199,6 +199,27 @@
   stroke-width: 3;
 }
 
+/* Lines are drawn in like a pencil stroke when the map opens; today's lines
+   follow a beat later. pathLength=1 on each path makes one dash the whole line. */
+@media (prefers-reduced-motion: no-preference) {
+  .map-lines path {
+    stroke-linecap: round;
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: pencil-draw 0.8s cubic-bezier(0.4, 0.1, 0.4, 1) forwards;
+  }
+
+  .map-lines path[data-fresh] {
+    animation-delay: 0.35s;
+  }
+}
+
+@keyframes pencil-draw {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
 .map-lines path[data-selected]:not([data-fresh]) {
   stroke: var(--ink-muted);
   stroke-width: 2;

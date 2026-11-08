@@ -1922,9 +1922,56 @@ kbd {
 }
 
 .agent-thinking {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
   margin: 0;
   font: var(--text-marginalia);
   color: var(--pencil);
+}
+
+/* A drop of pencil ink that breathes while the agent thinks (after Riddled's ink-wait). */
+.ink-wait {
+  width: 7px;
+  height: 7px;
+  border-radius: 46% 54% 52% 48% / 55% 45% 55% 45%;
+  background: currentColor;
+  opacity: 0.7;
+}
+
+/* Ink motion: the agent's words settle onto the page as they arrive. Only new
+   blocks animate, since a block keeps its element while the answer grows. */
+@media (prefers-reduced-motion: no-preference) {
+  .ink-wait {
+    animation: ink-wait 1.8s ease-in-out infinite;
+  }
+
+  .agent-answer[data-live] .agent-text > * {
+    animation: ink-in 520ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  }
+}
+
+@keyframes ink-wait {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+  50% {
+    opacity: 0.95;
+    transform: scale(1);
+  }
+}
+
+@keyframes ink-in {
+  from {
+    opacity: 0;
+    transform: translateY(2px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
 .agent-error {

@@ -341,7 +341,10 @@ export function AgentPanel({
             <Mine text={asking.text} points={asking.points} labels={labels} onOpenThat={onOpenThat} />
             <div className="agent-answer" data-live="">
               <Steps steps={asking.steps} cost={undefined} />
-              {asking.answer ? <Markdown className="agent-text" text={asking.answer} onThat={onOpenThat} /> : <p className="agent-thinking">Thinking…</p>}
+              {asking.answer ? <Markdown className="agent-text" text={asking.answer} onThat={onOpenThat} /> : <p className="agent-thinking">
+                  <i className="ink-wait" aria-hidden />
+                  Thinking…
+                </p>}
             </div>
           </>
         )}
