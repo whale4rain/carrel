@@ -1,3 +1,4 @@
+import { MUSE_MARK } from '@carrel/agent'
 import { DISTILL_MARK, RELATE_MARK } from '@carrel/memory'
 import type { LLMAdapter, LLMStreamEvent } from 'tnega/agent'
 
@@ -21,6 +22,14 @@ export function scriptedModel(): LLMAdapter {
       const system = messages[0]?.role === 'system' ? messages[0].content : ''
       if (tools.length === 0 && (system.startsWith(DISTILL_MARK) || system.startsWith(RELATE_MARK))) {
         yield { type: 'message_delta', id, delta: memoryAnswer(system, last?.content ?? '') }
+        yield { type: 'message_stop', id, finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0 } }
+        return
+      }
+      if (tools.length === 0 && system.startsWith(MUSE_MARK)) {
+        // Reading along: a question about a passage that says something is true, nothing otherwise.
+        const passage = (last?.content ?? '').split('Passage:\n').at(-1) ?? ''
+        const said = /\b(is|are|means)\b/i.test(passage) ? 'What would change if that were not true?' : 'NOTHING'
+        yield { type: 'message_delta', id, delta: said }
         yield { type: 'message_stop', id, finishReason: 'stop', usage: { promptTokens: 0, completionTokens: 0 } }
         return
       }

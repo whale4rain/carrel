@@ -26,6 +26,8 @@ export interface MarginDraft {
 export interface MarginSheet {
   id: string
   itemId: string
+  /** The element the margin sits beside; on the desk, the sheet's paper. */
+  paper?: () => HTMLElement | null
 }
 
 interface Placed {
@@ -126,7 +128,7 @@ export function MarginLayer({
     const toWorld = (x: number, y: number): { x: number; y: number } => ({ x: (x - origin.left) / zoom, y: (y - origin.top) / zoom })
     const next: Placed[] = []
     for (const sheet of sheets) {
-      const paper = element.querySelector<HTMLElement>(`.sheet[data-sheet="${CSS.escape(sheet.id)}"] .sheet-paper`)
+      const paper = sheet.paper ? sheet.paper() : element.querySelector<HTMLElement>(`.sheet[data-sheet="${CSS.escape(sheet.id)}"] .sheet-paper`)
       if (!paper) continue
       const box = paper.getBoundingClientRect()
       const right = toWorld(box.right, box.top)

@@ -7,7 +7,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test, type Page } from '@playwright/test'
 import { tinyPdf } from '../scripts/tiny-pdf.mjs'
-import { quit, start } from './app.js'
+import { place, quit, start } from './app.js'
 
 let home: string
 
@@ -78,4 +78,43 @@ test('selecting words draws a line to the margin, where the agent answers', asyn
   await expect(again.page.locator('.margin-note')).toHaveCount(2)
   await expect(again.page.locator('.margin-lines path')).toHaveCount(2)
   await quit(again.app)
+})
+
+test('in a note the agent thinks with you, or waits to be asked', async () => {
+  const { app, page } = await start(home)
+  await place(page, 'Notes')
+  await page.locator('.place-column [aria-label="Notes"]').getByRole('button', { name: '+ New note' }).click()
+  const editor = page.locator('.note-page .ProseMirror')
+  await expect(editor).toBeFocused()
+  await page.keyboard.type('Paging')
+  await page.keyboard.press('Enter')
+
+  // It reads along: a finished sentence, a pause, and one question in the margin, tied to the sentence.
+  await expect(page.getByRole('button', { name: 'Thinks with you' })).toHaveAttribute('aria-pressed', 'true')
+  await page.keyboard.type('The block table is a page table for the KV cache.')
+  const said = page.locator('.note-page .margin-note[data-by="agent"]')
+  await expect(said).toHaveCount(1, { timeout: 15_000 })
+  await expect(said.locator('.margin-pencil')).toHaveText('What would change if that were not true?')
+  await expect(page.locator('.note-page .margin-lines path')).toHaveCount(1)
+
+  // When you ask, it keeps quiet until you select words and ask.
+  await page.getByRole('button', { name: 'When you ask' }).click()
+  await editor.locator('p').last().click()
+  await page.keyboard.press('End')
+  await page.keyboard.press('Enter')
+  await page.keyboard.type('Blocks are freed when no sequence uses them.')
+  await page.waitForTimeout(4500)
+  await expect(said).toHaveCount(1)
+  const last = (await editor.locator('p', { hasText: 'Blocks are freed' }).boundingBox())!
+  await page.mouse.move(last.x + 1, last.y + last.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(last.x + 120, last.y + last.height / 2, { steps: 5 })
+  await page.mouse.up()
+  const box = page.getByRole('dialog', { name: 'Write in the margin' })
+  await box.getByLabel('Write a note, or ask').fill('How are they counted?')
+  await box.getByLabel('Write a note, or ask').press('Enter')
+  const asked = page.locator('.note-page .margin-note', { hasText: 'How are they counted?' })
+  await expect(asked.locator('.margin-pencil')).not.toHaveText('')
+  await expect(page.locator('.note-page .margin-lines path')).toHaveCount(2)
+  await quit(app)
 })

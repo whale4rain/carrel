@@ -123,6 +123,12 @@ export function serveAgent(workspace: Workspace, controller: ShellController, re
   handle(agentChannels.decide, (_event, id, accept) => controller.decideProposal(id, accept))
   handle(agentChannels.thatTurn, (_event, turnId, thread) => controller.thatTurn(turnId, threadOf(thread)))
   handle(agentChannels.addToNote, (_event, turnId, noteId, thread) => controller.addTurnToNote(turnId, noteId ?? undefined, threadOf(thread)))
+  handle(agentChannels.muse, async (_event, passage, note) => {
+    if (typeof passage !== 'string' || passage.trim().length < 20) return ''
+    if (!(await status()).ready) return ''
+    await openFolder()
+    return (await agent.muse(passage.trim(), typeof note === 'string' ? note : '')).text
+  })
   handle(agentChannels.ask, async (event, text, context, thread) => {
     if (typeof text !== 'string' || text.trim().length === 0) throw new Error('Ask something first.')
     const folder = await openFolder()

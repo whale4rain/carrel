@@ -1,9 +1,24 @@
-import { useEffect, useState } from 'react'
-import type { ItemView, MentionView, NoteDoc, PropertyValue } from '../shared/workspace-api.js'
+import { useEffect, useRef, useState } from 'react'
+import type { ItemView, MarginLine, MarginMode, MentionView, NoteDoc, PropertyValue } from '../shared/workspace-api.js'
+import { bandRanges, DRAFT_BAND, setBands } from './bands.js'
+import { MarginLayer, type MarginDraft } from './Margin.js'
 import { NoteProperties } from './NoteProperties.js'
 import { NoteView } from './NoteView.js'
+import { rangeAt, textOf } from './that.js'
 
 const api = window.carrel.workspace
+const agent = window.carrel.agent
+
+/** The note page, as the margin knows it. */
+const PAGE = 'note-page'
+/** How long you pause before the agent reads what you just wrote, and how long it then keeps quiet. */
+const PAUSE = 3500
+const QUIET = 30_000
+/** A passage worth reading along: a finished sentence of some length. */
+const FINISHED = /[.?!。？！]["”’)]?$/
+const LONG_ENOUGH = 40
+
+const noteBand = (line: string): string => `note:${line}`
 
 interface Props {
   note: ItemView
@@ -39,6 +54,79 @@ interface Heading {
  */
 export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, onPutOnDesk, onPin, onOpenLink, onLinked, onProperty }: Props) {
   const [headings, setHeadings] = useState<Heading[]>([])
+  // Lines into this note's margin, words just selected, and whether the agent thinks with you here.
+  const [lines, setLines] = useState<MarginLine[]>([])
+  const [draft, setDraft] = useState<MarginDraft>()
+  const [mode, setMode] = useState<MarginMode>('with')
+  const [marginError, setMarginError] = useState<string>()
+  const content = useRef<HTMLDivElement>(null)
+  const [version, setVersion] = useState(0)
+  useEffect(() => {
+    let current = true
+    void Promise.all([api.marginLines(), api.marginModes()]).then(([all, modes]) => {
+      if (!current) return
+      setLines(all.filter((line) => line.itemId === note.id))
+      setMode(modes[note.id] ?? 'with')
+    })
+    return () => {
+      current = false
+    }
+  }, [note.id])
+
+  // Each line's words in the note, found again by their quote as the note changes.
+  useEffect(() => {
+    const text = content.current?.querySelector('.note-text')
+    if (!text) return
+    const found = textOf(text)
+    for (const line of lines) {
+      const at = line.quote ? found.source.indexOf(line.quote) : -1
+      const range = at < 0 ? undefined : rangeAt(found, at, at + line.quote!.length)
+      setBands(noteBand(line.id), range ? [range] : [])
+    }
+    return () => {
+      for (const line of lines) setBands(noteBand(line.id), [])
+    }
+  }, [lines, version])
+
+  // Thinking with you: after a pause, the agent reads the passage you just finished and may say one thing.
+  const seen = useRef<Set<string>>(undefined)
+  const pause = useRef<number>(undefined)
+  const quietUntil = useRef(0)
+  const latest = useRef({ mode, title: note.title, id: note.id })
+  latest.current = { mode, title: note.title, id: note.id }
+  useEffect(() => {
+    seen.current = undefined
+    return () => window.clearTimeout(pause.current)
+  }, [note.id])
+  const readAlong = (doc: NoteDoc): void => {
+    const passages = doc.content.flatMap((block) => (block.type === 'paragraph' ? [plain(block.content ?? []).trim()] : []))
+    // What was there when the note opened is not news.
+    if (!seen.current) {
+      seen.current = new Set(passages)
+      return
+    }
+    window.clearTimeout(pause.current)
+    if (latest.current.mode !== 'with') return
+    const fresh = passages.filter((passage) => !seen.current!.has(passage) && passage.length >= LONG_ENOUGH && FINISHED.test(passage)).at(-1)
+    if (!fresh) return
+    pause.current = window.setTimeout(() => {
+      if (Date.now() < quietUntil.current || latest.current.mode !== 'with' || latest.current.id !== note.id) return
+      seen.current!.add(fresh)
+      quietUntil.current = Date.now() + QUIET
+      void agent.muse(fresh, latest.current.title).then(
+        async (said) => {
+          if (!said || latest.current.id !== note.id) return
+          const line = await api.drawLine({ itemId: note.id, quote: fresh, by: 'agent', entries: [{ by: 'agent', text: said }] })
+          setLines((all) => [...all, line])
+        },
+        () => undefined,
+      )
+    }, PAUSE)
+  }
+  const changeMode = (next: MarginMode): void => {
+    setMode(next)
+    void api.setMarginMode(note.id, next).catch(() => undefined)
+  }
   const notes = [...items.values()].filter((item) => item.kind === 'note')
   // Who links here and who names it without a link, asked again whenever a note changes.
   const [mentions, setMentions] = useState<{ linked: MentionView[]; unlinked: MentionView[] }>()
@@ -65,8 +153,21 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
   }
 
   return (
-    <main className="note-page" aria-label={`Note: ${note.title}`}>
+    <main className="note-page" aria-label={`Note: ${note.title}`} data-margin="">
       <div className="note-page-paper">
+        <div
+          className="note-page-content"
+          ref={content}
+          onMouseUp={(event) => {
+            // Words selected in the note open the margin's box, with a line to it.
+            if (event.button !== 0 || !(event.target as HTMLElement).closest('.note-text')) return
+            const selection = window.getSelection()
+            const quote = selection?.toString().trim() ?? ''
+            if (!selection || selection.isCollapsed || selection.rangeCount === 0 || quote.length < 2) return
+            setBands(DRAFT_BAND, [selection.getRangeAt(0).cloneRange()])
+            setDraft({ sheet: PAGE, itemId: note.id, title: note.title, point: () => Promise.resolve({ quote }) })
+          }}
+        >
         <header className="note-page-head">
           <span className="note-page-path">
             {folders.length > 0 ? folders.join(' / ') : 'Notes'}
@@ -78,6 +179,14 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
           <button type="button" className="outline-button" onClick={onPutOnDesk}>
             Put on desk
           </button>
+          <span className="margin-mode" role="group" aria-label="The agent in this note">
+            <button type="button" aria-pressed={mode === 'with'} title="It reads along and may write one thing in the margin when you pause" onClick={() => changeMode('with')}>
+              Thinks with you
+            </button>
+            <button type="button" aria-pressed={mode === 'ask'} title="It stays quiet until you select words and ask" onClick={() => changeMode('ask')}>
+              When you ask
+            </button>
+          </span>
         </header>
         <NoteView
           key={note.id}
@@ -88,9 +197,31 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
           onSaved={onSaved}
           onOpenThat={onOpenThat}
           onOpenLink={onOpenLink}
-          onDoc={(doc) => setHeadings(headingsOf(doc))}
+          onDoc={(doc) => {
+            setHeadings(headingsOf(doc))
+            setVersion((count) => count + 1)
+            readAlong(doc)
+          }}
           underTitle={<NoteProperties properties={note.properties ?? {}} onSet={onProperty} />}
         />
+        <MarginLayer
+          world={content}
+          zoom={1}
+          sheets={[{ id: PAGE, itemId: note.id, paper: () => content.current?.querySelector<HTMLElement>('.note-text') ?? null }]}
+          lines={lines}
+          draft={draft}
+          anchor={(line) => bandRanges(noteBand(line.id))}
+          onLines={setLines}
+          onDraftDone={() => setDraft(undefined)}
+          onKept={onSaved}
+          onError={setMarginError}
+        />
+        {marginError && (
+          <p className="note-margin-error" role="alert">
+            {marginError}
+          </p>
+        )}
+        </div>
       </div>
       <aside className="note-margin" aria-label="Margin">
         {headings.length > 1 && (
@@ -182,4 +313,9 @@ function edited(at: string): string {
   if (minutes < 60) return `${minutes} min ago`
   if (then.toDateString() === new Date().toDateString()) return `today ${then.toTimeString().slice(0, 5)}`
   return then.toLocaleDateString(undefined, { day: 'numeric', month: 'short' })
+}
+
+/** A paragraph's words, as the margin quotes them. */
+function plain(content: NonNullable<Extract<NoteDoc['content'][number], { type: 'paragraph' }>['content']>): string {
+  return content.map((inline) => (inline.type === 'text' ? inline.text : inline.type === 'that' ? inline.attrs.label : inline.type === 'noteLink' ? inline.attrs.label || inline.attrs.target : '')).join('')
 }
