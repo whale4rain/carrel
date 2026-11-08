@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { carrelRoots, Workspace, type SearchHit } from '@carrel/core'
 import type { LLMAdapter, LLMStreamEvent } from 'tnega/agent'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { describeStep, ProjectAgent, searchProjectTool, type AgentEvent } from '../src/index.js'
+import { describeStep, MUSE_MARK, ProjectAgent, searchProjectTool, type AgentEvent } from '../src/index.js'
 
 /** A scripted model: the first request searches, the next answers in pieces. */
 function scriptedModel(): { llm: LLMAdapter; seen: { tools: string[][]; toolResults: string[] } } {
@@ -193,6 +193,31 @@ describe('ProjectAgent.askForKit', () => {
       expect(answer.error).toContain('401 no key')
     } finally {
       await agent.dispose()
+    }
+  })
+})
+
+describe('ProjectAgent.muse', () => {
+  const saying = (words: string): LLMAdapter => ({
+    complete: () => Promise.reject(new Error('Carrel streams')),
+    async *stream(messages): AsyncIterable<LLMStreamEvent> {
+      expect(messages[0]!.content.startsWith(MUSE_MARK)).toBe(true)
+      yield { type: 'message_start', id: 'm' }
+      yield { type: 'message_delta', id: 'm', delta: words }
+      yield { type: 'message_stop', id: 'm', finishReason: 'stop', usage: { promptTokens: 10, completionTokens: 2 } }
+    },
+  })
+
+  it('says one thing about a passage, or nothing, and keeps no turns', async () => {
+    const agent = new ProjectAgent({ workspace, model: () => saying(' Which one is the page table here? '), tools: () => [] })
+    const quiet = new ProjectAgent({ workspace, model: () => saying('NOTHING.'), tools: () => [] })
+    try {
+      expect((await agent.muse('The block table maps logical blocks to physical ones.', 'Paging')).text).toBe('Which one is the page table here?')
+      expect((await quiet.muse('Blocks are freed when unused.', 'Paging')).text).toBe('')
+      expect(await agent.turns('Learn economics')).toEqual([])
+    } finally {
+      await agent.dispose()
+      await quiet.dispose()
     }
   })
 })

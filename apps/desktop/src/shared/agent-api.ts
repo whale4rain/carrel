@@ -67,6 +67,8 @@ export interface AgentApi {
   addToNote(turnId: string, noteId?: string, thread?: string): Promise<ItemView>
   /** A *that.* the agent made while answering, to show with the others. */
   onThat(listener: (that: ThatView) => void): () => void
+  /** Thinking with you: one short thing to say about a passage you just wrote in a note, or "" when nothing is worth saying. */
+  muse(passage: string, note: string): Promise<string>
   /** The project thread gained turns from elsewhere (a learning kit asked the agent). */
   onTurns(listener: () => void): () => void
 }
@@ -86,4 +88,5 @@ export const agentChannels = {
   thatTurn: 'agent:that-turn',
   addToNote: 'agent:add-to-note',
   turns: 'agent:turns',
+  muse: 'agent:muse',
 } as const

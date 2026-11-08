@@ -99,6 +99,7 @@ const agent: AgentApi = {
   addToNote: (turnId, noteId, thread) => call(agentChannels.addToNote, turnId, noteId, thread),
   onProposal: (listener) => listen<ProposalView>(agentChannels.proposal, listener),
   onTurns: (listener) => listen<void>(agentChannels.turns, listener),
+  muse: (passage, note) => call(agentChannels.muse, passage, note),
 }
 
 const memory: MemoryApi = {

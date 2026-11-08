@@ -4187,3 +4187,43 @@ kbd {
   margin-left: auto;
   border-color: transparent;
 }
+
+/* The note page keeps a margin column right of the text for lines. */
+.note-page-content {
+  position: relative;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.note-page[data-margin] .note-page-head,
+.note-page[data-margin] .note-text {
+  max-width: min(760px, calc(100% - 272px));
+  margin-left: max(0px, calc((100% - 1032px) / 2));
+  margin-right: auto;
+}
+
+.margin-mode {
+  display: inline-flex;
+  border: 1px solid var(--rule);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.margin-mode button {
+  padding: 4px 10px;
+  font: var(--text-caption);
+  color: var(--ink-muted);
+}
+
+.margin-mode button[aria-pressed='true'] {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.note-margin-error {
+  margin: 0 var(--space-8) var(--space-4);
+  font: var(--text-caption);
+  color: var(--danger);
+}

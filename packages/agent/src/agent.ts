@@ -1,6 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
-import { PROJECT_THREAD, Threads, type SideThread, type Turn, type TurnStep, type Workspace } from '@carrel/core'
+import { PROJECT_THREAD, Threads, type SideThread, type Turn, type TurnCost, type TurnStep, type Workspace } from '@carrel/core'
 import type { LLMAdapter } from 'tnega/agent'
 import type { ToolDefinition } from 'tnega/tools'
 import { MeteredModel } from './metered.js'
@@ -10,6 +10,11 @@ import { describeStep } from './tools.js'
 /** How the agent answers a learning kit: briefly, in plain text, with nothing around the answer. */
 const KIT_PROMPT =
   'You answer one question from a learning kit in Carrel, a study app. Answer only what is asked, in plain text, in as few words as the answer needs (at most 40). No preamble, no Markdown.'
+
+/** Starts the prompt the agent reads along with, so a stand-in model can tell it apart. */
+export const MUSE_MARK = 'You read along in the margin'
+
+const MUSE_PROMPT = `${MUSE_MARK} while someone writes a note in Carrel, a study app. They have just finished the passage below. If one short question or one correction would help them think it through, write only that, in at most two sentences of plain words, as a friend reading over their shoulder. Never rewrite their words, never praise, never summarise. If nothing is worth saying, reply exactly NOTHING.`
 
 /** What the panel draws while the agent answers. */
 export type AgentEvent =
@@ -166,6 +171,27 @@ export class ProjectAgent {
       }
       const answer = await this.threads.add(folder, { by: 'agent', kit, text: reply, cost: this.meter.take(), ...(error !== undefined ? { error } : {}) })
       return { question, answer }
+    })
+    this.queue = run.catch(() => undefined)
+    return run
+  }
+
+  /**
+   * Thinking with you: reads a passage you just wrote and says one short thing
+   * about it, or nothing (an empty string). One tool-less call; it is not
+   * kept in a thread, since the margin keeps what it says.
+   */
+  muse(passage: string, note: string): Promise<{ text: string; cost: TurnCost }> {
+    const run = this.queue.then(async () => {
+      this.meter.take()
+      let reply = ''
+      const messages = [
+        { role: 'system' as const, content: MUSE_PROMPT },
+        { role: 'user' as const, content: `Note: “${note.slice(0, 200)}”\n\nPassage:\n${passage.slice(0, 4000)}` },
+      ]
+      for await (const event of this.meter.llm.stream!(messages, [], { temperature: 0.3 })) if (event.type === 'message_delta') reply += event.delta
+      reply = reply.trim()
+      return { text: /^nothing\.?$/i.test(reply) ? '' : reply, cost: this.meter.take() }
     })
     this.queue = run.catch(() => undefined)
     return run

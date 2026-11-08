@@ -45,7 +45,11 @@ in the margin beside the sheet: write a note, or ask (Enter) and the agent's
 short answer is written at the end of the line; Tab keeps it as a note. Lines
 are kept in `~/Carrel/<project>/margin.json` (`Margin` in `@carrel/core`), each
 holding the *that.* it starts from (sources) or the quoted words (notes). Code:
-`src/renderer/Margin.tsx`, wired in `DeskPlane.tsx`. Mockup: the "Point by
+`src/renderer/Margin.tsx`, wired in `DeskPlane.tsx` and `NotePage.tsx`. On a
+note's page the agent **thinks with you** by default: after you finish a
+sentence and pause, it may write one short question in the margin
+(`ProjectAgent.muse`, one tool-less call, `NOTHING` means stay quiet); the
+note's header switches it to **When you ask** (kept per item in margin.json). Mockup: the "Point by
 drawing a line" artifact (https://claude.ai/artifact/BmSV5631YbAXP5v37FWFcn).
 
 **Memory on disk:** `~/Carrel/Memory/` (not a project; the name is reserved)
