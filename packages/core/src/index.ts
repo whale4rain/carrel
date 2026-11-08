@@ -14,7 +14,7 @@ export {
   type WorkspaceEvent,
 } from './workspace.js'
 export { isVideo, Library, parseLink, STORED_EXTENSIONS, titleFromUrl, type Bookmark, type ItemFile, type ItemKind, type ItemSource, type ReadingPosition } from './library.js'
-export { Anchors, type AnchorFile, type NewAnchor } from './anchors.js'
+export { Anchors, UNUSED_DAYS, type AnchorFile, type NewAnchor } from './anchors.js'
 export {
   CONTEXT,
   findText,

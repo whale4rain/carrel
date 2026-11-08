@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm } from 'node:fs/promises'
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -48,5 +48,35 @@ describe('Anchors', () => {
   it('refuses what is not a place', async () => {
     await expect(anchors.make('Learn economics', { itemId: 'a', selectors: [] })).rejects.toThrow(/not a place/)
     await expect(anchors.make('Learn economics', { itemId: 'a', selectors: [{ type: 'CssSelector' } as never] })).rejects.toThrow(/not a place/)
+  })
+
+  it('takes away a that. nothing uses, and keeps it in removed/', async () => {
+    const made = await anchors.make('Learn economics', { itemId: 'lecture', selectors: [momentSelector(10)], image: new Uint8Array([1]) })
+    await anchors.remove('Learn economics', made.id)
+    expect(await anchors.list('Learn economics')).toEqual([])
+    const removed = join(home, 'Carrel', 'Learn economics', 'anchors', 'removed')
+    expect(JSON.parse(await readFile(join(removed, `${made.id}.json`), 'utf8'))).toMatchObject({ id: made.id })
+    expect([...(await readFile(join(removed, `${made.id}.png`)))]).toEqual([1])
+    expect((await workspace.readEvents('Learn economics')).at(-1)).toMatchObject({ type: 'that.removed', payload: { id: made.id } })
+  })
+
+  it('keeps a that. a note, thread or kit cites, and tidies old unused ones', async () => {
+    let clock = new Date('2026-10-01T12:00:00Z')
+    const later = new Anchors(workspace, () => clock)
+    const cited = await later.make('Learn economics', { itemId: 'book', selectors: [pageSelector(1)] })
+    const unused = await later.make('Learn economics', { itemId: 'book', selectors: [pageSelector(2)] })
+    const inKit = await later.make('Learn economics', { itemId: 'book', selectors: [pageSelector(3)] })
+    const root = join(home, 'Carrel', 'Learn economics')
+    await mkdir(join(root, 'notes', 'econ'), { recursive: true })
+    await writeFile(join(root, 'notes', 'econ', 'Demand.md'), `See [p.1](that:${cited.id}).\n`)
+    await mkdir(join(root, 'kits', 'language', 'store'), { recursive: true })
+    await writeFile(join(root, 'kits', 'language', 'store', 'cards.json'), JSON.stringify({ docs: { a: { value: { that: { id: inKit.id } } } } }))
+    await expect(later.remove('Learn economics', cited.id)).rejects.toThrow('still uses')
+    clock = new Date('2026-10-05T12:00:00Z')
+    expect(await later.tidy('Learn economics')).toEqual([])
+    const fresh = await later.make('Learn economics', { itemId: 'book', selectors: [pageSelector(4)] })
+    clock = new Date('2026-10-09T12:00:00Z')
+    expect(await later.tidy('Learn economics')).toEqual([unused.id])
+    expect((await later.list('Learn economics')).map((anchor) => anchor.id)).toEqual([cited.id, inKit.id, fresh.id])
   })
 })

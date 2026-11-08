@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { readdir, writeFile } from 'node:fs/promises'
+import { mkdir, readdir, readFile, rename, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { isMissing, readJson, writeJson } from './files.js'
 import { isSelector, positionLabel, type Selector } from './selectors.js'
@@ -11,6 +11,7 @@ import { FORMAT, type Actor, type Workspace } from './workspace.js'
  * ~/Carrel/<project>/anchors/
  *   <anchor id>.json   the item, its selectors, and the snapshot's text
  *   <anchor id>.png    the snapshot's image (a video frame), if it has one
+ *   removed/           *that.*s taken away, kept here so nothing is lost
  *
  * The snapshot keeps a chip readable when its source changes or goes away.
  */
@@ -89,6 +90,51 @@ export class Anchors {
     return anchor
   }
 
+  /**
+   * Takes a *that.* away: it moves to anchors/removed/, so its source no
+   * longer shows it and lists leave it out. Refuses one that something
+   * still cites, so no chip loses its place.
+   */
+  async remove(folder: string, id: string, actor: Actor = 'user'): Promise<void> {
+    const anchor = await this.read(folder, id)
+    if ((await this.cited(folder)).has(id)) throw new Error('A note, a question or a kit still uses that that.')
+    const removed = join(this.dir(folder), 'removed')
+    await mkdir(removed, { recursive: true })
+    if (anchor.snapshot.image) await rename(join(this.dir(folder), anchor.snapshot.image), join(removed, anchor.snapshot.image)).catch(() => undefined)
+    await rename(this.anchorFile(folder, id), join(removed, `${id}.json`))
+    await this.workspace.event(folder, actor, 'that.removed', { id, item: anchor.itemId })
+  }
+
+  /**
+   * Takes away the *that.*s nothing uses that are older than `days`: made,
+   * then never cited in a note, a question, a proposal or a kit. Returns
+   * their ids.
+   */
+  async tidy(folder: string, days = UNUSED_DAYS): Promise<string[]> {
+    const before = this.now().getTime() - days * DAY
+    const old = (await this.list(folder)).filter((anchor) => Date.parse(anchor.createdAt) < before)
+    if (old.length === 0) return []
+    const cited = await this.cited(folder)
+    const unused = old.filter((anchor) => !cited.has(anchor.id))
+    for (const anchor of unused) await this.remove(folder, anchor.id, 'user').catch(() => undefined)
+    return unused.map((anchor) => anchor.id)
+  }
+
+  /** Ids of the *that.*s that notes, threads, proposals and kit stores mention. */
+  async cited(folder: string): Promise<Set<string>> {
+    const ids = new Set((await this.list(folder)).map((anchor) => anchor.id))
+    const found = new Set<string>()
+    if (ids.size === 0) return found
+    const root = join(this.workspace.roots.content, folder)
+    for (const place of CITING) {
+      for (const file of await textFiles(join(root, place))) {
+        const text = await readFile(file, 'utf8').catch(() => '')
+        for (const id of ids) if (!found.has(id) && text.includes(id)) found.add(id)
+      }
+    }
+    return found
+  }
+
   /** Where an anchor's snapshot image is, if it has one. */
   async imagePath(folder: string, id: string): Promise<string | undefined> {
     const anchor = await this.read(folder, id)
@@ -103,6 +149,30 @@ export class Anchors {
     if (!/^[\w-]+$/.test(id)) throw new Error(`"${id}" is not an anchor id.`)
     return join(this.dir(folder), `${id}.json`)
   }
+}
+
+/** An unused *that.* is taken away after this many days. */
+export const UNUSED_DAYS = 7
+const DAY = 24 * 60 * 60 * 1000
+/** The project's folders that can cite a *that.*. */
+const CITING = ['notes', 'threads', 'proposals', 'kits']
+
+/** Every Markdown and JSON file under a folder. */
+async function textFiles(dir: string): Promise<string[]> {
+  let entries
+  try {
+    entries = await readdir(dir, { withFileTypes: true })
+  } catch (error) {
+    if (isMissing(error)) return []
+    throw error
+  }
+  const files: string[] = []
+  for (const entry of entries) {
+    const path = join(dir, entry.name)
+    if (entry.isDirectory()) files.push(...(await textFiles(path)))
+    else if (/\.(md|json|jsonl)$/.test(entry.name)) files.push(path)
+  }
+  return files
 }
 
 function isAnchorFile(value: unknown): value is AnchorFile {

@@ -170,7 +170,7 @@ export function DeskPlane({
   useEffect(() => window.carrel.web.onThat(addToTray), [addToTray])
   // The agent's *that.*s open like yours, but you weren't the one pointing.
   useEffect(() => window.carrel.agent.onThat(keepThat), [keepThat])
-  // Chips taken off the tray this session (the that.s themselves are kept).
+  // Chips taken off the tray this session: that.s still in use stay in the project.
   const [offTray, setOffTray] = useState<ReadonlySet<string>>(new Set())
   // The that. being opened, and those whose words are gone from their source.
   const [focus, setFocus] = useState<Focus & { sheet: string }>()
@@ -790,7 +790,18 @@ export function DeskPlane({
   }
   const thatsOf = (itemId: string): ThatView[] => thats.filter((that) => that.itemId === itemId)
   const onDesk = new Set(sheets.flatMap((sheet) => (sheet.itemId === null ? [] : [sheet.itemId])))
-  const tray = thats.filter((that) => onDesk.has(that.itemId) && !offTray.has(that.id))
+  // The tray shows today's that.s; older ones stay in their sources and notes.
+  const today = new Date().toDateString()
+  const tray = thats.filter((that) => onDesk.has(that.itemId) && !offTray.has(that.id) && new Date(that.createdAt).toDateString() === today)
+  const removeThat = (that: ThatView): void => {
+    setOffTray((known) => new Set(known).add(that.id))
+    void api.removeThat(that.id).then(
+      (removed) => {
+        if (removed) setThats((known) => known.filter((other) => other.id !== that.id))
+      },
+      () => undefined,
+    )
+  }
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent): void => {
@@ -1381,7 +1392,7 @@ export function DeskPlane({
           onAddKit={addKit}
         />
       )}
-      <ThatTray thats={tray} items={items} lost={lost} onOpen={openThat} onRemove={(that) => setOffTray((known) => new Set(known).add(that.id))} />
+      <ThatTray thats={tray} items={items} lost={lost} onOpen={openThat} onRemove={removeThat} />
       {savedCopy && (
         <SavedThat that={savedCopy} item={items.get(savedCopy.itemId)} changed={lost.has(savedCopy.id) || !items.has(savedCopy.itemId)} onClose={() => setSavedCopy(undefined)} />
       )}
