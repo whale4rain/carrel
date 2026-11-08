@@ -1,8 +1,8 @@
 // What the renderer sees of projects and desks, and how it asks for changes.
 // Main owns the files; the renderer only gets summaries back.
-import type { ItemKind, NoteDoc, NoteViewSpec, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
+import type { ItemKind, MarginEntry, MarginLine, MarginMode, NewMarginLine, NoteDoc, NoteViewSpec, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport } from '@carrel/core'
 
-export type { ItemKind, NoteDoc, NoteViewSpec, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport }
+export type { ItemKind, MarginEntry, MarginLine, MarginMode, NewMarginLine, NoteDoc, NoteViewSpec, PropertyValue, ReadingPosition, Selector, Sheet, SheetChange, Viewport }
 
 /** What can sit on a sheet: a source, or a note. */
 export type ViewKind = ItemKind | 'note' | 'kit'
@@ -212,6 +212,17 @@ export interface WorkspaceApi {
   makeThat(request: ThatRequest): Promise<ThatView>
   /** The project's *that.*s, oldest first. */
   thats(): Promise<ThatView[]>
+  /** Lines into the margin, oldest first. */
+  marginLines(): Promise<MarginLine[]>
+  /** Draws a line from a *that.* (in a source) or a quote (in a note), with what is written at its end. */
+  drawLine(line: NewMarginLine): Promise<MarginLine>
+  /** Adds your reply or the agent's answer to a line's thread. */
+  addToLine(id: string, entry: Pick<MarginEntry, 'by' | 'text' | 'turnId'>): Promise<MarginLine>
+  /** Rubs a line out; what it pointed at is kept. */
+  eraseLine(id: string): Promise<void>
+  /** Where the agent thinks with you ("with") or waits to be asked ("ask"), by item. */
+  marginModes(): Promise<Record<string, MarginMode>>
+  setMarginMode(itemId: string, mode: MarginMode): Promise<Record<string, MarginMode>>
   /** A *that.*'s snapshot image (PNG), if it has one. */
   thatImage(id: string): Promise<Uint8Array | null>
   /** The learning kits installed on this computer. */
@@ -294,6 +305,12 @@ export const workspaceChannels = {
   sourceTitle: 'workspace:source-title',
   makeThat: 'workspace:make-that',
   thats: 'workspace:thats',
+  marginLines: 'workspace:margin-lines',
+  drawLine: 'workspace:draw-line',
+  addToLine: 'workspace:add-to-line',
+  eraseLine: 'workspace:erase-line',
+  marginModes: 'workspace:margin-modes',
+  setMarginMode: 'workspace:set-margin-mode',
   thatImage: 'workspace:that-image',
   kits: 'workspace:kits',
   addKit: 'workspace:add-kit',

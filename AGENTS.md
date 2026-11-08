@@ -37,6 +37,17 @@ pieces. Mockups `MarginNavB` and `MarginNavB1` (copies in
 `src/renderer/Sidebar.tsx`. e2e tests pick a place with `place(page, 'Notes')`
 from `e2e/app.ts` before using its column.
 
+**Lines into the margin (8 Nov):** after looking at riddled.ai, Ocean Rain
+asked for thinking to happen beside the words, and for *that.* to work like a
+line whose chip the person never sees. Selecting words in a PDF or document
+draws a pencil line from them, under the rest of their line of text, to a box
+in the margin beside the sheet: write a note, or ask (Enter) and the agent's
+short answer is written at the end of the line; Tab keeps it as a note. Lines
+are kept in `~/Carrel/<project>/margin.json` (`Margin` in `@carrel/core`), each
+holding the *that.* it starts from (sources) or the quoted words (notes). Code:
+`src/renderer/Margin.tsx`, wired in `DeskPlane.tsx`. Mockup: the "Point by
+drawing a line" artifact (https://claude.ai/artifact/BmSV5631YbAXP5v37FWFcn).
+
 **Memory on disk:** `~/Carrel/Memory/` (not a project; the name is reserved)
 holds `kept/YYYY-MM-DD.jsonl` (captures; a later line with the same key wins),
 `kept/files/` (screenshots), `pieces/YYYY-MM-DD.json`, `lines.json` (removed

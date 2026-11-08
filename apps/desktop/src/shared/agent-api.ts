@@ -37,6 +37,8 @@ export type AgentLive = { type: 'text'; text: string } | { type: 'step'; step: T
 export interface AskContext {
   points: string[]
   desk?: { name: string; items: string[]; selected: string[] }
+  /** Asked in the margin: the answer is written beside the words, so it is short. A note's words come as `quote`. */
+  margin?: { quote?: string; title?: string }
 }
 
 export interface AgentApi {

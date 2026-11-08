@@ -135,6 +135,8 @@ export function serveAgent(workspace: Workspace, controller: ShellController, re
       },
       { context: await contextLine(controller, folder, asked), points: asked.points, ...(threadOf(thread) ? { thread: threadOf(thread)! } : {}) },
     )
+    // A margin answer lands in the project thread too: the agent panel shows it.
+    if (asked.margin && !event.sender.isDestroyed()) event.sender.send(agentChannels.turns)
     return answer
   })
   // The saved key is read now, so the memory's evening job can use it without the agent panel being opened first.
@@ -162,13 +164,26 @@ export async function contextLine(controller: ShellController, folder: string, c
     })
     if (shown.length > 0) lines.push(`On the desk “${context.desk.name}”: ${shown.join('; ')}.`)
   }
+  if (context.margin) {
+    if (context.margin.quote) lines.push(`Pointing at, in the note “${context.margin.title ?? 'a note'}”: “${context.margin.quote.slice(0, 600)}”`)
+    lines.push(MARGIN_RULE)
+  }
   return lines.length > 0 ? ['[Context]', ...lines].join('\n') : ''
 }
+
+/** Asked in the margin: the answer is written beside the words, in a narrow column. */
+export const MARGIN_RULE = 'Asked in the margin beside these words: answer in at most three short sentences of plain words, with no headings, lists or tables. Make no proposals.'
 
 function isAskContext(value: unknown): value is AskContext {
   if (typeof value !== 'object' || value === null) return false
   const context = value as Record<string, unknown>
   const ids = (list: unknown): boolean => Array.isArray(list) && list.every((id) => typeof id === 'string')
   const desk = context.desk as Record<string, unknown> | undefined
-  return ids(context.points) && (desk === undefined || (typeof desk.name === 'string' && ids(desk.items) && ids(desk.selected)))
+  const margin = context.margin as Record<string, unknown> | undefined
+  const text = (value: unknown): boolean => value === undefined || typeof value === 'string'
+  return (
+    ids(context.points) &&
+    (desk === undefined || (typeof desk.name === 'string' && ids(desk.items) && ids(desk.selected))) &&
+    (margin === undefined || (typeof margin === 'object' && margin !== null && text(margin.quote) && text(margin.title)))
+  )
 }
