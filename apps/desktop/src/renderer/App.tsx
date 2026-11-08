@@ -4,7 +4,7 @@ import type { AgentAsk } from '../shared/menu.js'
 import { fromMarkdown } from '@carrel/core/note-markdown'
 import type { KeptToday, Piece } from '../shared/memory-api.js'
 import type { ItemView, NoteViewSpec, PropertyValue, SearchHitView, ShellState, ThatView } from '../shared/workspace-api.js'
-import { Welcome } from './Desk.js'
+import { FirstRun } from './Desk.js'
 import { AgentPanel, NEW_SIDE } from './AgentPanel.js'
 import { DeskPlane, type ShowRequest } from './DeskPlane.js'
 import { linkName, NOTE_CHANGED, resolveLink } from './NoteView.js'
@@ -415,7 +415,7 @@ export function App() {
               onContext={(context) => (deskContext.current = context)}
               onAsk={askAgent}
               onOpenLink={(target) => void openLink(target)}
-            /> : <Welcome onCreate={actions.createProject} />}
+            /> : <FirstRun frame={frame} onCreate={actions.createProject} onImport={() => setMemorySettings({ importAsk: Date.now() })} onMap={() => actions.openPlace('map')} />}
           {talking && open && (
             <AgentPanel
               key={`${open.project}/${threadId}`}

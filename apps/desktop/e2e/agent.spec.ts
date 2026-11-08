@@ -17,6 +17,22 @@ test.afterAll(async () => {
   await rm(home, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
 })
 
+test('the first run: a sentence about what you learn names the project', async () => {
+  const first = await mkdtemp(join(tmpdir(), 'carrel-e2e-'))
+  const { app, page } = await start(first)
+  await expect(page.getByRole('heading', { name: 'What are you learning?' })).toBeVisible()
+  await page.getByLabel('What are you learning?').fill('I’m reading Mankiw’s Principles and watching the MIT lectures')
+  await expect(page.getByLabel('Project name')).toHaveValue('Mankiw’s Principles')
+  if (process.env.SHOT_FIRST) await page.screenshot({ path: process.env.SHOT_FIRST })
+  // The name can be changed before it is made.
+  await page.getByLabel('Project name').fill('Learn economics')
+  await page.getByLabel('What are you learning?').press('Enter')
+  await expect(page.locator('.desk-name')).toHaveText('First desk')
+  await expect(page.locator('.crumb').first()).toContainText('Learn economics')
+  await quit(app)
+  await rm(first, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 })
+})
+
 test('the agent opens from the rail, sees what is open, and keeps threads as tabs', async () => {
   const { app, page } = await start(home)
   await page.getByLabel('Project name').fill('Agent desk')
