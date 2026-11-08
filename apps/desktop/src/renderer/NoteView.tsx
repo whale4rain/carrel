@@ -37,7 +37,7 @@ export const ThatChip = Node.create({
     return [{ tag: 'span[data-that]', getAttrs: (element) => ({ id: element.getAttribute('data-that'), label: element.textContent ?? '' }) }]
   },
   renderHTML({ node, HTMLAttributes }) {
-    return ['span', mergeAttributes(HTMLAttributes, { 'data-that': node.attrs.id as string, class: 'that-chip note-chip' }), (node.attrs.label as string) || 'that.']
+    return ['span', mergeAttributes(HTMLAttributes, { 'data-that': node.attrs.id as string, class: 'that-chip note-chip' }), (node.attrs.label as string) || 'source']
   },
 })
 

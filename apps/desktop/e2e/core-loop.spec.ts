@@ -41,7 +41,7 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await expect(textLayer).toHaveText('Price elasticity of demand')
 
   console.log('carrel e2e: PDF shown')
-  // that.: drag across the words with the mouse and press ⌘. (Ctrl+.).
+  // Drag across the words: the margin's box opens, with a line from them; ⌘. (Ctrl+.) gives it the keyboard.
   const words = (await textLayer.locator('span').first().boundingBox())!
   await page.mouse.move(words.x + 1, words.y + words.height / 2)
   await page.mouse.down()
@@ -49,11 +49,14 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   await page.mouse.up()
   expect(await page.evaluate(() => getSelection()?.toString())).toBe('Price elasticity of demand')
   await page.keyboard.press(`${mod}+Period`)
-  const chip = page.locator('.that-tray .that-chip', { hasText: 'p.1' })
+  await expect(page.locator('.margin-box textarea')).toBeFocused()
+  await page.keyboard.type('Elastic: buyers react to price.')
+  await page.keyboard.press(`${mod}+Enter`)
+  const chip = page.locator('.margin-note', { hasText: 'Elastic' })
   await expect(chip).toBeVisible()
 
-  console.log('carrel e2e: that. made')
-  // A note from the desk's + Add, typed, with the chip dragged to the end of its text.
+  console.log('carrel e2e: line drawn')
+  // A note from the desk's + Add, typed, with the margin note dragged to the end of its text to cite the words.
   await page.locator('.desk-tools button', { hasText: '+ Add' }).click()
   await page.getByRole('menuitem', { name: /^Note/ }).click()
   const editor = page.locator('.sheet[data-kind="note"] .ProseMirror')
@@ -104,7 +107,7 @@ test('a source, a that., a note, the agent, and a restart', async () => {
   const again = await start(home, ['Elasticity.pdf'])
   const back = again.page
   await expect(back.locator('.sheet[data-kind="paper"] .textLayer')).toHaveText('Price elasticity of demand')
-  await expect(back.locator('.that-tray .that-chip', { hasText: 'p.1' })).toBeVisible()
+  await expect(back.locator('.margin-note', { hasText: 'Elastic' })).toBeVisible()
   await place(back, 'Notes')
   await expect(back.locator('[aria-label="Notes"] .row.note')).toHaveCount(2)
   await back.getByRole('button', { name: NOTE_TITLE, exact: true }).click()

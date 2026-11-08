@@ -169,16 +169,6 @@ const PDF_TEXT = "document.querySelector('.sheet[data-kind=\"paper\"] .textLayer
 const PAGE_WORDS = 'A page on the desk.'
 /** The live web page, if one is open: the one showing the smoke's link. */
 const livePage = (): WebContents | undefined => webContents.getAllWebContents().find((contents) => contents.getURL() === LINK)
-/** Waits for a script to come true in a page that may not exist yet. */
-async function waitForIn(target: () => WebContents | undefined, script: string): Promise<boolean> {
-  const deadline = Date.now() + 15_000
-  while (Date.now() < deadline) {
-    const contents = target()
-    if (contents && (await contents.executeJavaScript(script).catch(() => false)) === true) return true
-    await new Promise((resolve) => setTimeout(resolve, 100))
-  }
-  return false
-}
 /** What the smoke writes in a note: its title line, then a line of text. */
 const NOTE_TITLE = 'Elasticity'
 const NOTE_TEXT = 'Coffee is a habit, so it is inelastic.'
@@ -245,6 +235,18 @@ async function deskInteractions(
     await new Promise((resolve) => setTimeout(resolve, 50))
   }
   const mod = process.platform === 'darwin' ? 'meta' : 'control'
+  // Writes in the margin's open box and keeps it as a note there.
+  const noteInMargin = async (text: string): Promise<boolean> => {
+    if (!(await waitFor("document.querySelector('.margin-box textarea') !== null"))) return false
+    await page(`(() => {
+      const box = document.querySelector('.margin-box textarea')
+      Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, 'value').set.call(box, ${JSON.stringify(text)})
+      box.dispatchEvent(new Event('input', { bubbles: true }))
+    })()`)
+    await new Promise((resolve) => setTimeout(resolve, 50))
+    await page("[...document.querySelectorAll('.margin-box button')].find((b) => b.textContent === 'Note')?.click()")
+    return waitFor(`[...document.querySelectorAll('.margin-note .margin-ink')].some((ink) => ink.textContent === ${JSON.stringify(text)})`)
+  }
   await key('Z', [mod])
   if (!(await waitFor(`${style}.width === '${MOVED.w - 40}px'`))) return `undo left the sheet at ${String(await page(`${style}.cssText`))}`
   await key('Z', [mod, 'shift'])
@@ -320,7 +322,7 @@ async function deskInteractions(
     return `the web sheet is called ${String(await page(`document.querySelector('.sheet[data-kind="web_page"]')?.getAttribute('aria-label')`))}`
   }
   await new Promise((resolve) => setTimeout(resolve, 500))
-  // that. inside the live page: select its words and press ⌘. there; the chip names the site.
+  // Inside the live page: select its words and press ⌘. there; the margin's box opens beside the sheet.
   const live = livePage()
   if (!live) return 'the live page was not found'
   await live.executeJavaScript(`(() => {
@@ -333,10 +335,10 @@ async function deskInteractions(
   })()`)
   live.sendInputEvent({ type: 'keyDown', keyCode: '.', modifiers: [mod] })
   live.sendInputEvent({ type: 'keyUp', keyCode: '.', modifiers: [mod] })
-  if (!(await waitFor(`[...document.querySelectorAll('.that-tray .that-chip')].some((chip) => chip.textContent === '127.0.0.1')`))) {
-    return 'pointing inside the web page made no chip'
-  }
+  if (!(await noteInMargin('Wide page'))) return 'pointing inside the web page opened no margin box'
   if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.some((that) => that.text === '${PAGE_WORDS}'))`))) return 'the web page\'s that. was not kept'
+  // Esc closes the margin note just written, then leaves the page.
+  await key('Escape')
   await key('Escape')
   if (!(await waitFor("document.querySelector('.web-page[data-live]') === null && document.querySelector('.web-page img') !== null"))) {
     return 'leaving the web page left no snapshot'
@@ -354,7 +356,7 @@ async function deskInteractions(
   await waitFor("document.querySelector('.add-menu') !== null")
   await page("[...document.querySelectorAll('.add-menu button')].find((b) => b.textContent.startsWith('Book or paper'))?.click()")
   if (!(await waitFor(`${PDF_TEXT} === 'Price elasticity of demand'`))) return `the PDF's text layer says ${String(await page(PDF_TEXT))}`
-  // that.: select a word on the PDF's page and press ⌘. (Ctrl+.); a chip lands on the tray.
+  // Select a word on the PDF's page and press ⌘. (Ctrl+.); a note in the margin points at it.
   await page(`(() => {
     const layer = document.querySelector('.sheet[data-kind="paper"] .textLayer')
     const walker = document.createTreeWalker(layer, NodeFilter.SHOW_TEXT)
@@ -370,8 +372,8 @@ async function deskInteractions(
     }
   })()`)
   await key('.', [mod])
-  if (!(await waitFor(`[...document.querySelectorAll('.that-tray .that-chip')].some((chip) => chip.textContent === 'p.1')`))) {
-    return `pointing at the PDF made no chip: ${String(await page("document.querySelector('.desk-error')?.textContent ?? 'no message'"))}`
+  if (!(await noteInMargin('Elastic'))) {
+    return `pointing at the PDF opened no margin box: ${String(await page("document.querySelector('.desk-error')?.textContent ?? 'no message'"))}`
   }
   if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.text === '${THAT_WORD}'))`))) {
     return 'the that. was not kept'
@@ -409,9 +411,9 @@ async function deskInteractions(
   if (!(await waitFor(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].some((row) => row.textContent === '${NOTE_TITLE}')`))) {
     return 'the sidebar did not list the note'
   }
-  // The PDF's chip dragged from the tray to the end of the note's text cites it there.
+  // The PDF's margin note dragged to the end of the note's text cites the word there.
   await page(`(() => {
-    const chip = [...document.querySelectorAll('.that-tray .that-chip')].find((c) => c.textContent === 'p.1')
+    const chip = [...document.querySelectorAll('.margin-note')].find((c) => c.textContent.startsWith('Elastic'))
     const carried = new DataTransfer()
     chip.dispatchEvent(new DragEvent('dragstart', { dataTransfer: carried, bubbles: true }))
     const line = document.querySelector('.sheet[data-kind="note"] .ProseMirror p')
@@ -441,9 +443,6 @@ async function deskInteractions(
   // project, answers from the note, and cites the chip it was given, which opens the PDF.
   await key('J', [mod])
   if (!(await waitFor("document.activeElement?.closest('.agent-panel') != null"))) return '⌘J did not open the agent'
-  if (!(await waitFor("document.querySelectorAll('.agent-pointing .agent-point').length >= 2"))) {
-    return `the composer did not point at the that.s: ${String(await page("document.querySelector('.agent-foot')?.innerText ?? 'no composer'"))}`
-  }
   window.webContents.insertText('What did I note about coffee?')
   // A sent Enter is unreliable on the Mac runner, so the send button sends.
   await page("document.querySelector('.agent-send:not(:disabled)')?.click()")
@@ -451,14 +450,13 @@ async function deskInteractions(
   if (!(await waitFor(`(${answer}).includes('${NOTE_TITLE}') && document.querySelector('.agent-panel .agent-steps button')?.textContent.includes('Searched for')`))) {
     return `the agent did not answer from the note: ${String(await page("document.querySelector('.agent-body')?.innerText ?? 'no panel'"))}`
   }
-  if (!(await waitFor("document.querySelectorAll('.agent-me .that-chip').length >= 2 && document.querySelector('.agent-pointing') === null"))) {
-    return 'the question did not keep the chips it pointed at'
-  }
-  // Open the note from the sidebar on its own page, then the answer's chip brings the desk back with the PDF selected.
+  // Open the note from the sidebar on its own page, then its citation brings the desk back with the PDF selected.
   await page(`[...document.querySelectorAll('[aria-label="Notes"] .row.note')].find((row) => row.textContent === '${NOTE_TITLE}').click()`)
-  if (!(await waitFor("document.querySelector('.note-page .ProseMirror h1') !== null"))) return 'the sidebar did not open the note on its page'
-  await page("document.querySelector('.agent-text .that-chip').click()")
-  if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null"))) return 'the chip in the answer did not open the PDF'
+  if (!(await waitFor("document.querySelector('.note-page .ProseMirror .note-chip') !== null"))) return 'the sidebar did not open the note on its page'
+  await new Promise((resolve) => setTimeout(resolve, 300))
+  const cite = await page<{ x: number; y: number }>("(() => { const chip = document.querySelector('.note-page .note-chip'); chip.scrollIntoView({ block: 'center' }); const r = chip.getClientRects()[0]; return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()")
+  for (const type of ['mouseDown', 'mouseUp'] as const) window.webContents.sendInputEvent({ type, x: cite.x, y: cite.y, button: 'left', clickCount: 1 })
+  if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null"))) return 'the citation in the note did not open the PDF'
   // Asked for a note, the agent proposes one in pencil; nothing is written until Tab accepts it.
   const notes = "document.querySelectorAll('[aria-label=\"Notes\"] .row.note').length"
   const before = await page<number>(notes)
@@ -555,22 +553,12 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     if (!(await waitFor(`window.carrel.workspace.thats().then((thats) => thats.some((that) => that.label === 'p.1' && that.text === '${THAT_WORD}'))`))) {
       return fail('the that. did not come back')
     }
-    // Its chip is back on the tray; opening it finds the word and brightens its band.
-    const chip = (label: string): string => `[...document.querySelectorAll('.that-tray .that-chip')].find((chip) => chip.textContent === '${label}')`
-    if (!(await waitFor(`${chip('p.1')} !== undefined`))) return fail('the chip did not come back')
-    await page(`${chip('p.1')}.click()`)
-    if (!(await waitFor("CSS.highlights.get('that-active')?.size === 1 && document.querySelector('.that-saved') === null"))) {
-      return fail('opening the chip did not find its words')
-    }
-    // The region's chip opens its box on the page.
-    await page("document.querySelectorAll('.that-tray .that-chip')[2].click()")
-    if (!(await waitFor("document.querySelector('.that-box[data-active]') !== null"))) return fail('opening the region did not show its box')
-    // The web page's chip makes its page live and marks the words there.
-    await page(`${chip('127.0.0.1')}.click()`)
-    if (!(await waitFor("document.querySelector('.web-page[data-live]') !== null"))) {
-      return fail(`opening the web chip did not open its page: ${JSON.stringify(webViews.get(window.webContents.id)?.status)}`)
-    }
-    if (!(await waitForIn(livePage, "CSS.highlights?.get('carrel-that-active')?.size === 1"))) return fail('the web page did not mark its that.')
+    // The margin comes back: the PDF's word is underlined and its line runs to its note; the web page's note sits at its edge.
+    const inks = "[...document.querySelectorAll('.margin-note .margin-ink')].map((ink) => ink.textContent)"
+    if (!(await waitFor(`${inks}.includes('Elastic') && ${inks}.includes('Wide page')`))) return fail(`the margin did not come back: ${String(await page(`${inks}.join(' | ')`))}`)
+    if (!(await waitFor(`[...(CSS.highlights.get('that') ?? [])].some((range) => range.toString() === '${THAT_WORD}')`))) return fail('the PDF\'s word lost its line')
+    // The region's box is drawn on the page.
+    if (!(await waitFor("document.querySelector('.that-box') !== null"))) return fail('the region did not show its box')
     // The note comes back with its words, and the sidebar lists it.
     const note = "document.querySelector('.sheet[data-kind=\"note\"] .ProseMirror')"
     if (!(await waitFor(`${note}?.querySelector('h1')?.textContent === '${NOTE_TITLE}' && ${note}?.querySelector('p')?.textContent.startsWith('${NOTE_TEXT}') === true`))) {
@@ -586,7 +574,7 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     const onPage = "document.querySelector('.note-page .ProseMirror')"
     if (!(await waitFor(`${onPage}?.querySelector('.note-chip') != null`))) return fail('the sidebar did not open the note on its page')
     await new Promise((resolve) => setTimeout(resolve, 300))
-    const at = await page<{ x: number; y: number }>(`(() => { const r = ${onPage}.querySelector('.note-chip').getBoundingClientRect(); return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
+    const at = await page<{ x: number; y: number }>(`(() => { const r = ${onPage}.querySelector('.note-chip').getClientRects()[0]; return { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) } })()`)
     for (const type of ['mouseDown', 'mouseUp'] as const) window.webContents.sendInputEvent({ type, x: at.x, y: at.y, button: 'left', clickCount: 1 })
     if (!(await waitFor("document.querySelector('.sheet[data-kind=\"paper\"][data-selected]') !== null && CSS.highlights.get('that-active')?.size === 1"))) {
       const hit = await page<string>(`(() => { const e = document.elementFromPoint(${at.x}, ${at.y}); return (e?.className ?? 'none') + ' in ' + (e?.closest('.sheet')?.getAttribute('data-kind') ?? 'no sheet') })()`)
@@ -608,8 +596,13 @@ async function runSmoke(window: BrowserWindow, mode: string, reload: () => Promi
     }))`)
     await reload()
     if (!(await toDesk())) return fail('the desk did not come back after a reload')
-    if (!(await waitFor("document.querySelectorAll('.that-tray .that-chip').length === 4"))) return fail('the new chip did not show')
-    await page("[...document.querySelectorAll('.that-tray .that-chip')].at(-1).click()")
+    // Found by search, it opens the saved copy.
+    const searchKey = process.platform === 'darwin' ? 'meta' : 'control'
+    for (const type of ['keyDown', 'keyUp'] as const) window.webContents.sendInputEvent({ type, keyCode: 'K', modifiers: [searchKey] })
+    if (!(await waitFor("document.activeElement?.closest('.search-palette') != null"))) return fail('⌘K did not open search')
+    window.webContents.insertText('never had')
+    if (!(await waitFor("document.querySelector('.search-hit[data-kind=\"that\"]') != null"))) return fail('search did not find the that.')
+    await page("document.querySelector('.search-hit[data-kind=\"that\"]').click()")
     if (!(await waitFor("document.querySelector('.that-saved blockquote')?.textContent === 'Words this PDF never had'"))) {
       return fail('a that. with its words gone did not show its saved copy')
     }

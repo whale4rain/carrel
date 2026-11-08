@@ -49,7 +49,12 @@ holding the *that.* it starts from (sources) or the quoted words (notes). Code:
 note's page the agent **thinks with you** by default: after you finish a
 sentence and pause, it may write one short question in the margin
 (`ProjectAgent.muse`, one tool-less call, `NOTHING` means stay quiet); the
-note's header switches it to **When you ask** (kept per item in margin.json). Mockup: the "Point by
+note's header switches it to **When you ask** (kept per item in margin.json). The tray of *that.* chips, the yellow "that." button and its yellow marks are
+gone: ⌘. and the right-click menu's "Write in the Margin", "Ask" and "Explain"
+open the same box; a video moment, a drawn region or words in a web page get a
+line from the sheet's top edge (no words to underline). A margin note dragged
+into a note cites what its line points at; citations everywhere are quiet
+pencil links. Mockup: the "Point by
 drawing a line" artifact (https://claude.ai/artifact/BmSV5631YbAXP5v37FWFcn).
 
 **Memory on disk:** `~/Carrel/Memory/` (not a project; the name is reserved)

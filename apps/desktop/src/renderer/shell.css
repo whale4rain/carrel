@@ -1260,61 +1260,21 @@ kbd {
   pointer-events: none;
 }
 
-/* that. is the one yellow thing: in the selection bar and on its chips. */
-.selection-bar button.that {
-  background: var(--highlight);
-  color: var(--highlight-ink);
-  font-family: var(--font-mono);
-}
-
-/* The tray: chips made on this desk, at the bottom left. */
-.that-tray {
-  position: absolute;
-  left: 16px;
-  bottom: 16px;
-  z-index: 100002;
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  max-width: calc(100% - 420px);
-  padding: 6px 10px;
-  border-radius: var(--radius-control);
-  background: var(--paper);
-  box-shadow: var(--shadow-sheet);
-}
-
-.that-tray-label {
-  color: var(--ink-muted);
-  font-family: var(--font-read);
-  font-size: 12px;
-  font-style: italic;
-  white-space: nowrap;
-}
-
-.that-tray ul {
-  display: flex;
-  gap: 6px;
-  margin: 0;
-  padding: 0;
-  overflow: hidden;
-  list-style: none;
-}
-
-.that-tray li {
-  display: flex;
-  align-items: center;
-}
-
+/* Citations: a quiet pencil link to where they point, never a chip. */
 .that-chip {
-  height: 22px;
-  padding: 0 7px;
-  border: 1px solid transparent;
-  border-radius: var(--radius-mark);
-  background: var(--highlight);
-  color: var(--highlight-ink);
-  font-family: var(--font-mono);
-  font-size: 11px;
-  font-weight: 500;
+  display: inline;
+  height: auto;
+  padding: 0 1px;
+  border: none;
+  border-radius: 0;
+  background: none;
+  color: var(--pencil);
+  font: inherit;
+  font-size: 0.86em;
+  font-style: italic;
+  text-decoration: underline 1px;
+  text-decoration-color: color-mix(in srgb, currentColor 45%, transparent);
+  text-underline-offset: 3px;
   white-space: nowrap;
   cursor: pointer;
 }
@@ -1322,7 +1282,7 @@ kbd {
 .that-chip:hover,
 .that-chip:focus-visible {
   outline: none;
-  box-shadow: 0 0 0 3px var(--highlight-soft);
+  text-decoration-color: currentColor;
 }
 
 .that-remove {
@@ -1334,12 +1294,6 @@ kbd {
   color: var(--ink-muted);
   font-size: 13px;
   cursor: pointer;
-  display: none;
-}
-
-.that-tray li:hover .that-remove,
-.that-remove:focus-visible {
-  display: block;
 }
 
 /* that. bands in a source: the highlighter under the words. The PDF's text layer
@@ -1364,17 +1318,15 @@ kbd {
   text-underline-offset: 3px;
 }
 
-/* Source changed: the chip shows the saved copy. */
+/* Source changed: the citation opens the saved copy. */
 .that-chip[data-state='saved'] {
-  border-color: var(--rule);
-  background: var(--paper-2);
   color: var(--ink-muted);
 }
 
 .that-saved {
   position: absolute;
   left: 16px;
-  bottom: 64px;
+  bottom: 16px;
   z-index: 100003;
   width: 320px;
   padding: 10px 12px 12px;
@@ -1419,21 +1371,21 @@ kbd {
 .that-region {
   position: absolute;
   z-index: 100000;
-  border: calc(1.5px / var(--zoom)) dashed var(--highlight-ink);
-  background: color-mix(in srgb, var(--highlight) 25%, transparent);
+  border: calc(1.5px / var(--zoom)) dashed #2457c5;
+  background: rgb(36 87 197 / 0.06);
   pointer-events: none;
 }
 
 .that-box {
   position: absolute;
-  border: 2px solid #ffe14d;
+  border: 1px solid rgb(36 87 197 / 0.55);
   border-radius: var(--radius-mark);
-  background: rgb(255 225 77 / 0.12);
+  background: rgb(36 87 197 / 0.05);
   pointer-events: none;
 }
 
 .that-box[data-active] {
-  box-shadow: 0 0 0 4px #fff2a8;
+  box-shadow: 0 0 0 3px rgb(36 87 197 / 0.18);
 }
 
 /* Notes: the person's own writing, upright Instrument Sans in ink, titled in Literata. */
@@ -1513,16 +1465,11 @@ kbd {
 }
 
 .note-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
   margin: 0 1px;
-  vertical-align: 1px;
-  font-size: 10.5px;
 }
 
 .note-chip.ProseMirror-selectednode {
-  box-shadow: 0 0 0 3px var(--highlight-soft);
+  background: var(--pencil-wash);
 }
 
 .note-error {
@@ -1707,10 +1654,7 @@ kbd {
 }
 
 .search-that {
-  height: 18px;
-  line-height: 16px;
-  padding: 0 5px;
-  font-size: 10px;
+  font-size: 12px;
 }
 
 .search-hit-text {
@@ -2097,16 +2041,7 @@ kbd {
   line-height: 1;
 }
 
-/* Chips inside the thread's text sit on the line. */
-.agent-me .that-chip,
-.agent-text .that-chip {
-  height: 18px;
-  padding: 0 5px;
-  font-size: 10px;
-  line-height: 16px;
-  vertical-align: 1px;
-}
-
+/* Citations in the thread's text sit on the line. */
 .agent-me .that-chip + .that-chip {
   margin-left: 4px;
 }
@@ -2276,11 +2211,6 @@ kbd {
 }
 
 .turn-chip {
-  display: inline-flex;
-  align-items: center;
-  height: 20px;
-  padding: 0 6px;
-  font-size: 10px;
   cursor: grab;
 }
 
@@ -2542,8 +2472,8 @@ kbd {
   color: var(--ink-muted);
 }
 
-/* The that. tray sits above the shelf in Focus. */
-.desk-mat[data-focus] .that-tray {
+/* The saved copy of a citation sits above the shelf in Focus. */
+.desk-mat[data-focus] .that-saved {
   bottom: 108px;
 }
 
@@ -4151,6 +4081,19 @@ kbd {
   gap: 4px;
   padding-top: 4px;
   border-top: 1px solid var(--rule);
+}
+
+.margin-about {
+  margin: 0 0 6px;
+  display: -webkit-box;
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-family: var(--font-read);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 16px;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
 }
 
 .margin-box-row {

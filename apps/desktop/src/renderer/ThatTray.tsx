@@ -4,7 +4,7 @@ import type { ItemView, ThatView } from '../shared/workspace-api.js'
 /** How a chip names its spot: a position, never a sentence. */
 export function chipLabel(that: ThatView, item: ItemView | undefined): string {
   if (that.label) return item?.kind === 'video' ? `▶ ${that.label}` : that.label
-  return item?.url ? new URL(item.url).hostname.replace(/^www\./, '') : 'that.'
+  return item?.url ? new URL(item.url).hostname.replace(/^www\./, '') : 'source'
 }
 
 /** The drag type a chip carries into a note: `{ id, label }` as JSON. */

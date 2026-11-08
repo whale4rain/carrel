@@ -177,7 +177,9 @@ test('build a deck from that.s, review it, and move on a stage', async () => {
   const reading = page.locator('.sheet[data-kind="paper"]')
   await reading.locator('.doc-section strong').evaluate((element) => getSelection()?.selectAllChildren(element))
   await page.keyboard.press(`${mod}+Period`)
-  await expect(page.locator('.that-tray .that-chip')).toHaveCount(1)
+  await page.locator('.margin-box textarea').fill('table')
+  await page.locator('.margin-box textarea').press(`${mod}+Enter`)
+  await expect(page.locator('.margin-note')).toHaveCount(1)
   await page.evaluate(() => getSelection()?.removeAllRanges())
 
   const addSheet = async (name: string): Promise<void> => {

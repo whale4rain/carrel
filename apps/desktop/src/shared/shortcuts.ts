@@ -68,7 +68,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
   {
     title: 'Pointing with that.',
     shortcuts: [
-      { id: 'that', label: 'that.: point at selected words, a video moment or a region', keys: { mod: true, key: '.' } },
+      { id: 'that', label: 'Write in the margin about selected words, a video moment or a region', keys: { mod: true, key: '.' } },
       { id: 'region', label: 'Draw a region on a sheet', keys: { alt: true, key: 'Drag' } },
     ],
   },
