@@ -66,7 +66,7 @@ export const SHORTCUTS: readonly ShortcutGroup[] = [
     shortcuts: [{ id: 'bookmark', label: 'Bookmark the page you’re reading, or remove its bookmark', keys: { mod: true, key: 'd' } }],
   },
   {
-    title: 'Pointing with that.',
+    title: 'The margin',
     shortcuts: [
       { id: 'that', label: 'Write in the margin about selected words, a video moment or a region', keys: { mod: true, key: '.' } },
       { id: 'region', label: 'Draw a region on a sheet', keys: { alt: true, key: 'Drag' } },

@@ -189,8 +189,12 @@ export function MarginLayer({
     })
     try {
       const turn = await agent.ask(question, { points: line.that ? [line.that] : [], margin: { ...(quote ? { quote } : {}), ...(title ? { title } : {}) } })
-      const text = turn.error ? `I couldn't answer: ${turn.error}` : turn.text
-      const added = await api.addToLine(line.id, { by: 'agent', text, ...(turn.error ? {} : { turnId: turn.id }) })
+      // A failure isn't an answer: it isn't kept on the line, so asking again works once it's fixed.
+      if (turn.error) {
+        onError(`I couldn't answer: ${turn.error}`)
+        return
+      }
+      const added = await api.addToLine(line.id, { by: 'agent', text: turn.text, turnId: turn.id })
       onLines((all) => all.map((known) => (known.id === added.id ? added : known)))
     } catch (reason) {
       onError(reason instanceof Error ? reason.message : String(reason))
