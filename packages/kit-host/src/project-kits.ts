@@ -47,9 +47,9 @@ export function asksNothing(asks: KitAsks): boolean {
 
 /** What each ask means, in words a person approves. */
 export function askLines(asks: KitAsks): string[] {
-  const reads: Record<string, string> = { notes: 'Read your notes in this project', sources: 'See the titles of your sources', thats: 'Read your that.s and the words they point at' }
+  const reads: Record<string, string> = { notes: 'Read your notes in this project', sources: 'See the titles of your sources', thats: 'Read the passages you marked in the margin' }
   const needs: Record<string, string> = {
-    'that.receive': 'Receive that.s you send it',
+    'that.receive': 'Receive passages you send it',
     'agent.ask': 'Ask the agent questions (each one shows in the thread)',
     'srs.schedule': 'Schedule reviews',
     speak: 'Read words aloud',

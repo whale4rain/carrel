@@ -8,9 +8,10 @@ export const TIDY_GAP = 24
  * Tidy up: lays sheets out in rows, in reading order (top to bottom, then
  * left to right), no wider than `width`, starting where the desk's top-left
  * already is. A pile moves as one, with room for its label. Sizes, scales and
- * stacking stay as they are.
+ * stacking stay as they are. `besides` is room a sheet needs to its right
+ * (its margin notes, say), kept clear of the next sheet in the row.
  */
-export function tidy<T extends SheetBox>(sheets: readonly T[], width: number, gap = TIDY_GAP): T[] {
+export function tidy<T extends SheetBox>(sheets: readonly T[], width: number, gap = TIDY_GAP, besides: (sheet: T) => number = () => 0): T[] {
   const units = new Map<string, T[]>()
   for (const sheet of sheets) {
     const key = sheet.pile === undefined ? `sheet:${sheet.id}` : `pile:${sheet.pile}`
@@ -19,7 +20,8 @@ export function tidy<T extends SheetBox>(sheets: readonly T[], width: number, ga
   const boxes = [...units.values()].map((members) => {
     const box = bounds(members.map(footprint))!
     const piled = members[0]!.pile !== undefined
-    return { members, box: piled ? { ...box, y: box.y - PILE_LABEL, h: box.h + PILE_LABEL } : box }
+    const room = Math.max(0, ...members.map(besides))
+    return { members, room, box: piled ? { ...box, y: box.y - PILE_LABEL, h: box.h + PILE_LABEL } : box }
   })
   const all = bounds(boxes.map(({ box }) => box))
   if (!all) return []
@@ -29,14 +31,14 @@ export function tidy<T extends SheetBox>(sheets: readonly T[], width: number, ga
   let x = all.x
   let y = all.y
   let rowHeight = 0
-  for (const { members, box } of boxes) {
+  for (const { members, box, room } of boxes) {
     if (x > all.x && x + box.w > all.x + width) {
       x = all.x
       y += rowHeight + gap
       rowHeight = 0
     }
     place(members, box, x, y, moved)
-    x += box.w + gap
+    x += box.w + room + gap
     rowHeight = Math.max(rowHeight, box.h)
   }
   return sheets.map((sheet) => moved.get(sheet.id) ?? sheet)

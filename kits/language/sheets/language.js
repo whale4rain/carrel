@@ -13,7 +13,7 @@ export const STAGES = [
   {
     id: 'intermediate',
     title: 'Intermediate',
-    does: 'A vocabulary deck built from your own that.s, and graded readers.',
+    does: 'A vocabulary deck built from what you mark as you read, and graded readers.',
     agent: 'The agent coaches: what to review, what to read next.',
     next: 'Move on when you keep most of your deck and look words up less.',
   },

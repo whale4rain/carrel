@@ -561,7 +561,9 @@ export function DeskPlane({
   // Rows as wide as the screen shows; one undoable step.
   const tidyUp = (): void => {
     const current = latest.current
-    const next = tidy(current, Math.max(800, (screen.w - 96) / view.zoom))
+    // A sheet with lines into the margin keeps its margin clear of the next sheet.
+    const written = new Set(marginLines.map((line) => line.itemId))
+    const next = tidy(current, Math.max(800, (screen.w - 96) / view.zoom), undefined, (sheet) => (sheet.itemId && written.has(sheet.itemId) ? MARGIN_ROOM : 0))
     const ids = changed(current, next).map((sheet) => sheet.id)
     if (ids.length > 0) save(next, 'tidied', ids, current)
   }

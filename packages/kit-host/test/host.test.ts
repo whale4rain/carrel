@@ -80,7 +80,7 @@ describe('permissions', () => {
   it('says what a kit asks for and remembers what was allowed', async () => {
     const kits = new ProjectKits(workspace, now)
     await kits.add(folder, cards)
-    expect(askLines(unanswered(cards, (await kits.list(folder))[0]))).toEqual(['Read your that.s and the words they point at', 'Read your notes in this project', 'Read words aloud', 'Schedule reviews'])
+    expect(askLines(unanswered(cards, (await kits.list(folder))[0]))).toEqual(['Read the passages you marked in the margin', 'Read your notes in this project', 'Read words aloud', 'Schedule reviews'])
     await kits.allow(folder, cards)
     expect(unanswered(cards, (await kits.list(folder))[0])).toEqual({ reads: [], net: [], needs: [] })
     // A new version that asks for more asks again, for the new part only.

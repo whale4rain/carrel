@@ -35,7 +35,7 @@ test('lay a learning kit on the desk, in its sandbox', async () => {
   await kits.getByRole('menuitem', { name: 'Stages' }).click()
   // It asks once, the first time.
   const asking = page.getByRole('dialog', { name: 'Allow Language' })
-  await expect(asking.locator('li')).toHaveText(['Read your that.s and the words they point at', 'Schedule reviews', 'Ask the agent questions (each one shows in the thread)'])
+  await expect(asking.locator('li')).toHaveText(['Read the passages you marked in the margin', 'Schedule reviews', 'Ask the agent questions (each one shows in the thread)'])
   await asking.getByRole('button', { name: 'Allow' }).click()
 
   const sheet = page.locator('.sheet[data-kind="kit"]')
@@ -133,7 +133,7 @@ test('a kit keeps its own store, and asks before it reads the project', async ()
   }
   await pick()
   const asking = page.getByRole('dialog', { name: 'Allow Counter' })
-  await expect(asking.locator('li')).toHaveText(['Read your that.s and the words they point at'])
+  await expect(asking.locator('li')).toHaveText(['Read the passages you marked in the margin'])
   await asking.getByRole('button', { name: 'Not now' }).click()
   await expect(page.locator('.sheet[data-kind="kit"]')).toHaveCount(0)
   await pick()

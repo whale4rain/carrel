@@ -37,7 +37,7 @@
       <div class="row"><button type="button" id="save" class="ink">Add to deck</button><span id="said" class="note" role="status"></span></div>
     </div>
 
-    <h2>From your <em>that.</em>s</h2>
+    <h2>From your reading</h2>
     <ul id="thats" class="plain list" aria-label="That.s to add"></ul>
 
     <h2 id="deck-title">In the deck</h2>
@@ -149,7 +149,7 @@
         const offered = wordThats(thats, cards).slice(-8).reverse()
         const thatList = document.getElementById('thats')
         if (offered.length === 0) {
-          thatList.innerHTML = '<li class="empty">Point at a word with <em>that.</em> as you read, and it shows here.</li>'
+          thatList.innerHTML = '<li class="empty">Select a word as you read and write it in the margin; it shows here.</li>'
         } else {
           thatList.replaceChildren(
             ...offered.map((that) => {
