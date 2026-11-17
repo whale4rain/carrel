@@ -7,10 +7,10 @@ export const WINDOWS_TITLE_HEIGHT = 36
 
 /**
  * Where the Mac traffic lights sit: centered over the 80px rail (the three
- * lights are 52px across) and level with the top bar's title. Keep in step
- * with `--rail-width` on the Mac frame in shell.css.
+ * lights are 52px across) and centered in the 44px top bar. Keep in step
+ * with `--rail-width` and `--topbar-height` on the Mac frame in shell.css.
  */
-export const MAC_TRAFFIC_LIGHTS = { x: 14, y: 20 } as const
+export const MAC_TRAFFIC_LIGHTS = { x: 14, y: 16 } as const
 
 /** The native caption buttons on Windows, colored to sit on the title strip. */
 export function titleBarOverlay(theme: Theme): TitleBarOverlayOptions {

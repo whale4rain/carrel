@@ -12,15 +12,16 @@ describe('windowOptions', () => {
     expect(options.trafficLightPosition).toEqual(MAC_TRAFFIC_LIGHTS)
   })
 
-  it('keeps the Mac traffic lights inside the rail and above its places', () => {
+  it('keeps the Mac traffic lights inside the rail and centered in the top bar', () => {
     const css = readFileSync(new URL('../src/renderer/shell.css', import.meta.url), 'utf8')
     const mac = /\.shell\[data-frame='mac'\] \{[^}]*--rail-width: (\d+)px/.exec(css)
-    const top = /\.shell\[data-frame='mac'\] \.place-column \{[^}]*padding-top: (\d+)px/.exec(css)
+    const top = /\.shell\[data-frame='mac'\] \{[^}]*--topbar-height: (\d+)px/.exec(css)
     const rail = Number(mac?.[1])
     // Three 12px lights, 8px apart, centered over the rail.
     const lights = 3 * 12 + 2 * 8
     expect(MAC_TRAFFIC_LIGHTS.x + lights).toBeLessThanOrEqual(rail - MAC_TRAFFIC_LIGHTS.x)
-    expect(MAC_TRAFFIC_LIGHTS.y + 12).toBeLessThan(Number(top?.[1]))
+    // Centered in the top bar, so the rail's places start below them.
+    expect(MAC_TRAFFIC_LIGHTS.y * 2 + 12).toBe(Number(top?.[1]))
   })
 
   it('draws its own title strip on Windows, with native caption buttons in the theme', () => {
