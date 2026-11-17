@@ -19,7 +19,7 @@ export const MAP_RANGES: ReadonlyArray<{ id: MapRange; label: string }> = [
 /** The group a piece the agent could not place goes in; drawn last. */
 export const LOOSE_ENDS = 'Loose ends'
 
-export const CARD = { width: 142, height: 66 }
+export const CARD = { width: 142, height: 70 }
 const ROW = 80
 const BAND_HEAD = 30
 const BAND_GAP = 18

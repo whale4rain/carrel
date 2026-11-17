@@ -162,7 +162,7 @@ function MapColumn({ frame, actions, kept }: Props) {
       {kept && <KeptLine kept={kept} />}
       <span className="grow" />
       <button type="button" className="row" onClick={actions.keep}>
-        <span className="grow">Keep something</span>
+        <span className="grow">Keep</span>
         <kbd>{shortcutLabel(frame, 'keep')}</kbd>
       </button>
       <p className="column-hint">Everything you read and ask is kept. Each evening Carrel draws lines between days.</p>
@@ -199,7 +199,7 @@ function TodayColumn({ frame, actions, state, kept }: Props) {
       </section>
       <span className="grow" />
       <button type="button" className="row" onClick={actions.keep}>
-        <span className="grow">Keep something</span>
+        <span className="grow">Keep</span>
         <kbd>{shortcutLabel(frame, 'keep')}</kbd>
       </button>
     </>

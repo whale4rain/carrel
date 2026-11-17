@@ -140,7 +140,8 @@ export function MapView({ frame, canWrite, onWriteMore, onOpenUrl }: Props) {
                     key={card.piece.id}
                     type="button"
                     className="map-card"
-                    style={{ left: card.x, top: card.y, width: CARD.width, minHeight: CARD.height }}
+                    style={{ left: card.x, top: card.y, width: CARD.width, height: CARD.height }}
+                    title={card.piece.title}
                     aria-pressed={card.piece.id === selected}
                     data-today={card.today || undefined}
                     onClick={() => select(card.piece.id)}

@@ -68,7 +68,7 @@ export function SearchPalette({
           <input
             autoFocus
             value={query}
-            placeholder="Search notes, sources, that.s and pages"
+            placeholder="Search notes, sources and pages"
             aria-label="Search"
             onChange={(event) => setQuery(event.target.value)}
             onKeyDown={(event) => {
