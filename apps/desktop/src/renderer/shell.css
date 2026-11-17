@@ -509,7 +509,8 @@ kbd {
   display: flex;
   align-items: center;
   justify-content: center;
-  overflow: hidden;
+  /* clip, not hidden: focusing a box near the edge (the margin's) must not scroll the desk away. */
+  overflow: clip;
   background-color: var(--mat);
   background-image:
     linear-gradient(var(--mat-line) 1px, transparent 1px),
@@ -1229,6 +1230,11 @@ kbd {
   display: block;
   cursor: default;
   user-select: none;
+}
+
+/* While dragging, the block under the words takes the gaps (see pdf-select.ts). */
+.textLayer.selecting .endOfContent {
+  top: 0;
 }
 
 /* A web page's area on its sheet: the snapshot, under the live page when there is one. */
