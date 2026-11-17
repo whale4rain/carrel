@@ -1,13 +1,26 @@
 import { tokens } from '@carrel/margin'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { WINDOWS_TITLE_HEIGHT, windowOptions } from '../src/main/window-options.js'
+import { readFileSync } from 'node:fs'
+import { MAC_TRAFFIC_LIGHTS, WINDOWS_TITLE_HEIGHT, windowOptions } from '../src/main/window-options.js'
 
 describe('windowOptions', () => {
   it('insets the traffic lights on Mac', () => {
     const options = windowOptions('darwin', '/p', 'day')
     expect(options.titleBarStyle).toBe('hiddenInset')
     expect(options.titleBarOverlay).toBeUndefined()
+    expect(options.trafficLightPosition).toEqual(MAC_TRAFFIC_LIGHTS)
+  })
+
+  it('keeps the Mac traffic lights inside the rail and above its places', () => {
+    const css = readFileSync(new URL('../src/renderer/shell.css', import.meta.url), 'utf8')
+    const mac = /\.shell\[data-frame='mac'\] \{[^}]*--rail-width: (\d+)px/.exec(css)
+    const top = /\.shell\[data-frame='mac'\] \.place-column \{[^}]*padding-top: (\d+)px/.exec(css)
+    const rail = Number(mac?.[1])
+    // Three 12px lights, 8px apart, centered over the rail.
+    const lights = 3 * 12 + 2 * 8
+    expect(MAC_TRAFFIC_LIGHTS.x + lights).toBeLessThanOrEqual(rail - MAC_TRAFFIC_LIGHTS.x)
+    expect(MAC_TRAFFIC_LIGHTS.y + 12).toBeLessThan(Number(top?.[1]))
   })
 
   it('draws its own title strip on Windows, with native caption buttons in the theme', () => {
