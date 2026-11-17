@@ -30,4 +30,10 @@ describe('tidy', () => {
     const messy = [sheet('a', { x: 600, z: 2, scale: 0.4 }), sheet('b', { z: 1 })]
     expect(tidy(messy, 2000).map(({ id, w, h, scale, z }) => ({ id, w, h, scale, z }))).toEqual(messy.map(({ id, w, h, scale, z }) => ({ id, w, h, scale, z })))
   })
+
+  it('keeps room beside a sheet that needs it, such as its margin', () => {
+    const messy = [sheet('a', { x: 0 }), sheet('b', { x: 500 })]
+    const tidied = tidy(messy, 2000, TIDY_GAP, (s) => (s.id === 'a' ? 270 : 0))
+    expect(tidied[1]!.x).toBe(400 + 270 + TIDY_GAP)
+  })
 })

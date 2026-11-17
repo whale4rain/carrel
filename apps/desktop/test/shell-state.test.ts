@@ -279,7 +279,7 @@ describe('turns of the project thread through the shell', () => {
       title: 'Language',
       added: false,
       sheets: [{ id: 'stages', title: 'Stages' }, { id: 'deck', title: 'Vocabulary' }, { id: 'review', title: 'Review' }],
-      asks: ['Read your that.s and the words they point at', 'Schedule reviews', 'Ask the agent questions (each one shows in the thread)'],
+      asks: ['Read the passages you marked in the margin', 'Schedule reviews', 'Ask the agent questions (each one shows in the thread)'],
     })
     // It asks first.
     await expect(shell.addKit('language')).rejects.toThrow('Allow it to add it')

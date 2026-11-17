@@ -3264,9 +3264,10 @@ kbd {
 .note-page {
   grid-area: desk;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) 248px;
+  grid-template-columns: minmax(0, 1fr) auto;
   min-height: 0;
   background: var(--paper);
+  container-type: inline-size;
 }
 
 .note-page-paper {
@@ -3336,6 +3337,8 @@ kbd {
 
 .note-margin {
   display: flex;
+  box-sizing: border-box;
+  width: 248px;
   flex-direction: column;
   gap: var(--space-6);
   min-height: 0;
@@ -4224,4 +4227,12 @@ kbd {
   margin: 0 var(--space-8) var(--space-4);
   font: var(--text-caption);
   color: var(--danger);
+}
+
+/* A narrow note page (the agent open beside it, a small window): the words
+   and their margin come first; Linked here and Cites step aside. */
+@container (width < 880px) {
+  .note-page .note-margin {
+    display: none;
+  }
 }
