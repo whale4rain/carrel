@@ -310,7 +310,7 @@ export function AgentPanel({
                   <b>Recall other days</b> what you kept and asked, across projects
                 </li>
                 <li>
-                  <b>Point with that.</b> at the passage each point comes from
+                  <b>Point at the passage</b> each point comes from
                 </li>
                 <li>
                   <b>Write notes and add sources</b> in pencil, until you press Tab

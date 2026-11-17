@@ -279,7 +279,7 @@ export function NotePage({ note, items, write, onSaved, onOpenThat, onOpenItem, 
             Cites <span className="count">{cited.length}</span>
           </h2>
           {cited.length === 0 ? (
-            <p className="note-margin-empty">Put the note on a desk beside a source, then drag a that. into it.</p>
+            <p className="note-margin-empty">Drag a margin note into this note to cite what its line points at.</p>
           ) : (
             <ul className="note-margin-list">
               {cited.map((item) => (
