@@ -10,6 +10,8 @@ const agent = window.carrel.agent
 /** The margin column beside a sheet, in desk units. */
 const GAP = 22
 const WIDTH = 248
+/** How much room the margin takes to the right of a sheet. */
+export const MARGIN_ROOM = GAP + WIDTH
 /** Room between two notes in one margin. */
 const SPACE = 12
 

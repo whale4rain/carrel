@@ -52,7 +52,7 @@ import { citesLine, kindLabel, linkIn, sheetFor, sourceLine } from './sources.js
 import { KitView } from './KitView.js'
 import { pdfSelection } from './that.js'
 import { bandKey, bandRanges, DRAFT_BAND, setBands } from './bands.js'
-import { MarginLayer, type MarginDraft } from './Margin.js'
+import { MARGIN_ROOM, MarginLayer, type MarginDraft } from './Margin.js'
 import { DESK_COMMAND, frame } from './platform.js'
 import { shortcutLabel, withShortcut } from '../shared/shortcuts.js'
 import { TEXT_COMMANDS, type AgentAsk, type MenuEntry } from '../shared/menu.js'
@@ -1464,7 +1464,8 @@ export function DeskPlane({
 function focusLayout(sheets: readonly Sheet[], screen: { w: number; h: number }): Sheet[] {
   const top = FOCUS_BAR + 16
   const h = Math.max(200, screen.h - top - FOCUS_SHELF - FOCUS_MARGIN)
-  const room = Math.max(320, screen.w - FOCUS_MARGIN * 2)
+  // The margin's notes sit to the right of the sheets, so they get room too.
+  const room = Math.max(320, screen.w - FOCUS_MARGIN * 2 - MARGIN_ROOM)
   const gap = 16
   // The focused sheet's share counts 1.5 when others are beside it.
   const shares = sheets.map((_, i) => (i === 0 && sheets.length > 1 ? 1.5 : 1))
@@ -1472,7 +1473,7 @@ function focusLayout(sheets: readonly Sheet[], screen: { w: number; h: number })
   const free = room - gap * (sheets.length - 1)
   const widths = sheets.length === 1 ? [Math.min(FOCUS_MAX_W, room)] : shares.map((share) => Math.max(240, Math.floor((free * share) / total)))
   const used = widths.reduce((sum, w) => sum + w, 0) + gap * (sheets.length - 1)
-  let x = Math.round((screen.w - used) / 2)
+  let x = Math.max(FOCUS_MARGIN, Math.round((screen.w - used - MARGIN_ROOM) / 2))
   return sheets.map((sheet, i) => {
     const shown: Sheet = { ...sheet, x, y: top, w: widths[i]!, h, scale: 1 }
     delete shown.folded

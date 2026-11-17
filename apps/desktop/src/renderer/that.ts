@@ -36,12 +36,22 @@ export function rangeAt(text: ReturnType<typeof textOf>, start: number, end: num
 /** Where a range starts and ends in the text of an element (see `textOf`). */
 export function textOffsets(root: Node, range: Range): { source: string; start: number; end: number } | undefined {
   const { source, nodes } = textOf(root)
-  let start = -1
-  let end = -1
-  for (const { node, offset } of nodes) {
-    if (node === range.startContainer) start = offset + range.startOffset
-    if (node === range.endContainer) end = offset + range.endOffset
+  // A boundary between elements (a drag that ends past the last word ends on
+  // the layer itself) counts from the first text after it.
+  const at = (container: Node, offset: number): number => {
+    for (const node of nodes) if (node.node === container) return node.offset + offset
+    if (container instanceof Text) return -1
+    const next = container.childNodes[offset]
+    for (const node of nodes) {
+      if (next ? next === node.node || next.contains(node.node) || next.compareDocumentPosition(node.node) & Node.DOCUMENT_POSITION_FOLLOWING : !container.contains(node.node) && container.compareDocumentPosition(node.node) & Node.DOCUMENT_POSITION_FOLLOWING) return node.offset
+    }
+    return source.length
   }
+  let start = root.contains(range.startContainer) ? at(range.startContainer, range.startOffset) : -1
+  let end = root.contains(range.endContainer) ? at(range.endContainer, range.endOffset) : -1
+  // Line breaks at either end aren't words.
+  while (start >= 0 && start < end && /\s/.test(source[start] ?? '')) start++
+  while (end > start && /\s/.test(source[end - 1] ?? '')) end--
   // A range that starts or ends on an element, not in text: find its words instead.
   if (start < 0 || end <= start) {
     const exact = range.toString()

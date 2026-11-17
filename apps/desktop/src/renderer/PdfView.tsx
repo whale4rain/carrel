@@ -4,6 +4,7 @@ import { findText, pageOf, regionOf } from '@carrel/core/selectors'
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
 import type { ThatView } from '../shared/workspace-api.js'
 import { bandKey, setActiveBand, setBands } from './bands.js'
+import { keepSelectionInPlace } from './pdf-select.js'
 import { rangeAt, textOf } from './that.js'
 import { ReaderTools, type Bookmarks, type Chapter } from './ReaderTools.js'
 
@@ -136,22 +137,35 @@ export function PdfView({
     }
     // Once per document.
   }, [pdf])
+  // The listener stays for the document: a re-render (the page label changing
+  // as you scroll) must not drop the save that is waiting.
+  const whereNow = useRef(where)
+  whereNow.current = where
   useEffect(() => {
     const element = scroller.current
     if (!element || !pdf) return
     let timer: ReturnType<typeof setTimeout> | undefined
+    let waiting: { page: number; offset: number } | undefined
+    const save = (): void => {
+      if (waiting) void api.saveReadAt(itemId, waiting).catch(() => undefined)
+      waiting = undefined
+    }
     const onScroll = (): void => {
-      setPage(where().page)
+      const at = whereNow.current()
+      setPage(at.page)
       if (!restored.current) return
+      waiting = at
       clearTimeout(timer)
-      timer = setTimeout(() => void api.saveReadAt(itemId, where()).catch(() => undefined), SAVE_AFTER)
+      timer = setTimeout(save, SAVE_AFTER)
     }
     element.addEventListener('scroll', onScroll, { passive: true })
     return () => {
       clearTimeout(timer)
       element.removeEventListener('scroll', onScroll)
+      // Leaving Focus right after scrolling still keeps the page.
+      save()
     }
-  })
+  }, [pdf, itemId])
 
   // Zooming keeps the same spot in view.
   const lastStep = useRef(step)
@@ -336,10 +350,18 @@ function PdfPage(props: {
     layer.replaceChildren()
     layer.style.setProperty('--total-scale-factor', String(viewport.scale))
     const textLayer = new TextLayer({ textContentSource: page.streamTextContent(), container: layer, viewport })
-    textLayer.render().then(() => setDrawn((count) => count + 1), () => undefined)
+    let forget: (() => void) | undefined
+    textLayer.render().then(
+      () => {
+        forget = keepSelectionInPlace(layer)
+        setDrawn((count) => count + 1)
+      },
+      () => undefined,
+    )
     return () => {
       task.cancel()
       textLayer.cancel()
+      forget?.()
     }
   }, [near, page, pixels, width])
 
