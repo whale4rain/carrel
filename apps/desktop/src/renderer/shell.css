@@ -289,25 +289,27 @@ kbd {
   min-width: 34px;
 }
 
-/* On Mac the traffic lights sit at the top of the rail. */
 /* Mac: the traffic lights (52px across) sit centered over the rail, so the
-   rail is wider there than the lights; the column keeps its width. The
-   rail and column start below the lights, level with the top bar's rule. */
+   rail is wider there than the lights; the column keeps its width. The top
+   bar is a compact 44px with the lights centered in it, and the rail and
+   column start below, level with the top bar's rule. */
 .shell[data-frame='mac'] {
   --rail-width: 80px;
   --sidebar-width: 300px;
+  --topbar-height: 44px;
+  grid-template-rows: var(--topbar-height) 1fr;
 }
 
 .shell[data-frame='mac'] .rail,
 .shell[data-frame='mac'] .place-column {
-  padding-top: 52px;
+  padding-top: var(--topbar-height);
 }
 
 .shell[data-frame='mac'] .sidebar::before {
   content: '';
   position: absolute;
   inset: 0 0 auto;
-  height: 52px;
+  height: var(--topbar-height);
 }
 
 .project {
