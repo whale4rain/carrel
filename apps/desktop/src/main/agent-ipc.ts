@@ -48,7 +48,7 @@ export function serveAgent(workspace: Workspace, controller: ShellController, re
   const current = (): LLMAdapter => {
     if (scripted) return (model ??= scriptedModel())
     const key = apiKey()
-    if (!key) throw new Error('Add a model key first.')
+    if (!key) throw new Error('Add a model key in the agent panel first.')
     return (model ??= createLlmAdapter({ baseUrl: BASE_URL, model: MODEL, apiKey: key, protocol: 'openai' }))
   }
 
