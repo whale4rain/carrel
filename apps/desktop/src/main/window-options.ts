@@ -5,6 +5,13 @@ import type { BrowserWindowConstructorOptions, TitleBarOverlayOptions } from 'el
 /** Height of the Windows title strip, where the native caption buttons sit. */
 export const WINDOWS_TITLE_HEIGHT = 36
 
+/**
+ * Where the Mac traffic lights sit: centered over the 80px rail (the three
+ * lights are 52px across) and level with the top bar's title. Keep in step
+ * with `--rail-width` on the Mac frame in shell.css.
+ */
+export const MAC_TRAFFIC_LIGHTS = { x: 14, y: 20 } as const
+
 /** The native caption buttons on Windows, colored to sit on the title strip. */
 export function titleBarOverlay(theme: Theme): TitleBarOverlayOptions {
   return {
@@ -16,13 +23,13 @@ export function titleBarOverlay(theme: Theme): TitleBarOverlayOptions {
 
 /**
  * Window options per platform. Mac keeps its traffic lights, inset over the
- * sidebar; Windows draws its own title strip with the native caption buttons
+ * rail; Windows draws its own title strip with the native caption buttons
  * on top; other platforms keep the system frame.
  */
 export function windowOptions(platform: NodeJS.Platform, preload: string, theme: Theme, iconDir?: string): BrowserWindowConstructorOptions {
   const frame: BrowserWindowConstructorOptions =
     platform === 'darwin'
-      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: { x: 20, y: 19 } }
+      ? { titleBarStyle: 'hiddenInset', trafficLightPosition: MAC_TRAFFIC_LIGHTS }
       : platform === 'win32'
         ? { titleBarStyle: 'hidden', titleBarOverlay: titleBarOverlay(theme) }
         : {}
