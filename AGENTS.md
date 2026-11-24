@@ -31,8 +31,9 @@ design doc's "Plan from 28 Oct" section; mockup: `MarginMap` in the canvas
 
 **Rail of places (30 Oct):** the sidebar is a rail of places (Map, Today,
 Desks, Notes, Sources, then the Agent) with one column beside it for the picked
-place; conversations live in the agent. The Map is the start page once it has
-pieces. Mockups `MarginNavB` and `MarginNavB1` (copies in
+place; conversations live in the agent. **24 Nov:** the owner hid the Map and
+Today ("we don't need it"): the rail shows Desks, Notes and Sources; their code
+stays, unreachable, and `map.spec.ts` was removed. Mockups `MarginNavB` and `MarginNavB1` (copies in
 [`.agent/design/mockups/`](.agent/design/mockups/MarginNavB.png)); code in
 `src/renderer/Sidebar.tsx`. e2e tests pick a place with `place(page, 'Notes')`
 from `e2e/app.ts` before using its column.
@@ -56,6 +57,17 @@ line from the sheet's top edge (no words to underline). A margin note dragged
 into a note cites what its line points at; citations everywhere are quiet
 pencil links. Mockup: the "Point by
 drawing a line" artifact (https://claude.ai/artifact/BmSV5631YbAXP5v37FWFcn).
+
+**Margin on the sheet (24 Nov):** the owner wants margin notes to look on the
+page without being the page, and to belong to the source, not the desk. On a
+desk, a sheet's notes are drawn (portaled) in a strip `.sheet-margin` attached
+to its right edge, `MARGIN_ROOM` wide at the sheet's scale, so they move, scale
+and stack with it and stay within its height. Focus keeps that room for the
+focused sheet and for any sheet beside it that has lines; Tidy up and new
+sheets (`placeNew` with a size finds free room, reading order) keep it clear,
+and the desk zooms out to show what was added with what you were looking at.
+Keep as note (`keepLine`) writes the quoted passage, a cite to its page, then
+the questions and answers.
 
 **Memory on disk:** `~/Carrel/Memory/` (not a project; the name is reserved)
 holds `kept/YYYY-MM-DD.jsonl` (captures; a later line with the same key wins),

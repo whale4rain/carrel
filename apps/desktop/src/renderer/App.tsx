@@ -39,20 +39,11 @@ export function App() {
   // The map of what you learned, open in place of the desk; and what was kept today, for the sidebar.
   const [map, setMap] = useState(false)
   const [kept, setKept] = useState<KeptToday>()
-  // The place picked on the rail. The map is the start page once it has pieces on it.
+  // The place picked on the rail.
   const [place, setPlace] = useState<Place>('desks')
   // Anything opened before the map answers (a place, desk, note or view) wins over the start page.
   const placePicked = useRef(false)
-  useEffect(() => {
-    void window.carrel.memory.map('2w').then(
-      (data) => {
-        if (data.pieces.length === 0 || placePicked.current) return
-        setMap(true)
-        setPlace('map')
-      },
-      () => undefined,
-    )
-  }, [])
+  // The Map and Today are hidden for now (owner, 24 Nov): the desk is where you start.
   // Leaving the map for a desk, a note or a view leaves its place too.
   useEffect(() => {
     if (!map) setPlace((now) => (now === 'map' ? 'desks' : now))
@@ -230,6 +221,16 @@ export function App() {
 
   // A web page can rename its item once it loads.
   useEffect(() => window.carrel.web.onItem((item) => setItems((known) => new Map(known).set(item.id, item))), [])
+
+  // The first run: the sentence names the project, then is the agent's first
+  // turn there, so what you said you're learning (and from what) isn't lost.
+  const startProject = async (name: string, about: string): Promise<void> => {
+    await actions.createProject(name)
+    if (!about || about === name) return
+    const ready = await window.carrel.agent.status().then((status) => status.ready, () => false)
+    setTalking(true)
+    setPrompt({ text: `${about}\n\nI just made this project for it. How should I start, and can you help me find what I named?`, send: ready, nonce: Date.now() })
+  }
 
   // Each action returns the new state from disk; errors reach the field that asked.
   const actions: WorkspaceActions = {
@@ -413,7 +414,7 @@ export function App() {
               onContext={(context) => (deskContext.current = context)}
               onAsk={askAgent}
               onOpenLink={(target) => void openLink(target)}
-            /> : <FirstRun frame={frame} onCreate={actions.createProject} onImport={() => setMemorySettings({ importAsk: Date.now() })} onMap={() => actions.openPlace('map')} />}
+            /> : <FirstRun frame={frame} onCreate={startProject} />}
           {talking && open && (
             <AgentPanel
               key={`${open.project}/${threadId}`}

@@ -4236,3 +4236,32 @@ kbd {
     display: none;
   }
 }
+
+/* A sheet's own margin: beside the page, like the page's outer margin, but
+   not part of it. Its lines and notes move, scale and stack with the sheet. */
+.sheet-margin {
+  position: absolute;
+  top: 0;
+  pointer-events: none;
+}
+
+.sheet-margin-page {
+  position: relative;
+  transform-origin: 0 0;
+  border-radius: 0 var(--radius-sheet) var(--radius-sheet) 0;
+  background: color-mix(in srgb, var(--paper) 78%, transparent);
+  box-shadow: inset 1px 0 0 color-mix(in srgb, var(--rule) 60%, transparent);
+}
+
+.sheet-margin-page > .margin-layer[data-in-sheet] {
+  position: absolute;
+  inset: 0;
+  width: auto;
+  height: auto;
+  z-index: auto;
+  pointer-events: auto;
+}
+
+.sheet-margin-page > .margin-layer[data-in-sheet] .margin-lines {
+  z-index: 1;
+}

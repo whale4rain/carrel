@@ -190,25 +190,27 @@ test('build a deck from that.s, review it, and move on a stage', async () => {
   await addSheet('Vocabulary')
   await page.getByRole('dialog', { name: 'Allow Language' }).getByRole('button', { name: 'Allow' }).click()
 
+  // The desk zooms out to show the kits beside the reading. Playwright places clicks in a
+  // scaled frame as if it were not scaled, so the kit's buttons are clicked as events.
   // The that. waits in the deck; one click puts its words in, and the agent suggests a meaning in pencil.
   const deck = await kitFrame(page, 'language', 'deck')
   await expect(deck.locator('#thats .that')).toHaveText(['la mesa'])
   await expect(deck.locator('#thats .from')).toHaveText(['Lectura, §1'])
-  await deck.getByRole('button', { name: 'Use "la mesa"' }).click()
+  await deck.getByRole('button', { name: 'Use "la mesa"' }).dispatchEvent('click')
   await expect(deck.locator('#front')).toHaveValue('la mesa')
-  await deck.getByRole('button', { name: 'Suggest' }).click()
+  await deck.getByRole('button', { name: 'Suggest' }).dispatchEvent('click')
   const suggestion = deck.getByRole('status', { name: 'Suggested meaning' })
   await expect(suggestion.locator('.said')).toHaveText('the table')
   await expect(deck.locator('#back')).toHaveValue('')
   // Esc dismisses it; asked again, Tab keeps it.
   await deck.locator('#back').press('Escape')
   await expect(suggestion).toBeHidden()
-  await deck.getByRole('button', { name: 'Suggest' }).click()
+  await deck.getByRole('button', { name: 'Suggest' }).dispatchEvent('click')
   await expect(suggestion.locator('.said')).toHaveText('the table')
   await deck.locator('#back').press('Tab')
   await expect(suggestion).toBeHidden()
   await expect(deck.locator('#back')).toHaveValue('the table')
-  await deck.getByRole('button', { name: 'Add to deck' }).click()
+  await deck.getByRole('button', { name: 'Add to deck' }).dispatchEvent('click')
   await expect(deck.locator('#cards .front')).toHaveText(['la mesa'])
   await expect(deck.locator('#thats .that')).toHaveCount(0)
 
@@ -218,9 +220,9 @@ test('build a deck from that.s, review it, and move on a stage', async () => {
   await expect(review.locator('#count')).toHaveText('1 card to review')
   await expect(review.locator('#word')).toHaveText('la mesa')
   await expect(review.locator('#source')).toHaveText('Lectura, §1')
-  await review.getByRole('button', { name: 'Show meaning' }).click()
+  await review.getByRole('button', { name: 'Show meaning' }).dispatchEvent('click')
   await expect(review.locator('#meaning')).toHaveText('the table')
-  await review.getByRole('button', { name: 'Good' }).click()
+  await review.getByRole('button', { name: 'Good' }).dispatchEvent('click')
   await expect(review.locator('#count')).toHaveText('Nothing due. Come back later.')
   // The deck hears of the review: the card is due tomorrow.
   await expect(deck.locator('#cards .when')).toHaveText(['tomorrow'])
@@ -230,7 +232,7 @@ test('build a deck from that.s, review it, and move on a stage', async () => {
   const stages = await kitFrame(page, 'language', 'stages')
   await expect(stages.locator('[aria-current="step"] h2')).toHaveText('Beginner')
   await expect(stages.getByLabel('Your numbers')).toContainText('1in the deck')
-  await stages.getByRole('button', { name: 'Move to Intermediate' }).click()
+  await stages.getByRole('button', { name: 'Move to Intermediate' }).dispatchEvent('click')
   await expect(stages.locator('[aria-current="step"] h2')).toHaveText('Intermediate')
 
   await page.waitForTimeout(800)

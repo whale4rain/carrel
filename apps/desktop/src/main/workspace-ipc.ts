@@ -76,6 +76,7 @@ export function serveWorkspace(controller: ShellController): () => Promise<void>
     drawLine: (line) => controller.drawLine(line),
     addToLine: (id, entry) => controller.addToLine(text(id), entry),
     eraseLine: (id) => controller.eraseLine(text(id)),
+    keepLine: (id) => controller.keepLine(text(id)),
     marginModes: () => controller.marginModes(),
     setMarginMode: (id, mode) => controller.setMarginMode(text(id), mode),
     thatImage: (id) => controller.thatImage(text(id)),

@@ -53,6 +53,7 @@ const workspace: WorkspaceApi = {
   drawLine: (line) => call(workspaceChannels.drawLine, line),
   addToLine: (id, entry) => call(workspaceChannels.addToLine, id, entry),
   eraseLine: (id) => call(workspaceChannels.eraseLine, id),
+  keepLine: (id) => call(workspaceChannels.keepLine, id),
   marginModes: () => call(workspaceChannels.marginModes),
   setMarginMode: (id, mode) => call(workspaceChannels.setMarginMode, id, mode),
   thatImage: (id) => call(workspaceChannels.thatImage, id),

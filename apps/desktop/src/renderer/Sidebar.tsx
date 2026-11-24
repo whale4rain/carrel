@@ -12,9 +12,8 @@ import { NotesTree, type NotesTreeActions } from './NotesTree.js'
 /** The places on the rail. Each shows its own column; the agent is a place too. */
 export type Place = 'map' | 'today' | 'desks' | 'notes' | 'sources'
 
+// The Map and Today are hidden for now (owner, 24 Nov); their columns stay in the code.
 const PLACES: ReadonlyArray<{ id: Place; label: string; name: string }> = [
-  { id: 'map', label: 'Map', name: 'Map of what you learned' },
-  { id: 'today', label: 'Today', name: 'Today' },
   { id: 'desks', label: 'Desks', name: 'Desks' },
   { id: 'notes', label: 'Notes', name: 'Notes' },
   { id: 'sources', label: 'Sources', name: 'Sources' },
