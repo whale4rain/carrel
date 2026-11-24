@@ -91,6 +91,17 @@ describe('placeNew', () => {
     expect(placeNew([])).toEqual({ x: 48, y: 48 })
     expect(placeNew([sheet('a', { x: 48, y: 48 })])).toEqual({ x: 80, y: 80 })
   })
+
+  it('with a size, finds free room beside or under the sheets there', () => {
+    const size = { w: 400, h: 300, scale: 1 }
+    expect(placeNew([], { x: 48, y: 48 }, size)).toEqual({ x: 48, y: 48 })
+    const one = [sheet('a', { x: 48, y: 48 })]
+    expect(placeNew(one, { x: 48, y: 48 }, size)).toEqual({ x: 48 + 400 + 32, y: 48 })
+    // The margin beside a sheet stays clear.
+    expect(placeNew(one, { x: 48, y: 48 }, size, { room: () => 270 })).toEqual({ x: 48 + 400 + 270 + 32, y: 48 })
+    // A row that is full goes under.
+    expect(placeNew(one, { x: 48, y: 48 }, size, { width: 600 })).toEqual({ x: 48, y: 48 + 300 + 32 })
+  })
 })
 
 describe('changed', () => {

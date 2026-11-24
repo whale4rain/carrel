@@ -264,6 +264,23 @@ export class ShellController {
     await this.margin.erase(await this.openFolder(), id)
   }
 
+  /** A kept margin line is a note: the passage quoted and cited to its page, then the questions and answers. */
+  async keepLine(id: string): Promise<ItemView> {
+    const folder = await this.openFolder()
+    const line = (await this.margin.lines(folder)).find((known) => known.id === id)
+    if (!line) throw new Error('That line was rubbed out.')
+    const that = line.that ? await this.anchors.read(folder, line.that).catch(() => undefined) : undefined
+    const passage = (that?.snapshot.text ?? line.quote ?? '').replace(/\s+/g, ' ').trim()
+    const asked = line.entries.find((entry) => entry.by === 'user')?.text.replace(/\s+/g, ' ').trim()
+    const title = asked ? (asked.length > 80 ? `${asked.slice(0, 79).trimEnd()}…` : asked) : passage ? `On “${passage.slice(0, 60).trimEnd()}${passage.length > 60 ? '…' : ''}”` : 'From the margin'
+    const parts = [`# ${title}`]
+    if (passage) parts.push(`> ${passage}`)
+    if (that) parts.push(`[${that.label}](that:${that.id})`)
+    for (const entry of line.entries) parts.push(entry.by === 'user' ? `**Asked:** ${entry.text.trim()}` : entry.text.trim())
+    const doc = fromMarkdown(parts.join('\n\n'))
+    return noteItem(await this.notes.create(folder, { type: 'doc', content: doc.content }), await this.citedItems(folder))
+  }
+
   async marginModes(): Promise<Record<string, MarginMode>> {
     return this.margin.modes(await this.openFolder())
   }

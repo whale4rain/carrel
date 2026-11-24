@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type RefObject, type WheelEvent as ReactWheelEvent } from 'react'
+import { createPortal } from 'react-dom'
 import type { ItemView, MarginLine } from '../shared/workspace-api.js'
 import { bandRanges, DRAFT_BAND, onBands, setBands } from './bands.js'
 import { Markdown } from './Markdown.js'
@@ -41,6 +42,12 @@ export interface MarginSheet {
   itemId: string
   /** The element the margin sits beside; on the desk, the sheet's paper. */
   paper?: () => HTMLElement | null
+  /**
+   * The sheet's own margin, beside its page: when there is one, the lines and
+   * notes are drawn in it, in the sheet's units, so they belong to the sheet
+   * (they move, scale and stack with it) and stay within its height.
+   */
+  margin?: () => HTMLElement | null
 }
 
 interface Placed {
@@ -53,6 +60,8 @@ interface Placed {
   /** The note in the margin. */
   left: number
   top: number
+  /** Drawn in the sheet's own margin, in its units, rather than on the desk. */
+  local?: boolean
 }
 
 /**
@@ -96,6 +105,8 @@ export function MarginLayer({
   // Lines whose answer was kept, with the note's title.
   const [kept, setKept] = useState<Map<string, string>>(new Map())
   const notes = useRef(new Map<string, HTMLElement>())
+  // Each sheet's own margin, found when the lines were placed.
+  const targets = useRef(new Map<string, HTMLElement>())
   const [tick, setTick] = useState(0)
   const frame = useRef<number>(undefined)
   const bump = useCallback(() => {
@@ -143,11 +154,19 @@ export function MarginLayer({
     const origin = element.getBoundingClientRect()
     const toWorld = (x: number, y: number): { x: number; y: number } => ({ x: (x - origin.left) / zoom, y: (y - origin.top) / zoom })
     const next: Placed[] = []
+    const found = new Map<string, HTMLElement>()
     for (const sheet of sheets) {
       const paper = sheet.paper ? sheet.paper() : element.querySelector<HTMLElement>(`.sheet[data-sheet="${CSS.escape(sheet.id)}"] .sheet-paper`)
       if (!paper) continue
       const box = paper.getBoundingClientRect()
-      const right = toWorld(box.right, box.top)
+      // In the sheet's own margin, positions are in its units, from the margin's top-left.
+      const own = sheet.margin?.() ?? null
+      const frame = own?.getBoundingClientRect()
+      const factor = frame && frame.width > 0 ? frame.width / MARGIN_ROOM : 0
+      const local = own !== null && factor > 0
+      if (local) found.set(sheet.id, own)
+      const toHere = local ? (x: number, y: number) => ({ x: (x - frame!.left) / factor, y: (y - frame!.top) / factor }) : toWorld
+      const right = local ? { x: 0, y: (box.top - frame!.top) / factor } : toWorld(box.right, box.top)
       const wanted: Array<{ key: string; x: number; y: number }> = []
       const startOf = (ranges: MarginAnchor): { x: number; y: number } | undefined => {
         // Not words on the page: a short stroke in from the sheet's top corner.
@@ -156,7 +175,7 @@ export function MarginLayer({
         const last = rects.at(-1)
         // Words scrolled out of their sheet have no line.
         if (!last || last.bottom < box.top || last.top > box.bottom) return undefined
-        return toWorld(last.right, last.bottom)
+        return toHere(last.right, last.bottom)
       }
       for (const line of lines) {
         if (line.itemId !== sheet.itemId) continue
@@ -169,14 +188,26 @@ export function MarginLayer({
       }
       // Notes sit level with their words, pushed down so none overlap.
       wanted.sort((a, b) => a.y - b.y)
+      // offsetHeight is in the note's own units (transforms don't change it), on the desk or in a sheet.
+      const height = (key: string): number => notes.current.get(key)?.offsetHeight ?? 56
+      const tops: number[] = []
       let floor = -Infinity
       for (const one of wanted) {
         const top = Math.max(one.y - 14, floor)
-        const height = notes.current.get(one.key)?.offsetHeight ?? 56
-        floor = top + height + SPACE
-        next.push({ key: one.key, sheet: sheet.id, x: one.x, y: one.y, edge: right.x, left: right.x + GAP, top })
+        tops.push(top)
+        floor = top + height(one.key) + SPACE
       }
+      // In the sheet's own margin, notes that would run past the bottom move up, so all of them show.
+      if (local) {
+        let ceiling = frame!.height / factor
+        for (let i = wanted.length - 1; i >= 0; i--) {
+          tops[i] = Math.max(0, Math.min(tops[i]!, ceiling - height(wanted[i]!.key)))
+          ceiling = tops[i]! - SPACE
+        }
+      }
+      wanted.forEach((one, i) => next.push({ key: one.key, sheet: sheet.id, x: one.x, y: one.y, edge: right.x, left: right.x + GAP, top: tops[i]!, ...(local ? { local } : {}) }))
     }
+    targets.current = found
     setPlaced((now) => (JSON.stringify(now) === JSON.stringify(next) ? now : next))
   })
   // `tick` re-renders; the layout effect above runs after every render.
@@ -245,10 +276,9 @@ export function MarginLayer({
   }
 
   const keep = async (line: MarginLine): Promise<void> => {
-    const last = line.entries.findLast((entry) => entry.by === 'agent' && entry.turnId)
-    if (!last?.turnId) return
+    if (!line.entries.some((entry) => entry.by === 'agent')) return
     try {
-      const note = await agent.addToNote(last.turnId)
+      const note = await api.keepLine(line.id)
       onKept(note)
       setKept((now) => new Map(now).set(line.id, note.title))
     } catch (reason) {
@@ -272,10 +302,10 @@ export function MarginLayer({
     else notes.current.delete(key)
   }
 
-  return (
-    <div className="margin-layer" onPointerDown={(event) => event.stopPropagation()} onWheel={(event) => event.stopPropagation()}>
+  const drawn = (group: readonly Placed[]): ReactNode => (
+    <>
       <svg className="margin-lines" aria-hidden>
-        {placed.map((one) => (
+        {group.map((one) => (
           <path
             key={one.key}
             data-line={one.key}
@@ -285,7 +315,7 @@ export function MarginLayer({
           />
         ))}
       </svg>
-      {placed.map((one) => {
+      {group.map((one) => {
         if (one.key === DRAFT_BAND) {
           return draft ? <DraftBox key={draft.sheet + DRAFT_BAND} at={one} about={draft.edge} focus={draft.start === 'ask' || draft.edge !== undefined} refer={keep2(DRAFT_BAND)} onDone={(text, asking) => void startLine(text, asking)} onCancel={() => (setBands(DRAFT_BAND, []), onDraftDone())} /> : null
         }
@@ -309,7 +339,33 @@ export function MarginLayer({
           />
         )
       })}
-    </div>
+    </>
+  )
+  const stop = {
+    onPointerDown: (event: ReactPointerEvent) => event.stopPropagation(),
+    onWheel: (event: ReactWheelEvent) => event.stopPropagation(),
+  }
+  const onDesk = placed.filter((one) => !one.local)
+  const bySheet = new Map<string, Placed[]>()
+  for (const one of placed) if (one.local) bySheet.set(one.sheet, [...(bySheet.get(one.sheet) ?? []), one])
+  return (
+    <>
+      <div className="margin-layer" {...stop}>
+        {drawn(onDesk)}
+      </div>
+      {[...bySheet].map(([sheet, group]) => {
+        const target = targets.current.get(sheet)
+        return target?.isConnected
+          ? createPortal(
+              <div className="margin-layer" data-in-sheet="" {...stop}>
+                {drawn(group)}
+              </div>,
+              target,
+              sheet,
+            )
+          : null
+      })}
+    </>
   )
 }
 

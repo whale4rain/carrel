@@ -162,6 +162,12 @@ export function DeskPlane({
   // Lines into the margin, and words just selected that wait in the margin's open box.
   const [marginLines, setMarginLines] = useState<MarginLine[]>([])
   const [draft, setDraft] = useState<MarginDraft>()
+  // A source with lines (or words waiting for one) has its own margin beside its page.
+  const writtenOn = new Set(marginLines.map((line) => line.itemId))
+  // Desk room kept clear to a sheet's right for its margin notes, once it is written on.
+  const marginRoom = (sheet: Sheet): number => (sheet.itemId !== null && writtenOn.has(sheet.itemId) ? MARGIN_ROOM * sheet.scale : 0)
+  const hasMargin = (sheet: Sheet, item: ItemView): boolean =>
+    !sheet.folded && !['note', 'kit'].includes(item.kind) && (writtenOn.has(item.id) || draft?.sheet === sheet.id)
   useEffect(() => {
     let current = true
     void api.marginLines().then((list) => {
@@ -245,7 +251,7 @@ export function DeskPlane({
   const [beside, setBeside] = useState<string[]>([])
   const besideShown = inFocus ? beside.flatMap((id) => sheets.filter((sheet) => sheet.id === id && id !== inFocus.id)) : []
   const shownView: View = inFocus ? { x: 0, y: 0, zoom: 1 } : view
-  const focusLaidOut = inFocus ? focusLayout([inFocus, ...besideShown], screen) : []
+  const focusLaidOut = inFocus ? focusLayout([inFocus, ...besideShown], screen, (sheet) => sheet.itemId !== null && writtenOn.has(sheet.itemId)) : []
   const focusPlaces = useRef(new Map<string, Sheet>())
   focusPlaces.current = new Map(focusLaidOut.map((sheet) => [sheet.id, sheet]))
   // Pointer math follows what is drawn.
@@ -365,7 +371,11 @@ export function DeskPlane({
     let next = current
     for (const item of added) {
       const size = sheetFor(item)
-      const spot = placeNew(next, origin)
+      // Free room in reading order across what the screen shows, keeping margins clear.
+      const spot = placeNew(next, origin, size, {
+        width: Math.max(600, shown.w - 96 / view.zoom),
+        room: marginRoom,
+      })
       const sheet: Sheet = { id: crypto.randomUUID(), itemId: item?.id ?? null, ...spot, ...size, z: Math.max(0, ...next.map((s) => s.z)) + 1 }
       next = [...next, sheet]
     }
@@ -374,8 +384,27 @@ export function DeskPlane({
     setFocused(undefined)
     save(next, 'added', ids, current)
     setSelected(new Set(ids))
+    // What you added may land under what is there: bring it into view, with
+    // what you were looking at (and its margin), zooming out if it takes that.
+    const fresh = next.slice(current.length).map(footprint)
+    const area = clearArea()
+    const clear = visibleRect(view, area.w, area.h)
+    const inside = (box: Rect): boolean => box.x >= clear.x && box.y >= clear.y && box.x + box.w <= clear.x + clear.w && box.y + box.h <= clear.y + clear.h
+    if (fresh.every(inside)) return
+    const seen = current.map((sheet) => ({ ...footprint(sheet), w: footprint(sheet).w + marginRoom(sheet) })).filter((box) => intersects(box, shown))
+    const boxes = [...fresh, ...seen]
+    const left = Math.min(...boxes.map((box) => box.x))
+    const top = Math.min(...boxes.map((box) => box.y))
+    const both = { x: left, y: top, w: Math.max(...boxes.map((box) => box.x + box.w)) - left, h: Math.max(...boxes.map((box) => box.y + box.h)) - top }
+    setView((now) => showIn(now, both, area))
   }
   const addSheet = (): void => addSheets([null])
+  // The desk on screen above its tools at the bottom.
+  const clearArea = (): Rect => {
+    const origin = mat.current?.getBoundingClientRect()
+    const below = [...(mat.current?.querySelectorAll('.desk-nav') ?? [])].map((element) => element.getBoundingClientRect().top - (origin?.top ?? 0))
+    return { x: 0, y: 0, w: screen.w, h: Math.min(screen.h, ...below) - 8 }
+  }
 
   // Sources come into the project first, then onto this desk.
   const addSources = (adding: Promise<ItemView[]>, at?: { x: number; y: number }): void => {
@@ -562,8 +591,7 @@ export function DeskPlane({
   const tidyUp = (): void => {
     const current = latest.current
     // A sheet with lines into the margin keeps its margin clear of the next sheet.
-    const written = new Set(marginLines.map((line) => line.itemId))
-    const next = tidy(current, Math.max(800, (screen.w - 96) / view.zoom), undefined, (sheet) => (sheet.itemId && written.has(sheet.itemId) ? MARGIN_ROOM : 0))
+    const next = tidy(current, Math.max(800, (screen.w - 96) / view.zoom), undefined, (sheet) => (sheet.itemId && writtenOn.has(sheet.itemId) ? MARGIN_ROOM * sheet.scale : 0))
     const ids = changed(current, next).map((sheet) => sheet.id)
     if (ids.length > 0) save(next, 'tidied', ids, current)
   }
@@ -656,6 +684,8 @@ export function DeskPlane({
       const itemId = sheet?.itemId
       if (!picked || !itemId) return false
       setBands(DRAFT_BAND, [window.getSelection()!.getRangeAt(0).cloneRange()])
+      // A hint from a press that missed has done its job.
+      setError(undefined)
       setDraft({
         sheet: picked.sheet,
         itemId,
@@ -743,10 +773,7 @@ export function DeskPlane({
       return
     }
     const box = footprint(sheet)
-    const origin = mat.current?.getBoundingClientRect()
-    const below = [...(mat.current?.querySelectorAll('.desk-nav') ?? [])].map((element) => element.getBoundingClientRect().top - (origin?.top ?? 0))
-    const clear = Math.min(screen.h, ...below) - 8
-    setView((now) => showIn(now, box, { x: 0, y: 0, w: screen.w, h: clear }))
+    setView((now) => showIn(now, box, clearArea()))
     setSelected(new Set([sheet.id]))
     const top = Math.max(...latest.current.map((other) => other.z))
     if (sheet.z < top) {
@@ -1258,6 +1285,12 @@ export function DeskPlane({
                   </div>
                 )}
               </div>
+              {item && hasMargin(sheet, item) && (
+                // The sheet's own margin, beside its page: its lines and notes belong to the sheet.
+                <div className="sheet-margin" data-sheet-margin={sheet.id} style={{ left: box.w, width: MARGIN_ROOM * sheet.scale, height: box.h }}>
+                  <div className="sheet-margin-page" style={{ width: MARGIN_ROOM, height: sheet.h, transform: `scale(${sheet.scale})` }} />
+                </div>
+              )}
             </section>
           )
         })}
@@ -1283,7 +1316,9 @@ export function DeskPlane({
           zoom={shownView.zoom}
           sheets={mounted.flatMap((sheet) => {
             const item = sheet.itemId === null ? undefined : items.get(sheet.itemId)
-            return item && !['note', 'kit'].includes(item.kind) && !sheet.folded ? [{ id: sheet.id, itemId: item.id }] : []
+            return item && !['note', 'kit'].includes(item.kind) && !sheet.folded
+              ? [{ id: sheet.id, itemId: item.id, margin: () => mat.current?.querySelector<HTMLElement>(`[data-sheet-margin="${CSS.escape(sheet.id)}"] .sheet-margin-page`) ?? null }]
+              : []
           })}
           lines={marginLines}
           draft={draft}
@@ -1463,24 +1498,26 @@ export function DeskPlane({
  * one alone across the middle, or side by side with those kept beside it,
  * sharing the width (the focused one a little wider).
  */
-function focusLayout(sheets: readonly Sheet[], screen: { w: number; h: number }): Sheet[] {
+function focusLayout(sheets: readonly Sheet[], screen: { w: number; h: number }, written: (sheet: Sheet) => boolean = () => false): Sheet[] {
   const top = FOCUS_BAR + 16
   const h = Math.max(200, screen.h - top - FOCUS_SHELF - FOCUS_MARGIN)
-  // The margin's notes sit to the right of the sheets, so they get room too.
-  const room = Math.max(320, screen.w - FOCUS_MARGIN * 2 - MARGIN_ROOM)
   const gap = 16
+  // The margin's notes sit to the right of their sheet, so it gets room: always
+  // the focused sheet (you read and ask there), and a sheet beside it once written on.
+  const rooms = sheets.map((sheet, i) => (i === 0 || written(sheet) ? MARGIN_ROOM : 0))
+  const roomFor = rooms.reduce((sum, w) => sum + w, 0) + gap * (sheets.length - 1)
+  const free = Math.max(320, screen.w - FOCUS_MARGIN * 2 - roomFor)
   // The focused sheet's share counts 1.5 when others are beside it.
   const shares = sheets.map((_, i) => (i === 0 && sheets.length > 1 ? 1.5 : 1))
   const total = shares.reduce((sum, share) => sum + share, 0)
-  const free = room - gap * (sheets.length - 1)
-  const widths = sheets.length === 1 ? [Math.min(FOCUS_MAX_W, room)] : shares.map((share) => Math.max(240, Math.floor((free * share) / total)))
-  const used = widths.reduce((sum, w) => sum + w, 0) + gap * (sheets.length - 1)
-  let x = Math.max(FOCUS_MARGIN, Math.round((screen.w - used - MARGIN_ROOM) / 2))
+  const widths = sheets.length === 1 ? [Math.min(FOCUS_MAX_W, free)] : shares.map((share) => Math.max(240, Math.floor((free * share) / total)))
+  const used = widths.reduce((sum, w) => sum + w, 0) + roomFor
+  let x = Math.max(FOCUS_MARGIN, Math.round((screen.w - used) / 2))
   return sheets.map((sheet, i) => {
     const shown: Sheet = { ...sheet, x, y: top, w: widths[i]!, h, scale: 1 }
     delete shown.folded
     delete shown.pile
-    x += widths[i]! + gap
+    x += widths[i]! + rooms[i]! + gap
     return shown
   })
 }

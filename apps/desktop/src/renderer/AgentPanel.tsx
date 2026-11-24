@@ -178,16 +178,6 @@ export function AgentPanel({
     return () => window.clearTimeout(timer)
   }, [focusTurn, thread.turns.length])
 
-  const thatTurn = (turn: Turn): void => {
-    agent.thatTurn(turn.id, here).then(
-      (that) => {
-        setPointed((known) => new Map(known).set(turn.id, that))
-        setLabels((known) => new Map(known).set(that.id, that.label))
-      },
-      (reason: unknown) => setError(reason instanceof Error ? reason.message : String(reason)),
-    )
-  }
-
   const decide = (proposal: ProposalView, accept: boolean): void => {
     agent.decide(proposal.id, accept).then(
       ({ proposal: decided, item }) => {
@@ -232,7 +222,6 @@ export function AgentPanel({
         labels={labels}
         onOpenThat={onOpenThat}
         that={pointed.get(turn.id)}
-        onThat={() => thatTurn(turn)}
         onAddToNote={() => onAddToNote(turn.id, here)}
       >
         {asked && cards(ours.filter((proposal) => proposal.asked === asked))}
@@ -414,7 +403,6 @@ function TurnView({
   labels,
   onOpenThat,
   that,
-  onThat,
   onAddToNote,
   children,
 }: {
@@ -423,7 +411,6 @@ function TurnView({
   onOpenThat: (id: string) => void
   /** The *that.* on this turn, once made. */
   that: ThatView | undefined
-  onThat: () => void
   onAddToNote: () => Promise<ItemView>
   /** Proposals the answer made. */
   children?: ReactNode
@@ -439,7 +426,7 @@ function TurnView({
         <>
           <Markdown className="agent-text" text={turn.text} onThat={onOpenThat} />
           <div className="turn-actions">
-            {that ? (
+            {that && (
               <span
                 className="that-chip turn-chip"
                 draggable
@@ -452,10 +439,6 @@ function TurnView({
               >
                 {that.label}
               </span>
-            ) : (
-              <button type="button" className="turn-that" aria-label="that. this turn" onClick={onThat}>
-                that.
-              </button>
             )}
             <button
               type="button"

@@ -61,8 +61,19 @@ export function raise<T extends SheetBox>(sheets: readonly T[], ids: ReadonlySet
   })
 }
 
-/** Where a new sheet goes: the next free cascade spot from the top-left. */
-export function placeNew(sheets: readonly SheetBox[], origin = { x: 48, y: 48 }): { x: number; y: number } {
+/**
+ * Where a new sheet goes. Given its size, the first free place in reading
+ * order from `origin`: there, beside a sheet, or under one, in rows no wider
+ * than `width`, kept clear of every sheet and of the room each needs to its
+ * right (`room`, its margin). Without a size, the next free cascade spot.
+ */
+export function placeNew<T extends SheetBox>(
+  sheets: readonly T[],
+  origin = { x: 48, y: 48 },
+  size?: { w: number; h: number; scale: number },
+  options: { room?: (sheet: T) => number; width?: number; gap?: number } = {},
+): { x: number; y: number } {
+  if (size) return freeSpot(sheets, origin, size, options)
   const step = 32
   for (let i = 0; i < 50; i++) {
     const spot = { x: origin.x + i * step, y: origin.y + i * step }
@@ -91,3 +102,26 @@ export function inMarquee(sheets: readonly SheetBox[], marquee: Rect): string[] 
 
 /** The scales the selection bar offers. */
 export const SCALES: readonly number[] = [1, 0.8, 0.6, 0.4, 0.3]
+
+function freeSpot<T extends SheetBox>(
+  sheets: readonly T[],
+  origin: { x: number; y: number },
+  size: { w: number; h: number; scale: number },
+  { room = () => 0, width = 1600, gap = 32 }: { room?: (sheet: T) => number; width?: number; gap?: number },
+): { x: number; y: number } {
+  const taken = sheets.map((sheet) => {
+    const box = footprint(sheet)
+    return { ...box, w: box.w + room(sheet) }
+  })
+  const w = size.w * size.scale
+  const h = size.h * size.scale
+  const free = (x: number, y: number): boolean => taken.every((box) => !intersects({ x: x - gap / 2, y: y - gap / 2, w: w + gap, h: h + gap }, box))
+  const spots = [origin, ...taken.flatMap((box) => [{ x: box.x + box.w + gap, y: box.y }, { x: origin.x, y: box.y + box.h + gap }, { x: box.x, y: box.y + box.h + gap }])]
+    .filter((spot) => spot.x >= origin.x && spot.y >= origin.y && spot.x + w <= origin.x + Math.max(width, w))
+    .sort((a, b) => a.y - b.y || a.x - b.x)
+  const spot = spots.find((one) => free(one.x, one.y))
+  if (spot) return { x: Math.round(spot.x), y: Math.round(spot.y) }
+  // Nothing free in the rows: under everything.
+  const bottom = Math.max(origin.y, ...taken.map((box) => box.y + box.h + gap))
+  return { x: origin.x, y: Math.round(bottom) }
+}

@@ -220,6 +220,8 @@ export interface WorkspaceApi {
   addToLine(id: string, entry: Pick<MarginEntry, 'by' | 'text' | 'turnId'>): Promise<MarginLine>
   /** Rubs a line out; what it pointed at is kept. */
   eraseLine(id: string): Promise<void>
+  /** Keeps a line as a new note: the passage, cited to its page, then what was asked and answered. */
+  keepLine(id: string): Promise<ItemView>
   /** Where the agent thinks with you ("with") or waits to be asked ("ask"), by item. */
   marginModes(): Promise<Record<string, MarginMode>>
   setMarginMode(itemId: string, mode: MarginMode): Promise<Record<string, MarginMode>>
@@ -309,6 +311,7 @@ export const workspaceChannels = {
   drawLine: 'workspace:draw-line',
   addToLine: 'workspace:add-to-line',
   eraseLine: 'workspace:erase-line',
+  keepLine: 'workspace:keep-line',
   marginModes: 'workspace:margin-modes',
   setMarginMode: 'workspace:set-margin-mode',
   thatImage: 'workspace:that-image',

@@ -5,7 +5,7 @@ import { mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { expect, test } from '@playwright/test'
-import { place, quit, start } from './app.js'
+import { quit, start } from './app.js'
 
 let home: string
 
@@ -51,11 +51,6 @@ test('the agent opens from the rail, sees what is open, and keeps threads as tab
   await panel.getByRole('button', { name: 'What’s on this desk, in a few lines?' }).click()
   await expect(panel.locator('.agent-me')).toHaveCount(1)
   await expect(panel.locator('.agent-answer:not([data-live])')).toHaveCount(1)
-
-  // On the map, it sees the map, and its next steps change.
-  await place(page, 'Map')
-  await expect(panel.locator('.agent-title')).toContainText('sees the Map')
-  await expect(panel.getByRole('button', { name: 'What did I keep today?' })).toBeVisible()
 
   // + New starts a side thread; its first question names its tab.
   await tabs.getByRole('button', { name: 'New side thread' }).click()

@@ -239,6 +239,25 @@ describe("the agent's proposals through the shell", () => {
 })
 
 describe('turns of the project thread through the shell', () => {
+  it('keeps a margin line as a note: the passage cited to its page, then the question and answer', async () => {
+    const shell = controller()
+    await shell.createProject('Learn economics')
+    const pdf = join(home, 'Supply.pdf')
+    await writeFile(pdf, '%PDF-1.4')
+    const [paper] = await shell.addFiles([pdf])
+    const source = 'Demand is elastic when buyers react strongly.'
+    const that = await shell.makeThat({ itemId: paper?.id, page: 3, text: { source, start: 0, end: 17 } })
+    const line = await shell.drawLine({ itemId: paper?.id, that: that.id, by: 'user', entries: [{ by: 'user', text: 'Why  elastic?' }] })
+    await shell.addToLine(line.id, { by: 'agent', text: 'Buyers can switch.' })
+    const kept = await shell.keepLine(line.id)
+    expect(kept).toMatchObject({ kind: 'note', title: 'Why elastic?' })
+    expect((await shell.readItem('Learn economics', kept.id)).text).toBe(
+      `# Why elastic?\n\n> Demand is elastic\n\n[p.3](that:${that.id})\n\n**Asked:** Why  elastic?\n\nBuyers can switch.\n`,
+    )
+    await expect(shell.keepLine('nope')).rejects.toThrow('rubbed out')
+    shell.close()
+  })
+
   it('points at a turn once, and adds it to a note with a chip back to it', async () => {
     const workspace = new Workspace(carrelRoots(home))
     const shell = new ShellController(workspace)

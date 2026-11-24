@@ -36,9 +36,9 @@ export async function start(home: string, files: string[] = []): Promise<{ app: 
   return { app, page }
 }
 
-/** Goes to a place on the rail: Map, Today, Desks, Notes or Sources. Its column shows beside the rail. */
-export async function place(page: Page, name: 'Map' | 'Today' | 'Desks' | 'Notes' | 'Sources'): Promise<void> {
-  await page.getByRole('navigation', { name: 'Places' }).getByRole('button', { name: name === 'Map' ? 'Map of what you learned' : name, exact: true }).click()
+/** Goes to a place on the rail: Desks, Notes or Sources (the Map and Today are hidden for now). Its column shows beside the rail. */
+export async function place(page: Page, name: 'Desks' | 'Notes' | 'Sources'): Promise<void> {
+  await page.getByRole('navigation', { name: 'Places' }).getByRole('button', { name, exact: true }).click()
 }
 
 /**
